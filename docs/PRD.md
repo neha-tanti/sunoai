@@ -57,13 +57,13 @@ SunoAI points the team leader to what went wrong on a call; it never replaces th
 
 ## User journey
 
-A team leader goes from a recording to fix notes and a coached agent in about a minute.
+A team leader goes from a recording to fix notes and a coached agent without listening to the whole call.
 
 **Team leader: checking a call**
 
 1. Opens SunoAI and uploads a call recording.
 2. Picks the language of the call and the human agent's language for coaching.
-3. Taps "Check this call" and waits a few seconds.
+3. Taps "Check this call" and waits while the page shows progress: transcribing, then analysing.
 4. Reads the report: "Needs review" and red flags first, then the score, frustration, summary, checklist and transcript.
 5. Passes the fix notes to the AI team.
 6. Plays the coaching to the human agent, for example during a one-to-one.
@@ -197,6 +197,7 @@ All open product questions were settled on 9 October 2026.
 These would make SunoAI a full team tool; none is in the first version.
 
 - **Calls over 30 minutes**, split into parts before analysis.
+- **Exact speaker roles**, from stereo recordings or the AI agent's own logs, instead of a best guess.
 - **Live alerts** that tell the AI to hand over before the customer gets angry.
 - **Before and after** for AI fixes: compare calls from before and after a change.
 - **Trends** per agent, per AI flow and per team, such as the check most often missed.
