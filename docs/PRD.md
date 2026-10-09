@@ -53,17 +53,17 @@ SunoAI points the team leader to what went wrong on a call; it never replaces th
 - Changing the AI agent by itself. SunoAI suggests fixes; the AI team decides.
 - Recording calls. SunoAI only reads recordings the team already has.
 - Checking calls live, while they happen.
-- Calls longer than 60 seconds, in the first version.
+- Calls longer than 30 minutes, in the first version.
 
 ## User journey
 
-A team leader goes from a recording to fix notes and a coached agent in about a minute.
+A team leader goes from a recording to fix notes and a coached agent without listening to the whole call.
 
 **Team leader: checking a call**
 
 1. Opens SunoAI and uploads a call recording.
 2. Picks the language of the call and the human agent's language for coaching.
-3. Taps "Check this call" and waits a few seconds.
+3. Taps "Check this call" and waits while the page shows progress: transcribing, then analysing.
 4. Reads the report: "Needs review" and red flags first, then the score, frustration, summary, checklist and transcript.
 5. Passes the fix notes to the AI team.
 6. Plays the coaching to the human agent, for example during a one-to-one.
@@ -92,7 +92,7 @@ The report puts what needs attention first, then the detail behind it; the check
 
 | Part | What it shows | What it must do |
 | --- | --- | --- |
-| Upload | A call recording up to 60 seconds | Say clearly when a file is too long, too big or the wrong type |
+| Upload | A call recording up to 30 minutes and 50 MB | Say clearly when a file is too long, too big or the wrong type |
 | Needs review | A big label at the top when any red flag is found | Appear whatever the score |
 | Red flags | Each problem found, in red | Quote the words that raised the flag, and say whether the AI or the human was speaking |
 | Score | Passed checks out of the checks that apply | Counted by fixed rules, never estimated; shown in colour and in words |
@@ -196,7 +196,8 @@ All open product questions were settled on 9 October 2026.
 
 These would make SunoAI a full team tool; none is in the first version.
 
-- **Long calls** of several minutes, with exact labels for who said what.
+- **Calls over 30 minutes**, split into parts before analysis.
+- **Exact speaker roles**, from stereo recordings or the AI agent's own logs, instead of a best guess.
 - **Live alerts** that tell the AI to hand over before the customer gets angry.
 - **Before and after** for AI fixes: compare calls from before and after a change.
 - **Trends** per agent, per AI flow and per team, such as the check most often missed.
