@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+
+# Next.js and builds
+.next/
+out/
+dist/
+next-env.d.ts
+*.tsbuildinfo
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Vercel and Supabase local state
+.vercel/
+supabase/.temp/
+supabase/.branches/
+
+# Tests
+coverage/
+playwright-report/
+test-results/
+
+# Test call recordings (synthetic or acted; never committed)
+test-calls/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Claude Code local files
+.claude/settings.local.json
+.claude/worktrees/
