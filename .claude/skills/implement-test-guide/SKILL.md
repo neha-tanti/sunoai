@@ -103,7 +103,7 @@ MANDATORY: verify every third-party API (Vitest, Playwright, Hono, Supabase, Zod
    - Never a real recorded call, phone number, address, or payment detail
    - Cover happy path, errors, edge cases — for routes, include the TRD's
      failure table (Gnani 429 / 5xx, failed jobs, empty transcript, bad LLM
-     JSON twice, daily limit) and the webhook and cron arriving together
+     JSON or no answer by the deadline, daily limit) and the webhook and cron arriving together
 
 3. **Stub external services, not SunoAI:**
    - Stub Gnani and OpenRouter at the network boundary — intercept
