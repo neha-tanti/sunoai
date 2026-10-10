@@ -25,9 +25,10 @@ const SETUPS = {
   nemotron: [NEMOTRON],
   apodex: [APODEX],
   dots: [DOTS],
-  'llm-models': [NEMOTRON, APODEX, DOTS],
+  'llm-models': [NEMOTRON, DOTS],
 };
 const REQUEST = {
+  provider: { require_parameters: true },
   response_format: { type: 'json_schema', json_schema: { name: 'call_report', strict: true, schema: REPORT_SCHEMA } },
   reasoning: { enabled: false },
   temperature: 0,
