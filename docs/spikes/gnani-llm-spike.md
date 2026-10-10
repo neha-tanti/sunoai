@@ -2,7 +2,7 @@
 
 Issue: [#1](https://github.com/neha-tanti/sunoai/issues/1). Started 10 October 2026.
 
-The LLM half is done: `nvidia/nemotron-3-super-120b-a12b:free` with reasoning turned off gives the same valid report three times out of three in about 10 seconds, after four prompt drafts. The Gnani half (speaker labels and transcript accuracy) is waiting for a Gnani API key.
+The LLM half is done: `nvidia/nemotron-3-super-120b-a12b:free` with reasoning turned off gives the same valid report three times out of three in about 10 seconds, after four prompt drafts. The Gnani half (speaker labels and transcript accuracy) is waiting for a Gnani API key and is tracked in [#13](https://github.com/neha-tanti/sunoai/issues/13).
 
 | Question | Answer so far |
 | --- | --- |
@@ -62,7 +62,7 @@ OpenRouter: 15 Nemotron requests and 7 failed Gemma requests on 10 October, all 
 
 ## Gnani results
 
-Waiting for the Gnani API key. To be filled in for each run (with and without `with_denoise`):
+Waiting for the Gnani API key ([#13](https://github.com/neha-tanti/sunoai/issues/13)). To be filled in for each run (with and without `with_denoise`):
 
 | Run | Speaker ids found | Speaker accuracy | Transcript accuracy | Language detected | Wall time | Credits |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -79,12 +79,12 @@ LLM_MODELS=nvidia/nemotron-3-super-120b-a12b:free,google/gemma-4-31b-it:free
 
 Nemotron first, with reasoning turned off. Gemma stays as the fallback only because nothing better has been tested; it was never available during the spike.
 
-## Changes the TRD needs
+## Changes made to the TRD
 
 1. **LLM analysis, Model:** put Nemotron first. Send OpenRouter's `reasoning: { enabled: false }` and a strict `json_schema` `response_format`; confirm the `@openrouter/sdk` names for both.
-2. **LLM analysis, What comes back:** replace `handover` with nothing and `frustration` with `customer_mood`, a level (`calm`, `annoyed`, `angry`) for each customer segment id.
-3. **LLM analysis, Rules enforced in code:** add that code sets the handover to the first segment from the speaker labelled `human_agent`, and builds the frustration ranges, peak and turn (the first segment at the peak level) from `customer_mood`. Rule 6's "frustration ranges are sorted and gap-filled" becomes building them from per-segment moods.
-4. **LLM analysis, prompt:** record the prompt rules that changed the results: checks pass when either agent does them; `human_not_transferred` applies even when a transfer comes later; quotes are the shortest phrase, copied exactly, never transliterated; only red flags that happened are listed.
+2. **LLM analysis, What comes back:** drops `handover`, and replaces `frustration` with `customer_mood`, a level (`calm`, `annoyed`, `angry`) for each customer segment id.
+3. **LLM analysis, Rules enforced in code:** code sets the handover to the first segment from the speaker labelled `human_agent`, and builds the frustration ranges, peak and turn (the first segment at the peak level) from `customer_mood`. The unit test scope in the TRD and `testing.md` now names both.
+4. **LLM analysis, prompt:** records the prompt rules that changed the results: checks pass when either agent does them; `human_not_transferred` applies even when a transfer comes later; quotes are the shortest phrase, copied exactly, never transliterated; only red flags that happened are listed.
 5. **Risks:** Gemma's free endpoint can be rate-limited upstream for at least 10 minutes at a time. Since `LLM_MODELS` has only two models, one busy upstream leaves one model. Consider adding OpenRouter credits before demo day.
 
 ## Running the spike

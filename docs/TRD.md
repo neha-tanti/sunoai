@@ -1,6 +1,6 @@
 # SunoAI TRD
 
-Last updated: 9 October 2026
+Last updated: 10 October 2026
 
 ## Summary
 
@@ -144,16 +144,18 @@ Each call gets exactly one LLM request that returns the whole report as JSON, be
 
 **Model**
 
-These free open-weight models were listed by OpenRouter's models API on 9 October 2026. Run all 6 test calls through both, then put the better one first.
+These free open-weight models were listed by OpenRouter's models API on 9 October 2026. The [Gnani and LLM spike](spikes/gnani-llm-spike.md) put Nemotron first: with reasoning off it returned the same valid report 3 times out of 3 in about 10 seconds, while Gemma's free endpoint was rate-limited upstream throughout.
 
-| Model | Context | JSON support |
-| --- | --- | --- |
-| `google/gemma-4-31b-it:free` | 262K tokens | JSON mode only, no strict schema |
-| `nvidia/nemotron-3-super-120b-a12b:free` | 262K tokens | Strict JSON schema |
+| Order | Model | Context | JSON support |
+| --- | --- | --- | --- |
+| 1 | `nvidia/nemotron-3-super-120b-a12b:free` | 262K tokens | Strict JSON schema |
+| 2 | `google/gemma-4-31b-it:free` | 262K tokens | JSON mode only, no strict schema |
+
+- Requests send a strict `json_schema` `response_format` and `reasoning: { enabled: false }`. With reasoning on, Nemotron took up to 70 seconds and its score changed between runs.
 
 - The model list lives in the `LLM_MODELS` environment variable and is sent as OpenRouter's `models` array, so OpenRouter falls back to the next model on errors or rate limits ([model fallbacks](https://openrouter.ai/docs/guides/routing/model-fallbacks)).
 - Free models come and go, so the model that actually answered (the response's `model` field) is saved with each report.
-- The client is `@openrouter/sdk` (ESM only), created once in `lib/llm.ts` with `OPENROUTER_API_KEY`. Its docs show `openRouter.chat.send({ model, messages })`; confirm the names for `models` and the JSON response format in the SDK reference before building.
+- The client is `@openrouter/sdk` (ESM only), created once in `lib/llm.ts` with `OPENROUTER_API_KEY`. Its docs show `openRouter.chat.send({ model, messages })`; confirm the names for `models`, the JSON response format and `reasoning` in the SDK reference before building.
 
 **What goes in**
 
@@ -166,8 +168,7 @@ These free open-weight models were listed by OpenRouter's models API on 9 Octobe
 | Key | Holds |
 | --- | --- |
 | `speakers` | For each speaker id: `ai_agent`, `human_agent`, `customer` or `unknown`, plus a name if one was said |
-| `handover` | The segment where a human takes over, or null |
-| `frustration` | Ranges of `calm`, `annoyed` or `angry` by segment, plus the segment where it turned |
+| `customer_mood` | `calm`, `annoyed` or `angry` for each segment the customer speaks |
 | `checks` | For each check id: `pass`, `miss` or `na`, a segment id, an exact quote and a reason |
 | `red_flags` | Flag id, segment id, exact quote and a note |
 | `summary` | 2 or 3 sentences in English |
@@ -181,7 +182,11 @@ These free open-weight models were listed by OpenRouter's models API on 9 Octobe
 3. Every quote must appear in its segment's text after normalising case, spaces and punctuation. A pass without a valid quote becomes a miss; a red flag without one is dropped and logged.
 4. The score is passed checks divided by checks not marked `na`. 80% or more is Good, 50% to 79% Needs work, under 50% Poor.
 5. `needs_review` is true when at least one red flag survives step 3.
-6. Unknown check or flag ids are dropped, and frustration ranges are sorted and gap-filled.
+6. Unknown check or flag ids are dropped.
+7. The handover is the first segment from the speaker labelled `human_agent`, or null. The spike showed the model points a handover field at the AI's "connecting you" line.
+8. Frustration ranges, the peak and the turn (the first segment at the peak level) are built from `customer_mood`, not asked of the model.
+
+The prompt also states the rules that changed the spike's results: a check passes when either agent does it; `human_not_transferred` applies even when a transfer comes later; a quote is the shortest phrase that proves the point, copied character for character and never transliterated; and only red flags that happened are listed.
 
 The prompt lives in `lib/prompts/analyze.ts` with a `PROMPT_VERSION` constant, saved on each report with a snapshot of the checklist used. Editing the checklist later never changes old reports.
 
@@ -320,7 +325,7 @@ The rules that make the report trustworthy are tested in code; Gnani and the LLM
 
 | Level | Tool | What it covers |
 | --- | --- | --- |
-| Unit | Vitest | Score bands, quote matching, segment id to time, frustration range clean-up, the LLM output schema, parsing Gnani's transcript JSON |
+| Unit | Vitest | Score bands, quote matching, segment id to time, building frustration ranges from per-segment moods, the handover from speaker roles, the LLM output schema, parsing Gnani's transcript JSON |
 | API | Vitest with Hono's `app.request()`, Gnani and OpenRouter mocked | Every route, status changes, the webhook and cron arriving together (only one finishes the call), the daily limit |
 | End to end | Playwright, external services mocked | Sign in, upload, see the report, play coaching, edit the checklist, delete a call |
 | Real services | A script run by hand | The 6 test calls through real Gnani and both LLMs, compared with their expected results |
@@ -361,6 +366,7 @@ The biggest unknowns are how well Gnani separates an AI voice from a human one, 
 | --- | --- | --- |
 | Speaker separation with an AI voice, a human and a customer is untested | Wrong roles in the report | The LLM assigns roles, the page labels them a best guess, and the test calls check it |
 | Free models change, disappear or handle Hinglish poorly | Analysis fails or is wrong | Fallback list in `LLM_MODELS`, the quote rule, Zod validation, and testing both models |
+| A free model's upstream is busy | Gemma returned 429 on every spike request; with two models, one busy upstream leaves one | Consider OpenRouter credits before demo day, which also raise the daily limit |
 | 50 LLM requests a day | Testing or demo day hits the limit | One request per call and the daily guard; 10 OpenRouter credits raise it to 1,000 a day |
 | Gnani credits (5,000) and unpublished rate limits | Running out mid-testing | Short test calls, noise removal only when needed, and checking the dashboard |
 | The webhook isn't signed | Someone could post fake results | Secret token, and the handler re-reads the job status from Gnani before trusting it |
