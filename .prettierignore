@@ -1,0 +1,6 @@
+*.md
+.claude/
+scripts/spike/
+supabase/
+test-calls/
+pnpm-lock.yaml
