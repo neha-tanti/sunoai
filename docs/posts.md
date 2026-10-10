@@ -38,36 +38,15 @@ Not posted yet.
 ```text
 I'm building SunoAI for the Great Indian AI Internship Challenge by Gnani AI 🎧
 
-"Mujhe kisi insaan se baat karni hai."
-("I want to talk to a person.")
+"Mujhe kisi insaan se baat karni hai." ("I want to talk to a person.")
 
-Almost every food delivery customer has said this to an AI support agent. SunoAI finds the exact moment a support call goes wrong.
+SunoAI listens to food delivery support calls and finds the exact moment a customer got frustrated with an AI agent. Gnani Prisma writes down the call with who said what, and Gnani Timbre coaches the human agent in their own language.
 
-What it will do:
-🎧 Listen to a support call where an AI agent hands over to a human
-😤 Show where the customer got frustrated, and why
-🚩 Flag risky moments, like a customer asking for a person and not getting one
-🛠️ Give the AI team fix notes, and coach the human agent in their own language
-Every result quotes the exact words from the call as proof.
+So far:
+✅ Planned the product, a clickable prototype and the tech design (Next.js, Hono, Supabase)
+✅ Tested free LLMs on a made-up Hinglish call: 24/24 valid answers, about 10 seconds each, ₹0
 
-How I planned it, before writing any app code:
-1️⃣ A product document: the problem, the users, the checklist and red flags
-2️⃣ A clickable prototype, to see the report before building it
-3️⃣ A technical design: Next.js, TanStack Query, shadcn/ui, Hono and Supabase
-4️⃣ Gnani Prisma to listen (speech-to-text with speaker labels and timestamps) and Gnani Timbre to speak the coaching
-5️⃣ GitHub issues, built one at a time
-
-First test: the AI "brain" 🧪
-I wrote a made-up Hinglish support call and ran it through free open-weight models on OpenRouter, 3 times for each setup.
-• It took 4 prompt versions to get right
-• 24 out of 24 answers came back as valid JSON
-• My "no quote, no pass" rule caught 10 quotes where the model had changed a word
-• Turning the model's reasoning off took it from up to 70 seconds per call to about 10
-• Letting my code, not the model, decide the handover made it right in every run since
-
-Cost so far: ₹0.
-
-Next: running the same call through Gnani Prisma. Can it tell the AI voice, the human agent and the customer apart?
+Next: testing Gnani Prisma on the same call.
 
 @Gnani AI
 #GreatIndianAIInternshipChallenge #GnaniAI
