@@ -80,7 +80,7 @@ A call moves through 5 statuses; no request waits on Gnani, because each step is
 2. **Upload.** The browser uploads the file straight to the private `calls` bucket. Files never pass through Vercel, which limits request bodies to about 4.5 MB.
 3. **Start.** The page calls `POST /api/calls/:id/check`. Hono makes a signed download URL (valid 2 hours), creates a Gnani Batch job that reads the file from that URL, starts it, and saves the `job_id`.
 4. **Wait.** Gnani calls `POST /api/webhooks/gnani` when the job ends. Because Gnani says webhooks are best-effort, a Supabase Cron job also calls `POST /api/jobs/poll` every minute for calls stuck in Transcribing or Analysing.
-5. **Save the transcript.** Whichever arrives first downloads the transcript JSON from `transcript_url` (it expires after 1 hour) and saves every segment to `transcript_segments`.
+5. **Save the transcript.** Whichever arrives first downloads the transcript JSON from `transcript_url` (it expires after 1 hour), then in one transaction saves every segment to `transcript_segments` and sets Analysing. A call over 30 minutes is set to Failed (`too_long`) instead.
 6. **Analyse.** Hono sends the segments, the checklist and the refund rules to the LLM in one request, checks the answer in code (see LLM analysis), and saves the report.
 7. **Show.** The page polls `GET /api/calls/:id` every 3 seconds while the call is not finished, then shows the report.
 8. **Coach.** "Play coaching" calls `POST /api/calls/:id/coaching-audio`. The first time, Hono asks Gnani Timbre for the audio and stores it; after that it returns the stored file.
@@ -93,7 +93,7 @@ A call moves through 5 statuses; no request waits on Gnani, because each step is
 | ready | Report saved | Analyse |
 | failed | A step failed; `error_code` says which, `error` says why | Any step |
 
-Each step moves the status forward only from the status it expects, with a conditional update (for example `update calls set status = 'analyzing' where id = $1 and status = 'transcribing'`). If the webhook and the cron job both arrive, only one of them does the work.
+Each step moves the status forward only from the status it expects, with a conditional update (for example `update calls set status = 'analyzing' where id = $1 and status = 'transcribing'`). If the webhook and the cron job both arrive, only one of them does the work: when the status update matches no row, its transaction rolls back, so Analysing always means the transcript is saved.
 
 ## Gnani integration
 
@@ -198,7 +198,7 @@ Six Postgres tables and two private Storage buckets; each report's detailed resu
 
 | Table | Main columns | Notes |
 | --- | --- | --- |
-| `calls` | `id`, `title`, `file_path`, `file_size_bytes`, `mime_type`, `call_langs` (text[]), `coaching_lang`, `denoise`, `status`, `error_code`, `error`, `gnani_job_id`, `detected_lang`, `duration_seconds`, `created_by`, `created_at`, `checked_at`, `status_at` | `status` is a Postgres enum with the 5 pipeline statuses. `status_at` defaults to `now()` and a trigger resets it whenever `status` changes, so the cron job can find stuck calls. `error_code` is `analysis_failed`, `daily_limit`, `too_long`, `no_speech`, `file_rejected` or `transcription_failed` |
+| `calls` | `id`, `title`, `file_path`, `file_size_bytes`, `mime_type`, `call_langs` (text[]), `coaching_lang`, `denoise`, `status`, `error_code`, `error`, `gnani_job_id`, `detected_lang`, `duration_seconds`, `created_by`, `created_at`, `checked_at`, `status_at` | `status` is a Postgres enum with the 5 pipeline statuses. `status_at` defaults to `now()` and a trigger resets it whenever `status` changes, so the cron job can find stuck calls. `error_code` is a Postgres enum: `file_rejected`, `transcription_failed`, `no_speech`, `too_long`, `analysis_failed` or `daily_limit` |
 | `transcript_segments` | `id`, `call_id`, `segment_id`, `start_time`, `end_time`, `speaker_id`, `text` | Deleted with its call |
 | `reports` | `call_id`, `score_passed`, `score_total`, `needs_review`, `frustration_peak`, `frustration`, `speakers`, `handover_segment_id`, `checks`, `red_flags`, `fix_notes`, `summary`, `coaching`, `coaching_audio_path`, `llm_model`, `prompt_version`, `checklist_snapshot`, `created_at` | One row per call. Score, Needs review and peak are columns for the Recent calls list; the rest is JSON |
 | `checklist_checks` | `id` (slug), `name`, `rule`, `position`, `active` | Seeded with the 6 default checks |
@@ -233,7 +233,7 @@ Eleven Hono routes under `/api`: nine for the page, one for Gnani's webhook and 
 | `POST /api/jobs/poll` | Supabase Cron | Checks `CRON_SECRET` and sets calls in Analysing for over 5 minutes to Failed ("Analysis failed."), since their function was stopped. Then it asks Gnani about calls in Transcribing for over a minute, oldest first, and finishes the first one that is done; the rest wait for the next run |
 
 - **Mounting:** `app/api/[[...route]]/route.ts` exports `GET`, `POST`, `PUT` and `DELETE` from `handle(app)` in `hono/vercel`. It runs on the Node.js runtime with `maxDuration` set to 300 seconds, the Hobby plan's maximum with Fluid compute, so the analysis step has time.
-- **Background work:** the webhook, cron and Check again routes check their input, respond at once, and do the rest in Next.js `after()`, which runs within the same `maxDuration`. Neither Gnani, `pg_net` (2-second default timeout) nor the page waits on the analysis.
+- **Background work:** the webhook, cron and Check again routes check their input, respond at once, and do the rest in Next.js `after()`, which runs within the same `maxDuration`. Neither Gnani, `pg_net` (2-second default timeout) nor the page waits on the analysis. An error thrown in that work sets the call from Analysing to Failed (`analysis_failed`) with a conditional update; the cron job's 5-minute sweep only catches functions that were stopped.
 - **Validation:** Zod schemas with `@hono/zod-validator` on every body and parameter.
 - **Auth:** middleware reads the Supabase session cookie with `@supabase/ssr` and returns 401 without one. The webhook and poll routes skip it and check their own secrets instead.
 - **Typed client:** the app's route type is exported as `AppType`, and the frontend calls the API through `hc<AppType>('/api')` from `hono/client`, so requests and responses are typed end to end.
@@ -316,11 +316,12 @@ The browser reads the length from the file before upload and blocks files over 3
 | Failure | What the team leader sees | What the system does |
 | --- | --- | --- |
 | Upload fails | "Upload failed. Check your connection and try again." | Call stays Uploaded and can be retried |
-| Gnani rejects the file | "Gnani couldn't read this file. Try an MP3 or WAV." | Status Failed with the reason |
-| Gnani busy (429) or down (5xx) | Still Transcribing | The cron job retries, up to 5 times, then Failed |
-| Job ends in `FAILED`, `START_FAILED` or `PARTIAL_FAILURE` | "Transcription failed." plus the reason | Status Failed |
-| Empty transcript | "No speech found. Check the call language." | Status Failed |
-| LLM returns bad JSON or no answer by the deadline | "Analysis failed." and a Check again button | Status Failed; Check again reuses the saved transcript and reruns only the analysis |
+| Gnani rejects the file | "Gnani couldn't read this file. Try an MP3 or WAV." | Status Failed (`file_rejected`) with the reason |
+| Gnani busy (429) or down (5xx) | Still Transcribing | The cron job retries, up to 5 times, then Failed (`transcription_failed`) |
+| Job ends in `FAILED`, `START_FAILED` or `PARTIAL_FAILURE` | "Transcription failed." plus the reason | Status Failed (`transcription_failed`) |
+| Empty transcript | "No speech found. Check the call language." | Status Failed (`no_speech`) |
+| Call over 30 minutes after transcription | "This call is longer than 30 minutes. Split it and check each part." | Status Failed (`too_long`); the transcript isn't saved |
+| LLM returns bad JSON or no answer by the deadline | "Analysis failed." and a Check again button | Status Failed (`analysis_failed`); Check again reuses the saved transcript and reruns only the analysis |
 | Daily LLM limit reached | "Today's check limit is reached. Checking resumes at 5:30 am." | The check isn't started. If OpenRouter answers Analyse with a 429, Hono re-reads `free_model_daily_requests.remaining`: at 0 the call is Failed with this message and a Check again button (`daily_limit`); otherwise, or if the re-read fails, "Analysis failed." (`analysis_failed`) |
 | Function stopped before the analysis finished | "Analysis failed." and a Check again button | The cron job sets calls in Analysing for over 5 minutes to Failed (`analysis_failed`) |
 | Coaching audio fails | "Couldn't create the coaching audio. Try again." | Nothing is saved; the next click retries |
@@ -332,7 +333,7 @@ The rules that make the report trustworthy are tested in code; Gnani and the LLM
 | Level | Tool | What it covers |
 | --- | --- | --- |
 | Unit | Vitest | Score bands, quote matching, segment id to time, building frustration ranges from per-segment moods, the handover from speaker roles, the LLM output schema, parsing Gnani's transcript JSON |
-| API | Vitest with Hono's `app.request()`, Gnani and OpenRouter mocked | Every route, status changes, the webhook and cron arriving together (only one finishes the call), the daily limit, the cron job failing a call in Analysing for over 5 minutes but not a newer one, and Check again refusing a call that isn't Failed or failed before analysis |
+| API | Vitest with Hono's `app.request()`, Gnani and OpenRouter mocked, and `after` from `next/server` replaced with one that runs the work and lets the test await it | Every route, status changes, the webhook and cron arriving together (only one finishes the call), the daily limit, the cron job failing a call in Analysing for over 5 minutes but not a newer one, and Check again refusing a call that isn't Failed or failed before analysis |
 | End to end | Playwright, external services mocked | Sign in, upload, see the report, play coaching, edit the checklist, delete a call |
 | Real services | A script run by hand | The 6 test calls through real Gnani and both LLMs, compared with their expected results |
 
