@@ -1,64 +1,72 @@
 # Spike: Gnani speaker labels and free LLMs
 
-Issue: [#1](https://github.com/neha-tanti/sunoai/issues/1). Started 10 October 2026.
+Issue: [#1](https://github.com/neha-tanti/sunoai/issues/1). Run 10 October 2026.
 
-The LLM half is done: `nvidia/nemotron-3-super-120b-a12b:free` with reasoning turned off gives the same valid report three times out of three in about 10 seconds, after four prompt drafts. The Gnani half (speaker labels and transcript accuracy) is waiting for a Gnani API key and is tracked in [#13](https://github.com/neha-tanti/sunoai/issues/13).
+The LLM half is done: `nvidia/nemotron-3-super-120b-a12b:free` with reasoning turned off gave the same valid report three times out of three in about 10 seconds, after four prompt drafts, and `dots-studio/dots-3-note-preview:free` is a working but weaker fallback. The Gnani half (speaker labels and transcript accuracy) is waiting for a Gnani API key and is tracked in [#13](https://github.com/neha-tanti/sunoai/issues/13).
 
 | Question | Answer so far |
 | --- | --- |
-| Can Gnani Batch tell an AI voice, a human agent and a customer apart? | Not run yet: the Gnani account's email verification is pending |
-| Can a free OpenRouter model handle Hinglish and return valid JSON with exact quotes? | Yes, Nemotron with reasoning off and prompt v4. Gemma was unavailable for the whole spike |
+| Can Gnani Batch tell an AI voice, a human agent and a customer apart? | Not run yet: there is no Gnani API key |
+| Can a free OpenRouter model handle Hinglish and return valid JSON with exact quotes? | Yes: Nemotron with reasoning off and prompt v4. Dots also works, less accurately |
 
 ## The test call
 
 One synthetic call, written in `scripts/spike/call-script.mjs`: a late order on FreshDabba, a made-up food delivery app. An AI agent (Timbre voice Kaveri, `en-IN`) answers, the customer (Poorvi, `hi-en`) speaks Hinglish, and a human agent (Deepak, `hi-IN`) takes over. The AI ignores "Mujhe kisi insaan se baat karni hai, please" and repeats its answer, then transfers when the customer insists.
 
-Expected results, written down before the first run (segment ids start at 0, so line N is segment N−1):
+Expected results, written down before the first run as `EXPECTED` in `call-script.mjs` (segment N is script line N + 1). `analyze.mjs` lists every difference from them for each run.
 
 | Field | Expected |
 | --- | --- |
-| Speakers | 3 |
-| Handover | Segment 9, the human agent's first line |
 | Checks | All 6 pass, score 6/6 (Good) |
 | Needs review | Yes |
-| Red flags | `human_not_transferred` at segment 5 |
+| Red flags | `human_not_transferred` at segment 5, and no others |
+| Handover | Segment 9, the human agent's first line |
 | Peak frustration | Angry, turning at segment 7 ("Abhi transfer karo!") |
 
 ## LLM results
 
-Every LLM run so far used `transcript-script.json`: the call script in Gnani's transcript shape with correct speaker ids, so these results show the model on a perfect transcript. Each configuration ran 3 times at temperature 0 with the checks from the TRD applied in code: Zod-style shape check, the exact-quote rule, the score and Needs review.
+Every LLM run used `transcript-script.json`: the call script in Gnani's transcript shape with correct speaker ids, so these results show each model on a perfect transcript. Each setup ran 3 times at temperature 0. Code then applied the TRD's rules: a check that every top-level key is present, the exact-quote rule, the score and Needs review.
 
-| Prompt | Model setup | JSON valid | Score per run | Red flag found | Quotes rejected | Time per run |
-| --- | --- | --- | --- | --- | --- | --- |
-| v1 | Nemotron, strict schema, reasoning on | 3/3 | 3/6, 4/6, 4/6 | 1 of 3 runs | 0 | 42–70 s |
-| v2 | Nemotron, strict schema, reasoning on | 3/3 | 5/6, 2/6, 3/6 | 3 of 3 | 6 | 38–58 s |
-| v2 | Nemotron, strict schema, reasoning off | 3/3 | 6/6, 6/6, 6/6 | 3 of 3 | 0 | 10–13 s |
-| v3 | Nemotron, strict schema, reasoning off | 3/3 | 6/6, 4/6, 6/6 | 3 of 3, plus false flags in one run | 2 | 8–22 s |
-| v4 | Nemotron, strict schema, reasoning off | 3/3 | 6/6, 6/6, 6/6 | 3 of 3 | 0 | 10–11 s |
-| v1–v4 | Gemma, JSON mode | — | — | — | — | 429 on all 7 attempts |
+In v1 and v2 the model chose the handover and the turn. From v3 on, code works them out (see below).
+
+| Prompt | Setup | JSON valid | Score per run | Flag at segment 5 | Handover per run | Turn per run | Quotes rejected | Time per run |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| v1 | Nemotron, reasoning on | 3/3 | 3/6, 4/6, 4/6 | 1 of 3 | 8, 8, 8 | 7, 7, 7 | 0 | 42–70 s |
+| v2 | Nemotron, reasoning on | 3/3 | 5/6, 2/6, 3/6 | 2 of 3 | 9, 9, 9 | 7, 7, 7 | 6 | 38–58 s |
+| v2 | Nemotron, reasoning off | 3/3 | 6/6, 6/6, 6/6 | 2 of 3 | 8, 8, 8 | 10, 10, 10 | 0 | 10–13 s |
+| v3 | Nemotron, reasoning off | 3/3 | 6/6, 4/6, 6/6 | 3 of 3 | 9, 9, 9 | 5, 1, 1 | 2 | 8–22 s |
+| v4 | Nemotron, reasoning off | 3/3 | 6/6, 6/6, 6/6 | 3 of 3 | 9, 9, 9 | 5, 5, 5 | 0 | 10–11 s |
+| v4 | Dots, reasoning off | 3/3 | 6/6, 6/6, 5/6 | 3 of 3 | 9, 9, 9 | 1, 1, 1 | 0 | 12–13 s |
+| v4 | `LLM_MODELS` list (Dots, Nemotron, Dots answered) | 3/3 | 5/6, 6/6, 4/6 | 3 of 3 | 9, 9, 9 | 1, 5, 1 | 2 | 7–28 s |
+| v4 | Apodex, reasoning off | — | — | — | — | — | — | 400 on all 3: rejects `json_schema` |
+| v1–v4 | Gemma, JSON mode | — | — | — | — | — | — | 429 on all 7 |
+
+All setups used a strict `json_schema`, except Gemma, which supports only JSON mode. From v4 on, each setup is sent the way `lib/llm.ts` will send it: one request with a `models` list and shared settings.
 
 ### What each prompt change fixed
 
 - **v1 → v2.** The model graded checks against the AI agent only, so the human agent's order confirmation and apology were missed. It also didn't flag the ignored request for a person because the AI transferred later. v2 says checks pass when either agent does them, and that `human_not_transferred` applies even when a transfer comes later.
-- **v2 → v3.** With reasoning off, the model pointed `handover_segment_id` at the AI's "connecting you" line and marked the wrong segments angry, even when told exactly what to pick. v3 drops both fields: the model labels speakers and gives a mood for each customer segment, and code works out the handover (first segment from the `human_agent` speaker), the peak and the turn.
+- **v2 → v3.** With reasoning off, the model pointed the handover at the AI's "connecting you" line (segment 8) and put the turn at segment 10, where the customer is calming down, even when told exactly what to pick. v3 drops both fields: the model labels speakers and gives a mood for each customer segment, and code works out the handover, peak and turn. The handover has been right in every run since.
 - **v3 → v4.** The model added red flags it had judged "Not applicable", each with a real quote, which the quote rule can't catch. It also kept rewriting "two" as "दो" inside Devanagari lines. v4 asks for the shortest phrase that proves the point, copied character for character with no transliteration, and only red flags that happened.
 
 ### Findings
 
-- **Nemotron's strict schema is reliable.** 15 of 15 answers were valid JSON with every key, no code fences and no unknown ids.
+- **The strict schema is reliable.** All 21 answers from Nemotron and Dots were valid JSON with every top-level key, no code fences and no unknown ids.
 - **Reasoning makes Nemotron slower and less stable.** With reasoning on, it spent 2,600–4,800 reasoning tokens per call, took up to 70 seconds (over Vercel's 60-second limit) and its score moved between runs. With reasoning off it answered in about 10 seconds.
-- **Temperature 0 alone does not make the score repeatable.** Scores varied in every setup until prompt v4. The 3-run check in `testing.md` caught each case and must stay part of the test-call runs.
-- **The quote rule is essential.** It rejected 8 quotes where the model had changed a word in a mixed-script line. Every one was a pass that would otherwise have counted.
+- **Temperature 0 alone does not make the report repeatable.** With reasoning on, the score changed in both prompts. With reasoning off, the score was stable in v2 and v4 but not in v3, and v2's red flag still moved. The 3-run check in `testing.md` caught each case and must stay part of the test-call runs.
+- **The quote rule is essential.** It rejected 10 quotes where the model had changed a word in a mixed-script line. Each was a pass that would otherwise have counted.
 - **The quote rule doesn't catch every wrong answer.** A red flag can quote real words and still be wrong. Prompt v4 and the 3-run check are the guards against that.
-- **Hinglish was handled well.** The model understood the Hinglish and Hindi lines, and the Hindi coaching was natural and specific. The weak spot was copying mixed-script text exactly, not understanding it.
-- **Gemma's free endpoint was unavailable.** All 7 requests, made between about 14:57 and 15:07 IST on 10 October, returned 429 "temporarily rate-limited upstream" from Google AI Studio's shared free pool, so its quality is untested. OpenRouter's response was `limit_source: upstream_provider_shared_pool`; it is not clear whether these failures count towards the 50-a-day limit.
-- **Remaining differences from the expected results (v4):**
-  - The model also flagged segment 7, the customer's second request. The AI did transfer straight after it, so that flag is debatable. Needs review is correct either way.
-  - It puts the frustration turn at segment 5, the first request for a person, not segment 7. Segment 5 does show anger ("Aapne pichli baar bhi yahi bola tha"), so the expected value was arguably too strict.
+- **Hinglish was handled well.** Both models understood the Hinglish and Hindi lines, and Nemotron's Hindi coaching was natural and specific. The weak spot was copying mixed-script text exactly, not understanding it.
+- **Fallback happens often, and it changes the report.** In 2 of 3 requests sent with the full list, Nemotron was unavailable and Dots answered, with scores of 5/6 and 4/6 against Nemotron's 6/6. Dots rates the customer only "annoyed" and adds an "agent stuck in a loop" flag for an answer repeated twice, not three times.
+- **A model's listed parameters can't be trusted.** OpenRouter lists `structured_outputs` for Apodex, but its provider rejects `json_schema`. Both Gemma 4 free models list only JSON mode, so neither can be in a list that sends a strict schema. Gemma was also rate-limited upstream for every request between about 14:57 and 15:07 IST.
+- **Failed requests don't count toward the daily limit.** OpenRouter's `GET /api/v1/key` showed `free_model_daily_requests.used` at 15 after 15 successful requests and 7 Gemma 429s. It showed 21 after 6 more successful requests and 3 Apodex 400s.
+- **Misses against the expected results for the chosen setup (Nemotron, v4)**, the same in all 3 runs:
+  - An extra `human_not_transferred` flag at segment 7, the customer's second request, which the AI did answer with a transfer.
+  - The turn at segment 5 instead of 7, because the model rated the first request for a person as angry.
 
-### Credits used
+### Requests used
 
-OpenRouter: 15 Nemotron requests and 7 failed Gemma requests on 10 October, all at $0. Gnani: none yet.
+OpenRouter, 10 October: 21 successful free requests (15 Nemotron, 3 Dots and 3 through the `LLM_MODELS` list), all at $0, plus 10 failed requests that didn't count. Gnani: none yet.
 
 ## Gnani results
 
@@ -69,23 +77,24 @@ Waiting for the Gnani API key ([#13](https://github.com/neha-tanti/sunoai/issues
 | Without denoise | | | | | | |
 | With denoise | | | | | | |
 
-After the Gnani runs, both real transcripts go through `analyze.mjs` with prompt v4 to see how transcription errors and speaker mix-ups change the report.
+After the Gnani runs, both real transcripts go through `analyze.mjs` with prompt v4. That shows how transcription errors and speaker mix-ups change the report, and whether the handover rule holds on real speaker ids.
 
 ## Decision: `LLM_MODELS`
 
 ```
-LLM_MODELS=nvidia/nemotron-3-super-120b-a12b:free,google/gemma-4-31b-it:free
+LLM_MODELS=nvidia/nemotron-3-super-120b-a12b:free,dots-studio/dots-3-note-preview:free
 ```
 
-Nemotron first, with reasoning turned off. Gemma stays as the fallback only because nothing better has been tested; it was never available during the spike.
+Nemotron first and Dots second, both with a strict schema and reasoning turned off. No third free model passed: Apodex rejects the strict schema, Gemma supports only JSON mode, and the remaining candidate (`liquid/lfm-2.5-2.6b:free`) is a 2.6B model that can't turn reasoning off.
 
 ## Changes made to the TRD
 
-1. **LLM analysis, Model:** put Nemotron first. Send OpenRouter's `reasoning: { enabled: false }` and a strict `json_schema` `response_format`; confirm the `@openrouter/sdk` names for both.
+1. **LLM analysis, Model:** Nemotron then Dots, with a strict `json_schema` and `reasoning: { enabled: false }`. Every listed model must accept the strict schema and be tried through the spike first, and the fallback's effect on reports is stated.
 2. **LLM analysis, What comes back:** drops `handover`, and replaces `frustration` with `customer_mood`, a level (`calm`, `annoyed`, `angry`) for each customer segment id.
-3. **LLM analysis, Rules enforced in code:** code sets the handover to the first segment from the speaker labelled `human_agent`, and builds the frustration ranges, peak and turn (the first segment at the peak level) from `customer_mood`. The unit test scope in the TRD and `testing.md` now names both.
+3. **LLM analysis, Rules enforced in code:** code sets the handover to the first segment from the speaker labelled `human_agent`. It builds frustration from customer moods only: each mood holds until the customer's next segment, the turn is the first segment at the peak or null when the peak is calm, and ranges and turn are stored in `reports.frustration`. The unit test scope in the TRD and `testing.md` names both rules.
 4. **LLM analysis, prompt:** records the prompt rules that changed the results: checks pass when either agent does them; `human_not_transferred` applies even when a transfer comes later; quotes are the shortest phrase, copied exactly, never transliterated; only red flags that happened are listed.
-5. **Risks:** Gemma's free endpoint can be rate-limited upstream for at least 10 minutes at a time. Since `LLM_MODELS` has only two models, one busy upstream leaves one model. Consider adding OpenRouter credits before demo day.
+5. **Auth, security and privacy:** the daily guard reads `free_model_daily_requests.used` from OpenRouter's `GET /api/v1/key` instead of counting requests itself.
+6. **Risks:** the primary model is often unavailable, so the weaker fallback writes some reports. The mitigation is to buy 10 OpenRouter credits before demo day, which raises the free limit to 1,000 a day and allows a paid last fallback.
 
 ## Running the spike
 
@@ -99,4 +108,4 @@ node --env-file=.env.local scripts/spike/analyze.mjs --transcript transcript-cal
 node scripts/spike/script-transcript.mjs                            # the script as a perfect transcript, no Gnani needed
 ```
 
-`analyze.mjs` takes `--runs` (default 3) and `--only` to run one model setup, for example `--only noreason`.
+`analyze.mjs` takes `--runs` (default 3) and `--only` to run one setup: `nemotron`, `apodex`, `dots` or `llm-models`.

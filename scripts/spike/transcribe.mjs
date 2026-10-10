@@ -11,6 +11,7 @@ const { values: args } = parseArgs({
 });
 const label = `${basename(args.file, '.wav')}-${args.denoise ? 'denoise' : 'raw'}`;
 const FINAL = ['COMPLETED', 'PARTIAL_FAILURE', 'FAILED', 'START_FAILED', 'CANCELLED'];
+const MAX_WAIT_MS = 15 * 60_000;
 
 const config = {
   model: 'gnani-prisma-v2.5',
@@ -33,6 +34,7 @@ console.log(`Job ${jobId} started (${label})`);
 
 let job;
 do {
+  if (Date.now() - startedAt > MAX_WAIT_MS) throw new Error(`Job ${jobId} still ${job?.status} after ${MAX_WAIT_MS / 60_000} minutes`);
   await new Promise((resolve) => setTimeout(resolve, 10_000));
   job = await (await gnani(`/stt/v3/batch/jobs/${jobId}`)).json();
   console.log(`  ${job.status}`);
@@ -42,7 +44,10 @@ const seconds = (Date.now() - startedAt) / 1000;
 if (job.status !== 'COMPLETED') throw new Error(`Job ended ${job.status}: ${JSON.stringify(job)}`);
 
 const { data: files } = await (await gnani(`/stt/v3/batch/jobs/${jobId}/files?status=COMPLETED`)).json();
-const transcript = await (await fetch(files[0].transcript_url)).json();
+if (!files?.length) throw new Error(`Job ${jobId} completed with no completed files`);
+const transcriptRes = await fetch(files[0].transcript_url);
+if (!transcriptRes.ok) throw new Error(`Transcript download for job ${jobId} failed: ${transcriptRes.status}`);
+const transcript = await transcriptRes.json();
 writeFileSync(join(OUT_DIR, `transcript-${label}.json`), JSON.stringify(transcript, null, 2));
 
 const timeline = JSON.parse(readFileSync(join(OUT_DIR, 'timeline.json'), 'utf8'));

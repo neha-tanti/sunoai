@@ -144,14 +144,16 @@ Each call gets exactly one LLM request that returns the whole report as JSON, be
 
 **Model**
 
-These free open-weight models were listed by OpenRouter's models API on 9 October 2026. The [Gnani and LLM spike](spikes/gnani-llm-spike.md) put Nemotron first: with reasoning off it returned the same valid report 3 times out of 3 in about 10 seconds, while Gemma's free endpoint was rate-limited upstream throughout.
+The [Gnani and LLM spike](spikes/gnani-llm-spike.md) chose these free open-weight models on 10 October 2026. Every model in the list must accept a strict JSON schema, because the request sends one `response_format` to all of them.
 
-| Order | Model | Context | JSON support |
+| Order | Model | Context | Spike result |
 | --- | --- | --- | --- |
-| 1 | `nvidia/nemotron-3-super-120b-a12b:free` | 262K tokens | Strict JSON schema |
-| 2 | `google/gemma-4-31b-it:free` | 262K tokens | JSON mode only, no strict schema |
+| 1 | `nvidia/nemotron-3-super-120b-a12b:free` | 262K tokens | Matched the expected score 3 runs out of 3 in about 10 seconds |
+| 2 | `dots-studio/dots-3-note-preview:free` | 512K tokens | Valid and quick, but weaker: scores of 4/6 to 6/6, frustration rated too low, and an extra loop flag |
 
 - Requests send a strict `json_schema` `response_format` and `reasoning: { enabled: false }`. With reasoning on, Nemotron took up to 70 seconds and its score changed between runs.
+- OpenRouter's `supported_parameters` is not enough to pick a model: `apodex/apodex-1.1-mini:free` lists `structured_outputs` but rejects `json_schema`, and both Gemma 4 free models offer only JSON mode. Try any new model through the spike before adding it.
+- In the spike Nemotron was unavailable for 2 of 3 requests sent with the full list, so Dots answered. The model that answered changes the report, which is why it is saved with each report.
 
 - The model list lives in the `LLM_MODELS` environment variable and is sent as OpenRouter's `models` array, so OpenRouter falls back to the next model on errors or rate limits ([model fallbacks](https://openrouter.ai/docs/guides/routing/model-fallbacks)).
 - Free models come and go, so the model that actually answered (the response's `model` field) is saved with each report.
@@ -184,7 +186,7 @@ These free open-weight models were listed by OpenRouter's models API on 9 Octobe
 5. `needs_review` is true when at least one red flag survives step 3.
 6. Unknown check or flag ids are dropped.
 7. The handover is the first segment from the speaker labelled `human_agent`, or null. The spike showed the model points a handover field at the AI's "connecting you" line.
-8. Frustration ranges, the peak and the turn (the first segment at the peak level) are built from `customer_mood`, not asked of the model.
+8. Frustration is built from `customer_mood`, not asked of the model. Moods on segments not spoken by the `customer` speaker are dropped. Each mood holds from its segment until the customer's next segment, which gives the ranges. The peak is the highest level, and the turn is the first segment at the peak, or null when the peak is calm. The ranges and the turn are stored in `reports.frustration`, and the peak in `frustration_peak`.
 
 The prompt also states the rules that changed the spike's results: a check passes when either agent does it; `human_not_transferred` applies even when a transfer comes later; a quote is the shortest phrase that proves the point, copied character for character and never transliterated; and only red flags that happened are listed.
 
@@ -290,7 +292,7 @@ Only invited team leaders can sign in, every table has row-level security, and A
 - **Test data:** synthetic calls made with Gnani Timbre where possible, otherwise our own acted recordings. The challenge rules allow no real customers, phone numbers, addresses, Aadhaar, PAN, payment details or real recorded calls.
 - **Deleting:** deleting a call removes its recording, coaching audio, transcript and report.
 - **OpenRouter:** prompts are not logged by default. Leave the account's data-training setting off; if a free model then becomes unavailable, use the fallback model.
-- **Protecting the free limit:** `POST /api/calls/:id/check` refuses new checks once 45 LLM requests have been made that day, with a message saying when checking resumes.
+- **Protecting the free limit:** `POST /api/calls/:id/check` reads `free_model_daily_requests.used` from OpenRouter's `GET /api/v1/key` and refuses new checks once it reaches `LLM_DAILY_LIMIT`, with a message saying when checking resumes. OpenRouter's counter includes retries and Check again, and the spike showed failed (429) requests don't count.
 
 ## Limits and error handling
 
@@ -354,7 +356,7 @@ One Vercel project serves the page and the API; one Supabase project holds the d
 | `GNANI_WEBHOOK_TOKEN` | Server | The secret in the callback URL |
 | `OPENROUTER_API_KEY` | Server | The LLM |
 | `LLM_MODELS` | Server | Model ids, first choice first, comma-separated |
-| `LLM_DAILY_LIMIT` | Server | Checks allowed per day; default 45 |
+| `LLM_DAILY_LIMIT` | Server | Free-model requests allowed per day before checks are refused; default 45 |
 | `CRON_SECRET` | Server and the Supabase cron job | Protects `/api/jobs/poll` |
 | `APP_URL` | Server | Builds the webhook URL |
 
@@ -366,7 +368,7 @@ The biggest unknowns are how well Gnani separates an AI voice from a human one, 
 | --- | --- | --- |
 | Speaker separation with an AI voice, a human and a customer is untested | Wrong roles in the report | The LLM assigns roles, the page labels them a best guess, and the test calls check it |
 | Free models change, disappear or handle Hinglish poorly | Analysis fails or is wrong | Fallback list in `LLM_MODELS`, the quote rule, Zod validation, and testing both models |
-| A free model's upstream is busy | Gemma returned 429 on every spike request; with two models, one busy upstream leaves one | Consider OpenRouter credits before demo day, which also raise the daily limit |
+| A free model's upstream is busy | Nemotron was unavailable for 2 of 3 spike requests, so the weaker fallback wrote those reports | Buy 10 OpenRouter credits before demo day. That raises the free limit to 1,000 requests a day and allows a paid model as the last entry in `LLM_MODELS`. The report saves which model answered |
 | 50 LLM requests a day | Testing or demo day hits the limit | One request per call and the daily guard; 10 OpenRouter credits raise it to 1,000 a day |
 | Gnani credits (5,000) and unpublished rate limits | Running out mid-testing | Short test calls, noise removal only when needed, and checking the dashboard |
 | The webhook isn't signed | Someone could post fake results | Secret token, and the handler re-reads the job status from Gnani before trusting it |

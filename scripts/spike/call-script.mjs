@@ -27,10 +27,11 @@ const SCRIPT = [
 
 export const LINES = SCRIPT.map(([role, text]) => ({ role, text, ...VOICES[role] }));
 
-// Written down before the first run (testing.md). Line numbers are 1-based indexes into LINES.
+// Written down before the first run (testing.md).
 export const EXPECTED = {
-  speakers: 3,
-  handover_line: 10,
+  score: '6/6',
+  needs_review: true,
+  frustration_peak: 'angry',
   checks: {
     order_confirmed: 'pass',
     problem_understood: 'pass',
@@ -39,9 +40,10 @@ export const EXPECTED = {
     smooth_handover: 'pass',
     closing: 'pass',
   },
-  score: '6/6 (Good)',
-  needs_review: true,
-  red_flags: { human_not_transferred: 6 },
-  frustration_peak: 'angry',
-  frustration_turn_line: 8,
+  // Segment ids in transcript-script.json, where segment N is LINES[N].
+  segments: {
+    red_flags: ['human_not_transferred@5'],
+    handover: 9,
+    frustration_turn: 7,
+  },
 };
