@@ -1,6 +1,6 @@
 # SunoAI TRD
 
-Last updated: 9 October 2026
+Last updated: 10 October 2026
 
 ## Summary
 
@@ -79,8 +79,8 @@ A call moves through 5 statuses; no request waits on Gnani, because each step is
 1. **Create.** The page calls `POST /api/calls`. Hono creates a `calls` row and returns a signed upload URL for Supabase Storage.
 2. **Upload.** The browser uploads the file straight to the private `calls` bucket. Files never pass through Vercel, which limits request bodies to about 4.5 MB.
 3. **Start.** The page calls `POST /api/calls/:id/check`. Hono makes a signed download URL (valid 2 hours), creates a Gnani Batch job that reads the file from that URL, starts it, and saves the `job_id`.
-4. **Wait.** Gnani calls `POST /api/webhooks/gnani` when the job ends. Because Gnani says webhooks are best-effort, a Supabase Cron job also calls `POST /api/jobs/poll` every minute for calls stuck in Transcribing.
-5. **Save the transcript.** Whichever arrives first downloads the transcript JSON from `transcript_url` (it expires after 1 hour) and saves every segment to `transcript_segments`.
+4. **Wait.** Gnani calls `POST /api/webhooks/gnani` when the job ends. Because Gnani says webhooks are best-effort, a Supabase Cron job also calls `POST /api/jobs/poll` every minute for calls stuck in Transcribing or Analysing.
+5. **Save the transcript.** Whichever arrives first downloads the transcript JSON from `transcript_url` (it expires after 1 hour), then calls the `save_transcript` Postgres function with `.rpc()`, which saves every segment to `transcript_segments` and sets Analysing in one transaction. A call over 30 minutes is set to Failed (`too_long`) instead.
 6. **Analyse.** Hono sends the segments, the checklist and the refund rules to the LLM in one request, checks the answer in code (see LLM analysis), and saves the report.
 7. **Show.** The page polls `GET /api/calls/:id` every 3 seconds while the call is not finished, then shows the report.
 8. **Coach.** "Play coaching" calls `POST /api/calls/:id/coaching-audio`. The first time, Hono asks Gnani Timbre for the audio and stores it; after that it returns the stored file.
@@ -89,11 +89,11 @@ A call moves through 5 statuses; no request waits on Gnani, because each step is
 | --- | --- | --- |
 | uploaded | File is in Storage; not checked yet | Create and upload |
 | transcribing | Gnani job created and started | Start |
-| analyzing | Transcript saved; LLM running | Webhook or cron |
+| analyzing | Transcript saved; LLM running | Webhook, cron or Check again |
 | ready | Report saved | Analyse |
-| failed | A step failed; `error` says which and why | Any step |
+| failed | A step failed; `error_code` says which, `error` says why | Any step |
 
-Each step moves the status forward only from the status it expects, with a conditional update (for example `update calls set status = 'analyzing' where id = $1 and status = 'transcribing'`). If the webhook and the cron job both arrive, only one of them does the work.
+Each step moves the status forward only from the status it expects, with a conditional update (for example `update calls set status = 'analyzing' where id = $1 and status = 'transcribing'`). If the webhook and the cron job both arrive, only one of them does the work: `save_transcript` runs its conditional update first and returns `false` without inserting anything when no row matches, so Analysing always means the transcript is saved.
 
 ## Gnani integration
 
@@ -144,16 +144,20 @@ Each call gets exactly one LLM request that returns the whole report as JSON, be
 
 **Model**
 
-These free open-weight models were listed by OpenRouter's models API on 9 October 2026. Run all 6 test calls through both, then put the better one first.
+The [Gnani and LLM spike](spikes/gnani-llm-spike.md) chose these free open-weight models on 10 October 2026. Every model in the list must accept a strict JSON schema, because the request sends one `response_format` to all of them.
 
-| Model | Context | JSON support |
-| --- | --- | --- |
-| `google/gemma-4-31b-it:free` | 262K tokens | JSON mode only, no strict schema |
-| `nvidia/nemotron-3-super-120b-a12b:free` | 262K tokens | Strict JSON schema |
+| Order | Model | Context | Spike result |
+| --- | --- | --- | --- |
+| 1 | `nvidia/nemotron-3-super-120b-a12b:free` | 262K tokens | Matched the expected score 3 runs out of 3 in about 10 seconds |
+| 2 | `dots-studio/dots-3-note-preview:free` | 512K tokens | Valid, but weaker: scores of 4/6 to 6/6, frustration rated too low, and an extra loop flag in 5 of 6 answers |
+
+- Requests send a strict `json_schema` `response_format`, `reasoning: { enabled: false }` and `provider: { require_parameters: true }`, so only providers that honour the schema are picked. With reasoning on, Nemotron took up to 70 seconds and its score changed between runs.
+- OpenRouter's `supported_parameters` is not enough to pick a model: `apodex/apodex-1.1-mini:free` lists `structured_outputs` but rejects `json_schema`, and both Gemma 4 free models offer only JSON mode. Try any new model through the spike before adding it.
+- In the spike, Nemotron was unavailable for 1 of 3 requests sent with this list, so Dots answered. That answer took 26.5 seconds, against about 7 for Nemotron. The model that answered changes the report, which is why it is saved with each report.
 
 - The model list lives in the `LLM_MODELS` environment variable and is sent as OpenRouter's `models` array, so OpenRouter falls back to the next model on errors or rate limits ([model fallbacks](https://openrouter.ai/docs/guides/routing/model-fallbacks)).
 - Free models come and go, so the model that actually answered (the response's `model` field) is saved with each report.
-- The client is `@openrouter/sdk` (ESM only), created once in `lib/llm.ts` with `OPENROUTER_API_KEY`. Its docs show `openRouter.chat.send({ model, messages })`; confirm the names for `models` and the JSON response format in the SDK reference before building.
+- The client is `@openrouter/sdk` (ESM only), created once in `lib/llm.ts` with `OPENROUTER_API_KEY`. Its docs show `openRouter.chat.send({ model, messages })`; confirm the names for `models`, the JSON response format and `reasoning` in the SDK reference before building.
 
 **What goes in**
 
@@ -166,8 +170,7 @@ These free open-weight models were listed by OpenRouter's models API on 9 Octobe
 | Key | Holds |
 | --- | --- |
 | `speakers` | For each speaker id: `ai_agent`, `human_agent`, `customer` or `unknown`, plus a name if one was said |
-| `handover` | The segment where a human takes over, or null |
-| `frustration` | Ranges of `calm`, `annoyed` or `angry` by segment, plus the segment where it turned |
+| `customer_mood` | `calm`, `annoyed` or `angry` for each segment the customer speaks |
 | `checks` | For each check id: `pass`, `miss` or `na`, a segment id, an exact quote and a reason |
 | `red_flags` | Flag id, segment id, exact quote and a note |
 | `summary` | 2 or 3 sentences in English |
@@ -176,12 +179,16 @@ These free open-weight models were listed by OpenRouter's models API on 9 Octobe
 
 **Rules enforced in code, not trusted to the model**
 
-1. The answer is parsed with Zod. Invalid JSON gets one retry with the error message; a second failure sets the call to `failed`.
+1. The answer is parsed with Zod, with no retry: in the spike all 24 strict-schema answers were valid JSON. Every function that runs the analysis (the webhook, the cron job and Check again) sets a deadline 280 seconds after it starts, 20 seconds inside the 300-second function limit, and every outbound request it makes (the Gnani reads and the LLM request) is cancelled at that deadline. Invalid JSON or no answer by the deadline sets the call to `failed`, and Check again reruns only the analysis.
 2. The model returns segment ids, never times. Code turns them into `start_time`, so no timestamp is invented.
 3. Every quote must appear in its segment's text after normalising case, spaces and punctuation. A pass without a valid quote becomes a miss; a red flag without one is dropped and logged.
 4. The score is passed checks divided by checks not marked `na`. 80% or more is Good, 50% to 79% Needs work, under 50% Poor.
 5. `needs_review` is true when at least one red flag survives step 3.
-6. Unknown check or flag ids are dropped, and frustration ranges are sorted and gap-filled.
+6. Unknown check or flag ids are dropped.
+7. The handover is the first segment from the speaker labelled `human_agent`, or null. The spike showed the model points a handover field at the AI's "connecting you" line.
+8. Frustration is built from `customer_mood`, not asked of the model. Moods on segments not spoken by the `customer` speaker are dropped. A customer segment the model gives no mood keeps the previous one, or calm when there is none. Each mood holds from its segment until the customer's next segment, which gives the ranges. The peak is the highest level, and the turn is the first segment at the peak, or null when the peak is calm. The ranges and the turn are stored in `reports.frustration`, and the peak in `frustration_peak`.
+
+The prompt also states the rules that changed the spike's results: a check passes when either agent does it; `human_not_transferred` applies even when a transfer comes later; a quote is the shortest phrase that proves the point, copied character for character and never transliterated; and only red flags that happened are listed.
 
 The prompt lives in `lib/prompts/analyze.ts` with a `PROMPT_VERSION` constant, saved on each report with a snapshot of the checklist used. Editing the checklist later never changes old reports.
 
@@ -191,7 +198,7 @@ Six Postgres tables and two private Storage buckets; each report's detailed resu
 
 | Table | Main columns | Notes |
 | --- | --- | --- |
-| `calls` | `id`, `title`, `file_path`, `file_size_bytes`, `mime_type`, `call_langs` (text[]), `coaching_lang`, `denoise`, `status`, `error`, `gnani_job_id`, `detected_lang`, `duration_seconds`, `created_by`, `created_at`, `checked_at` | `status` is a Postgres enum with the 5 pipeline statuses |
+| `calls` | `id`, `title`, `file_path`, `file_size_bytes`, `mime_type`, `call_langs` (text[]), `coaching_lang`, `denoise`, `status`, `error_code`, `error`, `gnani_job_id`, `detected_lang`, `duration_seconds`, `created_by`, `created_at`, `checked_at`, `status_at`, `gnani_attempts` | `status` is a Postgres enum with the 5 pipeline statuses. `status_at` defaults to `now()` and a trigger resets it whenever `status` changes, so the cron job can find stuck calls. `error_code` is a Postgres enum: `file_rejected`, `transcription_failed`, `no_speech`, `too_long`, `analysis_failed` or `daily_limit`. `gnani_attempts` counts Gnani 429 and 5xx answers for the call |
 | `transcript_segments` | `id`, `call_id`, `segment_id`, `start_time`, `end_time`, `speaker_id`, `text` | Deleted with its call |
 | `reports` | `call_id`, `score_passed`, `score_total`, `needs_review`, `frustration_peak`, `frustration`, `speakers`, `handover_segment_id`, `checks`, `red_flags`, `fix_notes`, `summary`, `coaching`, `coaching_audio_path`, `llm_model`, `prompt_version`, `checklist_snapshot`, `created_at` | One row per call. Score, Needs review and peak are columns for the Recent calls list; the rest is JSON |
 | `checklist_checks` | `id` (slug), `name`, `rule`, `position`, `active` | Seeded with the 6 default checks |
@@ -203,28 +210,30 @@ Six Postgres tables and two private Storage buckets; each report's detailed resu
 | `calls` | `{call_id}/{file name}` | Uploaded recordings |
 | `coaching` | `{call_id}.wav` | Generated coaching audio |
 
-- Indexes: `calls (created_at desc)` for Recent calls, `calls (status)` for the cron job, and `transcript_segments (call_id, start_time)`.
+- Indexes: `calls (created_at desc)` for Recent calls, `calls (status, status_at)` for the cron job, and `transcript_segments (call_id, start_time)`.
 - Removed checks and red flags are set to `active = false` rather than deleted, so old snapshots still read correctly.
 - Schema changes are Supabase CLI migrations in `supabase/migrations`, and the default checklist is a seed file.
 
 ## API
 
-Ten Hono routes under `/api`: eight for the page, one for Gnani's webhook and one for the cron job.
+Eleven Hono routes under `/api`: nine for the page, one for Gnani's webhook and one for the cron job.
 
 | Route | Called by | What it does |
 | --- | --- | --- |
 | `POST /api/calls` | Page | Checks title, file name, size, type and languages; creates the call; returns its id and a signed upload URL |
 | `POST /api/calls/:id/check` | Page | Confirms the file is in Storage, creates and starts the Gnani job, sets Transcribing |
+| `POST /api/calls/:id/analyze` | Page | Check again: applies the daily guard, then sets Analysing only for a Failed call whose `error_code` is `analysis_failed` or `daily_limit`, and reruns only the analysis. Any other call gets a 409 with code `not_retryable` |
 | `GET /api/calls` | Page | Recent calls, newest first, with score, Needs review, peak frustration and status, plus the team average |
 | `GET /api/calls/:id` | Page | The call, its report and its transcript segments |
 | `POST /api/calls/:id/coaching-audio` | Page | Returns a signed URL for the coaching audio, generating it the first time |
 | `DELETE /api/calls/:id` | Page | Cancels a running Gnani job, then deletes the files and rows |
 | `GET /api/checklist` | Page | Active checks, red flags and rules |
-| `PUT /api/checklist` | Page | Saves checks, red flags and rules in one transaction |
+| `PUT /api/checklist` | Page | Saves checks, red flags and rules in one transaction, through the `save_checklist` Postgres function called with `.rpc()` |
 | `POST /api/webhooks/gnani` | Gnani | Checks the token, then finishes the call (save transcript, analyse) |
-| `POST /api/jobs/poll` | Supabase Cron | Checks `CRON_SECRET`, asks Gnani about calls in Transcribing for over a minute, and finishes any that are done |
+| `POST /api/jobs/poll` | Supabase Cron | Checks `CRON_SECRET` and sets calls in Analysing for over 5 minutes to Failed ("Analysis failed."), since their function was stopped. Then it asks Gnani about calls in Transcribing for over a minute, oldest first, and finishes the first one that is done; the rest wait for the next run |
 
-- **Mounting:** `app/api/[[...route]]/route.ts` exports `GET`, `POST`, `PUT` and `DELETE` from `handle(app)` in `hono/vercel`. It runs on the Node.js runtime with a maximum duration of 60 seconds, so the analysis step has time.
+- **Mounting:** `app/api/[[...route]]/route.ts` exports `GET`, `POST`, `PUT` and `DELETE` from `handle(app)` in `hono/vercel`. It runs on the Node.js runtime with `maxDuration` set to 300 seconds, the Hobby plan's maximum with Fluid compute, so the analysis step has time.
+- **Background work:** the webhook, cron and Check again routes check their input, respond at once, and do the rest in Next.js `after()`, which runs within the same `maxDuration`. Neither Gnani, `pg_net` (2-second default timeout) nor the page waits on the analysis. An error thrown in that work sets the call to Failed with a conditional update from the status it was in: `transcription_failed` from Transcribing and `analysis_failed` from Analysing. Only a Gnani 429 or 5xx leaves a Transcribing call for the next cron run (see the failure table); the cron job's 5-minute sweep only catches functions that were stopped.
 - **Validation:** Zod schemas with `@hono/zod-validator` on every body and parameter.
 - **Auth:** middleware reads the Supabase session cookie with `@supabase/ssr` and returns 401 without one. The webhook and poll routes skip it and check their own secrets instead.
 - **Typed client:** the app's route type is exported as `AppType`, and the frontend calls the API through `hc<AppType>('/api')` from `hono/client`, so requests and responses are typed end to end.
@@ -264,6 +273,7 @@ Five Next.js routes built from shadcn/ui parts, with all server data going throu
 | `['call', id]` | `GET /api/calls/:id` | Refetches every 3 seconds while the status is not Ready or Failed, then stops |
 | `['checklist']` | `GET /api/checklist` | |
 | `useCheckCall` | `POST /api/calls`, upload to the signed URL, `POST /api/calls/:id/check` | Then opens `/calls/[id]` |
+| `useCheckAgain` | `POST /api/calls/:id/analyze` | Invalidates `['call', id]`, which restarts its polling |
 | `useCoachingAudio` | `POST /api/calls/:id/coaching-audio` | Cached per call |
 | `useSaveChecklist` | `PUT /api/checklist` | Invalidates `['checklist']` |
 | `useDeleteCall` | `DELETE /api/calls/:id` | Invalidates `['calls']` |
@@ -285,7 +295,7 @@ Only invited team leaders can sign in, every table has row-level security, and A
 - **Test data:** synthetic calls made with Gnani Timbre where possible, otherwise our own acted recordings. The challenge rules allow no real customers, phone numbers, addresses, Aadhaar, PAN, payment details or real recorded calls.
 - **Deleting:** deleting a call removes its recording, coaching audio, transcript and report.
 - **OpenRouter:** prompts are not logged by default. Leave the account's data-training setting off; if a free model then becomes unavailable, use the fallback model.
-- **Protecting the free limit:** `POST /api/calls/:id/check` refuses new checks once 45 LLM requests have been made that day, with a message saying when checking resumes.
+- **Protecting the free limit:** `POST /api/calls/:id/check` and Check again (`POST /api/calls/:id/analyze`) read `free_model_daily_requests.remaining` from OpenRouter's `GET /api/v1/key` and refuse when no requests remain, since each uses exactly one. If that read fails, the check goes ahead, and a limit hit later is caught by the 429 rule in the failure table. OpenRouter's counter follows whatever limit the account has and resets at midnight UTC (5:30 am IST). The spike showed failed requests don't count.
 
 ## Limits and error handling
 
@@ -299,19 +309,22 @@ The MVP accepts calls up to 50 MB and 30 minutes, and every failure ends in a cl
 | Polling | No more than every 10 seconds | Gnani; our cron runs every minute |
 | Transcript link | Expires after 1 hour | Gnani; saved immediately |
 | LLM requests | 50 a day without credits | OpenRouter free models |
-| Request time | 60 seconds | Vercel function setting |
+| Request time | 300 seconds | Vercel Hobby maximum with Fluid compute; our `maxDuration` |
 
 The browser reads the length from the file before upload and blocks files over 30 minutes; the server checks `duration_seconds` again after transcription.
 
 | Failure | What the team leader sees | What the system does |
 | --- | --- | --- |
 | Upload fails | "Upload failed. Check your connection and try again." | Call stays Uploaded and can be retried |
-| Gnani rejects the file | "Gnani couldn't read this file. Try an MP3 or WAV." | Status Failed with the reason |
-| Gnani busy (429) or down (5xx) | Still Transcribing | The cron job retries, up to 5 times, then Failed |
-| Job ends in `FAILED`, `START_FAILED` or `PARTIAL_FAILURE` | "Transcription failed." plus the reason | Status Failed |
-| Empty transcript | "No speech found. Check the call language." | Status Failed |
-| LLM returns bad JSON twice | "Analysis failed." and a Check again button | Status Failed; Check again reuses the saved transcript and reruns only the analysis |
-| Daily LLM limit reached | "Today's check limit is reached. Try again tomorrow." | The check isn't started |
+| Gnani rejects the file | "Gnani couldn't read this file. Try an MP3 or WAV." | Status Failed (`file_rejected`) with the reason |
+| Gnani busy (429) or down (5xx) | Still Transcribing | `gnani_attempts` goes up by 1 and the next cron run retries; at 5 the call is Failed (`transcription_failed`) |
+| Saving the transcript fails for any other reason | "Transcription failed." | Status Failed (`transcription_failed`), so the call doesn't hold up the cron job's queue |
+| Job ends in `FAILED`, `START_FAILED` or `PARTIAL_FAILURE` | "Transcription failed." plus the reason | Status Failed (`transcription_failed`) |
+| Empty transcript | "No speech found. Check the call language." | Status Failed (`no_speech`) |
+| Call over 30 minutes after transcription | "This call is longer than 30 minutes. Split it and check each part." | Status Failed (`too_long`); the transcript isn't saved |
+| LLM returns bad JSON or no answer by the deadline | "Analysis failed." and a Check again button | Status Failed (`analysis_failed`); Check again reuses the saved transcript and reruns only the analysis |
+| Daily LLM limit reached | "Today's check limit is reached. Checking resumes at 5:30 am." | The check isn't started. If OpenRouter answers Analyse with a 429, Hono re-reads `free_model_daily_requests.remaining`: at 0 the call is Failed with this message and a Check again button (`daily_limit`); otherwise, or if the re-read fails, "Analysis failed." (`analysis_failed`) |
+| Function stopped before the analysis finished | "Analysis failed." and a Check again button | The cron job sets calls in Analysing for over 5 minutes to Failed (`analysis_failed`) |
 | Coaching audio fails | "Couldn't create the coaching audio. Try again." | Nothing is saved; the next click retries |
 
 ## Testing
@@ -320,8 +333,8 @@ The rules that make the report trustworthy are tested in code; Gnani and the LLM
 
 | Level | Tool | What it covers |
 | --- | --- | --- |
-| Unit | Vitest | Score bands, quote matching, segment id to time, frustration range clean-up, the LLM output schema, parsing Gnani's transcript JSON |
-| API | Vitest with Hono's `app.request()`, Gnani and OpenRouter mocked | Every route, status changes, the webhook and cron arriving together (only one finishes the call), the daily limit |
+| Unit | Vitest | Score bands, quote matching, segment id to time, building frustration ranges from per-segment moods, the handover from speaker roles, the LLM output schema, parsing Gnani's transcript JSON |
+| API | Vitest with Hono's `app.request()`, Gnani and OpenRouter mocked, and `after` from `next/server` replaced with one that runs the work and lets the test await it | Every route, status changes, the webhook and cron arriving together (only one finishes the call), the daily limit, the cron job failing a call in Analysing for over 5 minutes but not a newer one, and Check again refusing a call that isn't Failed or failed before analysis |
 | End to end | Playwright, external services mocked | Sign in, upload, see the report, play coaching, edit the checklist, delete a call |
 | Real services | A script run by hand | The 6 test calls through real Gnani and both LLMs, compared with their expected results |
 
@@ -349,7 +362,6 @@ One Vercel project serves the page and the API; one Supabase project holds the d
 | `GNANI_WEBHOOK_TOKEN` | Server | The secret in the callback URL |
 | `OPENROUTER_API_KEY` | Server | The LLM |
 | `LLM_MODELS` | Server | Model ids, first choice first, comma-separated |
-| `LLM_DAILY_LIMIT` | Server | Checks allowed per day; default 45 |
 | `CRON_SECRET` | Server and the Supabase cron job | Protects `/api/jobs/poll` |
 | `APP_URL` | Server | Builds the webhook URL |
 
@@ -361,10 +373,11 @@ The biggest unknowns are how well Gnani separates an AI voice from a human one, 
 | --- | --- | --- |
 | Speaker separation with an AI voice, a human and a customer is untested | Wrong roles in the report | The LLM assigns roles, the page labels them a best guess, and the test calls check it |
 | Free models change, disappear or handle Hinglish poorly | Analysis fails or is wrong | Fallback list in `LLM_MODELS`, the quote rule, Zod validation, and testing both models |
-| 50 LLM requests a day | Testing or demo day hits the limit | One request per call and the daily guard; 10 OpenRouter credits raise it to 1,000 a day |
+| A free model's upstream is busy | Nemotron was unavailable for 1 of 3 spike requests, so the weaker fallback wrote that report | Dots answers as the fallback, the report saves which model answered, and Check again reruns the analysis |
+| 50 LLM requests a day | Testing or demo day hits the limit | One request per call and the daily guard. 10 OpenRouter credits are bought before demo day, which raises the limit to 1,000 a day |
 | Gnani credits (5,000) and unpublished rate limits | Running out mid-testing | Short test calls, noise removal only when needed, and checking the dashboard |
 | The webhook isn't signed | Someone could post fake results | Secret token, and the handler re-reads the job status from Gnani before trusting it |
-| Vercel's 60-second limit | A slow model times out | Fallback model, and Check again reruns only the analysis |
+| Vercel's 300-second limit (Hobby maximum) | A slow model or Gnani read keeps the function past it | One 280-second deadline per function covering every outbound request, no LLM retry, cron finishes one call per run and fails calls left in Analysing, and Check again reruns only the analysis |
 
 **To confirm on Gnani's Discord**
 
