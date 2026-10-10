@@ -38,11 +38,11 @@ In v1 and v2 the model chose the handover and the turn. From v3 on, code works t
 | v4 | Nemotron, reasoning off | 3/3 | 6/6, 6/6, 6/6 | 3 of 3 | 9, 9, 9 | 5, 5, 5 | 0 | 10–11 s |
 | v4 | Dots, reasoning off | 3/3 | 6/6, 6/6, 5/6 | 3 of 3 | 9, 9, 9 | 1, 1, 1 | 0 | 12–13 s |
 | v4 | List of Nemotron, Apodex, Dots; answered by Dots, Nemotron, Dots | 3/3 | 5/6, 6/6, 4/6 | 3 of 3 | 9, 9, 9 | 1, 5, 1 | 2 | 7–28 s |
-| v4 | Decided `LLM_MODELS`: Nemotron, Dots; answered by Dots, Nemotron, Nemotron | 3/3 | 6/6, 6/6, 6/6 | 3 of 3 | 9, 9, 9 | 1, 5, 5 | 0 | 7–27 s |
+| v4 | Decided `LLM_MODELS`: Nemotron, Dots; answered by Dots, Nemotron, Nemotron | 3/3 | 6/6, 6/6, 6/6 | 3 of 3 | 9, 9, 9 | 1, 5, 5 | 0 | 7–26.5 s |
 | v4 | Apodex, reasoning off | — | — | — | — | — | — | 400 on all 3: rejects `json_schema` |
 | v1–v4 | Gemma, JSON mode | — | — | — | — | — | — | 429 on all 7 |
 
-All setups used a strict `json_schema`, except Gemma, which supports only JSON mode. The Dots, Apodex and both list rows were sent the way `lib/llm.ts` will send them: one request with a `models` list and shared settings. The decided `LLM_MODELS` row also sent `provider: { require_parameters: true }`, so it is the exact production request.
+All setups used a strict `json_schema`, except Gemma, which supports only JSON mode. The Dots, Apodex and both list rows used the request shape `lib/llm.ts` will use: one request with a `models` list and shared settings. Only the decided `LLM_MODELS` row also sent `provider: { require_parameters: true }`, as `lib/llm.ts` will.
 
 ### What each prompt change fixed
 
@@ -58,7 +58,7 @@ All setups used a strict `json_schema`, except Gemma, which supports only JSON m
 - **The quote rule is essential.** It rejected 10 quotes where the model had changed a word in a mixed-script line. Each was a pass that would otherwise have counted.
 - **The quote rule doesn't catch every wrong answer.** A red flag can quote real words and still be wrong. Prompt v4 and the 3-run check are the guards against that.
 - **Hinglish was handled well.** Both models understood the Hinglish and Hindi lines, and Nemotron's Hindi coaching was natural and specific. The weak spot was copying mixed-script text exactly, not understanding it.
-- **Fallback happens often, and it changes the report.** With the decided list, Nemotron was unavailable for 1 of 3 requests, and the fallback answer took 26 seconds against about 7. With the earlier list that also held Apodex, it was 2 of 3. Across its 6 answers Dots scored 4/6 to 6/6, rated the customer only "annoyed" every time, and added an "agent stuck in a loop" flag in 5 of them for an answer repeated twice, not three times.
+- **Fallback happens often, and it changes the report.** With the decided list, Nemotron was unavailable for 1 of 3 requests, and the fallback answer took 26.5 seconds against about 7. With the earlier list that also held Apodex, it was 2 of 3. Across its 6 answers Dots scored 4/6 to 6/6, rated the customer only "annoyed" every time, and added an "agent stuck in a loop" flag in 5 of them for an answer repeated twice, not three times.
 - **A model's listed parameters can't be trusted.** OpenRouter lists `structured_outputs` for Apodex, but its provider rejects `json_schema`. Both Gemma 4 free models list only JSON mode, so neither can be in a list that sends a strict schema. Gemma was also rate-limited upstream for every request between about 14:57 and 15:07 IST.
 - **Failed requests don't count toward the daily limit.** OpenRouter's `GET /api/v1/key` showed `free_model_daily_requests.used` at 15 after 15 successful requests and 7 Gemma 429s. It showed 21 after 6 more successful requests and 3 Apodex 400s, and 24 after the last 3.
 - **Misses against the expected results for the chosen setup (Nemotron, v4)**, the same in all 3 runs:
@@ -94,8 +94,8 @@ Nemotron first and Dots second, both with a strict schema and reasoning turned o
 2. **LLM analysis, What comes back:** drops `handover`, and replaces `frustration` with `customer_mood`, a level (`calm`, `annoyed`, `angry`) for each customer segment id.
 3. **LLM analysis, Rules enforced in code:** code sets the handover to the first segment from the speaker labelled `human_agent`. It builds frustration from customer moods only: a customer segment with no mood keeps the previous one, each mood holds until the customer's next segment, the turn is the first segment at the peak or null when the peak is calm, and ranges and turn are stored in `reports.frustration`. The unit test scope in the TRD and `testing.md` names both rules.
 4. **LLM analysis, prompt:** records the prompt rules that changed the results: checks pass when either agent does them; `human_not_transferred` applies even when a transfer comes later; quotes are the shortest phrase, copied exactly, never transliterated; only red flags that happened are listed.
-5. **LLM analysis, rule 1:** each request has a 30-second timeout, and the invalid-JSON retry runs only when the first answer came back within 25 seconds, so both fit in the 60-second function.
-6. **Auth, security and privacy:** the daily guard refuses a check when OpenRouter's `free_model_daily_requests.remaining` is below 2, instead of counting requests itself. `LLM_DAILY_LIMIT` is gone, and the limit message says checking resumes at 5:30 am (midnight UTC).
+5. **LLM analysis, rule 1, API and limits:** no LLM retry, since all 24 strict-schema answers were valid. The LLM request is cancelled at a 55-second deadline set when the webhook or cron function starts. The cron route finishes at most one call per run. A daily limit reached between Start and Analyse shows the limit message.
+6. **Auth, security and privacy:** the daily guard refuses a check when OpenRouter's `free_model_daily_requests.remaining` is 0, instead of counting requests itself. `LLM_DAILY_LIMIT` is gone, and the limit message says checking resumes at 5:30 am (midnight UTC).
 7. **Risks:** a busy primary model means the weaker fallback writes some reports; the report saves which model answered, and Check again reruns the analysis. 10 OpenRouter credits are bought before demo day, raising the daily limit to 1,000.
 
 ## Running the spike

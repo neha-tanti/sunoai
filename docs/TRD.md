@@ -153,7 +153,7 @@ The [Gnani and LLM spike](spikes/gnani-llm-spike.md) chose these free open-weigh
 
 - Requests send a strict `json_schema` `response_format`, `reasoning: { enabled: false }` and `provider: { require_parameters: true }`, so only providers that honour the schema are picked. With reasoning on, Nemotron took up to 70 seconds and its score changed between runs.
 - OpenRouter's `supported_parameters` is not enough to pick a model: `apodex/apodex-1.1-mini:free` lists `structured_outputs` but rejects `json_schema`, and both Gemma 4 free models offer only JSON mode. Try any new model through the spike before adding it.
-- In the spike, Nemotron was unavailable for 1 of 3 requests sent with this list, so Dots answered. That answer took about 26 seconds, against about 7 for Nemotron. The model that answered changes the report, which is why it is saved with each report.
+- In the spike, Nemotron was unavailable for 1 of 3 requests sent with this list, so Dots answered. That answer took 26.5 seconds, against about 7 for Nemotron. The model that answered changes the report, which is why it is saved with each report.
 
 - The model list lives in the `LLM_MODELS` environment variable and is sent as OpenRouter's `models` array, so OpenRouter falls back to the next model on errors or rate limits ([model fallbacks](https://openrouter.ai/docs/guides/routing/model-fallbacks)).
 - Free models come and go, so the model that actually answered (the response's `model` field) is saved with each report.
@@ -179,7 +179,7 @@ The [Gnani and LLM spike](spikes/gnani-llm-spike.md) chose these free open-weigh
 
 **Rules enforced in code, not trusted to the model**
 
-1. The answer is parsed with Zod. Each LLM request has a 30-second timeout. Invalid JSON gets one retry with the error message, but only when the first answer came back within 25 seconds, so both fit in the 60-second function. A timeout, a late invalid answer or a second failure sets the call to `failed`, and Check again reruns only the analysis.
+1. The answer is parsed with Zod, with no retry: in the spike all 24 strict-schema answers were valid JSON. The webhook or cron function sets a deadline 55 seconds after it starts, and the LLM request is cancelled at that deadline, after the Gnani reads have used their share. Invalid JSON or no answer by the deadline sets the call to `failed`, and Check again reruns only the analysis.
 2. The model returns segment ids, never times. Code turns them into `start_time`, so no timestamp is invented.
 3. Every quote must appear in its segment's text after normalising case, spaces and punctuation. A pass without a valid quote becomes a miss; a red flag without one is dropped and logged.
 4. The score is passed checks divided by checks not marked `na`. 80% or more is Good, 50% to 79% Needs work, under 50% Poor.
@@ -229,7 +229,7 @@ Ten Hono routes under `/api`: eight for the page, one for Gnani's webhook and on
 | `GET /api/checklist` | Page | Active checks, red flags and rules |
 | `PUT /api/checklist` | Page | Saves checks, red flags and rules in one transaction |
 | `POST /api/webhooks/gnani` | Gnani | Checks the token, then finishes the call (save transcript, analyse) |
-| `POST /api/jobs/poll` | Supabase Cron | Checks `CRON_SECRET`, asks Gnani about calls in Transcribing for over a minute, and finishes any that are done |
+| `POST /api/jobs/poll` | Supabase Cron | Checks `CRON_SECRET`, asks Gnani about calls in Transcribing for over a minute, and finishes at most one that is done; the rest wait for the next run |
 
 - **Mounting:** `app/api/[[...route]]/route.ts` exports `GET`, `POST`, `PUT` and `DELETE` from `handle(app)` in `hono/vercel`. It runs on the Node.js runtime with a maximum duration of 60 seconds, so the analysis step has time.
 - **Validation:** Zod schemas with `@hono/zod-validator` on every body and parameter.
@@ -292,7 +292,7 @@ Only invited team leaders can sign in, every table has row-level security, and A
 - **Test data:** synthetic calls made with Gnani Timbre where possible, otherwise our own acted recordings. The challenge rules allow no real customers, phone numbers, addresses, Aadhaar, PAN, payment details or real recorded calls.
 - **Deleting:** deleting a call removes its recording, coaching audio, transcript and report.
 - **OpenRouter:** prompts are not logged by default. Leave the account's data-training setting off; if a free model then becomes unavailable, use the fallback model.
-- **Protecting the free limit:** `POST /api/calls/:id/check` reads `free_model_daily_requests.remaining` from OpenRouter's `GET /api/v1/key` and refuses the check when fewer than 2 requests remain, since a check can use 2 (one retry). OpenRouter's counter follows whatever limit the account has, includes retries and Check again, and resets at midnight UTC (5:30 am IST). The spike showed failed requests don't count.
+- **Protecting the free limit:** `POST /api/calls/:id/check` reads `free_model_daily_requests.remaining` from OpenRouter's `GET /api/v1/key` and refuses the check when no requests remain, since a check uses exactly one. OpenRouter's counter follows whatever limit the account has, includes Check again, and resets at midnight UTC (5:30 am IST). The spike showed failed requests don't count.
 
 ## Limits and error handling
 
@@ -317,8 +317,8 @@ The browser reads the length from the file before upload and blocks files over 3
 | Gnani busy (429) or down (5xx) | Still Transcribing | The cron job retries, up to 5 times, then Failed |
 | Job ends in `FAILED`, `START_FAILED` or `PARTIAL_FAILURE` | "Transcription failed." plus the reason | Status Failed |
 | Empty transcript | "No speech found. Check the call language." | Status Failed |
-| LLM returns bad JSON twice | "Analysis failed." and a Check again button | Status Failed; Check again reuses the saved transcript and reruns only the analysis |
-| Daily LLM limit reached | "Today's check limit is reached. Checking resumes at 5:30 am." | The check isn't started |
+| LLM returns bad JSON or no answer by the deadline | "Analysis failed." and a Check again button | Status Failed; Check again reuses the saved transcript and reruns only the analysis |
+| Daily LLM limit reached | "Today's check limit is reached. Checking resumes at 5:30 am." | The check isn't started. If the limit is reached between Start and Analyse, OpenRouter's limit error sets Failed with this same message |
 | Coaching audio fails | "Couldn't create the coaching audio. Try again." | Nothing is saved; the next click retries |
 
 ## Testing
@@ -371,7 +371,7 @@ The biggest unknowns are how well Gnani separates an AI voice from a human one, 
 | 50 LLM requests a day | Testing or demo day hits the limit | One request per call and the daily guard. 10 OpenRouter credits are bought before demo day, which raises the limit to 1,000 a day |
 | Gnani credits (5,000) and unpublished rate limits | Running out mid-testing | Short test calls, noise removal only when needed, and checking the dashboard |
 | The webhook isn't signed | Someone could post fake results | Secret token, and the handler re-reads the job status from Gnani before trusting it |
-| Vercel's 60-second limit | A slow model times out | Fallback model, and Check again reruns only the analysis |
+| Vercel's 60-second limit | A slow model times out | One 55-second deadline per function, no LLM retry, cron finishes one call per run, and Check again reruns only the analysis |
 
 **To confirm on Gnani's Discord**
 
