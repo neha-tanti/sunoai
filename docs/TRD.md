@@ -97,7 +97,7 @@ Each step moves the status forward only from the status it expects, with a condi
 
 ## Gnani integration
 
-SunoAI uses two Gnani APIs: Batch speech-to-text for every call and Timbre text-to-speech for coaching. Gnani has no JavaScript SDK, so a small typed `fetch` wrapper (`lib/gnani.ts`) calls them from Hono. All calls go to `https://api.vachana.ai` with the key in the `X-API-Key-ID` header. Details are from the [Batch STT](https://docs.gnani.ai/api/STT/stt-batch), [create job](https://docs.gnani.ai/api/STT/batch/create-job) and [quick start](https://docs.gnani.ai/api/introduction/quick-start) pages, checked 9 October 2026.
+SunoAI uses two Gnani APIs: Batch speech-to-text for every call and Timbre text-to-speech for coaching. Gnani has no JavaScript SDK, so a small typed `fetch` wrapper (`server/gnani.ts`) calls them from Hono. All calls go to `https://api.vachana.ai` with the key in the `X-API-Key-ID` header. Details are from the [Batch STT](https://docs.gnani.ai/api/STT/stt-batch), [create job](https://docs.gnani.ai/api/STT/batch/create-job) and [quick start](https://docs.gnani.ai/api/introduction/quick-start) pages, checked 9 October 2026.
 
 **Batch speech-to-text**
 
@@ -157,7 +157,7 @@ The [Gnani and LLM spike](spikes/gnani-llm-spike.md) chose these free open-weigh
 
 - The model list lives in the `LLM_MODELS` environment variable and is sent as OpenRouter's `models` array, so OpenRouter falls back to the next model on errors or rate limits ([model fallbacks](https://openrouter.ai/docs/guides/routing/model-fallbacks)).
 - Free models come and go, so the model that actually answered (the response's `model` field) is saved with each report.
-- The client is `@openrouter/sdk` (ESM only), created once in `lib/llm.ts` with `OPENROUTER_API_KEY`. Its docs show `openRouter.chat.send({ model, messages })`; confirm the names for `models`, the JSON response format and `reasoning` in the SDK reference before building.
+- The client is `@openrouter/sdk` (ESM only), created once in `server/llm.ts` with `OPENROUTER_API_KEY`. Its docs show `openRouter.chat.send({ model, messages })`; confirm the names for `models`, the JSON response format and `reasoning` in the SDK reference before building.
 
 **What goes in**
 
@@ -190,7 +190,7 @@ The [Gnani and LLM spike](spikes/gnani-llm-spike.md) chose these free open-weigh
 
 The prompt also states the rules that changed the spike's results: a check passes when either agent does it; `human_not_transferred` applies even when a transfer comes later; a quote is the shortest phrase that proves the point, copied character for character and never transliterated; and only red flags that happened are listed.
 
-The prompt lives in `lib/prompts/analyze.ts` with a `PROMPT_VERSION` constant, saved on each report with a snapshot of the checklist used. Editing the checklist later never changes old reports.
+The prompt lives in `server/prompts/analyze.ts` with a `PROMPT_VERSION` constant, saved on each report with a snapshot of the checklist used. Editing the checklist later never changes old reports.
 
 ## Data model
 
@@ -232,6 +232,7 @@ Eleven Hono routes under `/api`: nine for the page, one for Gnani's webhook and 
 | `POST /api/webhooks/gnani` | Gnani | Checks the token, then finishes the call (save transcript, analyse) |
 | `POST /api/jobs/poll` | Supabase Cron | Checks `CRON_SECRET` and sets calls in Analysing for over 5 minutes to Failed ("Analysis failed."), since their function was stopped. Then it asks Gnani about calls in Transcribing for over a minute, oldest first, and finishes the first one that is done; the rest wait for the next run |
 
+- **Server-only code:** everything under `server/` (the Hono app, the Gnani and LLM wrappers, the prompt) starts with `import 'server-only'`, so a client component that imports it fails the build; Vitest resolves the `react-server` condition so tests can load it. `lib/` holds only code the browser may import.
 - **Mounting:** the Hono app lives in `server/app.ts` with `basePath('/api')`, and `app/api/[[...route]]/route.ts` exports `GET`, `POST`, `PUT` and `DELETE` from `handle(app)` in `@hono/vercel`. It runs on the Node.js runtime (the only runtime Cache Components allows, so the route sets no `runtime`) with `maxDuration` set to 300 seconds, the Hobby plan's maximum with Fluid compute, so the analysis step has time.
 - **Background work:** the webhook, cron and Check again routes check their input, respond at once, and do the rest in Next.js `after()`, which runs within the same `maxDuration`. Neither Gnani, `pg_net` (2-second default timeout) nor the page waits on the analysis. An error thrown in that work sets the call to Failed with a conditional update from the status it was in: `transcription_failed` from Transcribing and `analysis_failed` from Analysing. Only a Gnani 429 or 5xx leaves a Transcribing call for the next cron run (see the failure table); the cron job's 5-minute sweep only catches functions that were stopped.
 - **Validation:** Zod schemas with `@hono/zod-validator` on every body and parameter.

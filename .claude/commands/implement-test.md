@@ -17,7 +17,7 @@ Examples:
   /implement-test                              → Use conversation context
   /implement-test ./docs/TESTING_PLAN.md       → Follow testing plan
   /implement-test #42                          → Fetch from GitHub issue
-  /implement-test lib/gnani.ts                 → Write tests for module
+  /implement-test server/gnani.ts              → Write tests for module
   /implement-test "tests for the call pipeline" → Description
 ```
 

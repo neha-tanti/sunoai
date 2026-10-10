@@ -42,7 +42,7 @@ In v1 and v2 the model chose the handover and the turn. From v3 on, code works t
 | v4 | Apodex, reasoning off | — | — | — | — | — | — | 400 on all 3: rejects `json_schema` |
 | v1–v4 | Gemma, JSON mode | — | — | — | — | — | — | 429 on all 7 |
 
-All setups used a strict `json_schema`, except Gemma, which supports only JSON mode. The Dots, Apodex and both list rows used the request shape `lib/llm.ts` will use: one request with a `models` list and shared settings. Only the decided `LLM_MODELS` row also sent `provider: { require_parameters: true }`, as `lib/llm.ts` will.
+All setups used a strict `json_schema`, except Gemma, which supports only JSON mode. The Dots, Apodex and both list rows used the request shape `server/llm.ts` will use: one request with a `models` list and shared settings. Only the decided `LLM_MODELS` row also sent `provider: { require_parameters: true }`, as `server/llm.ts` will.
 
 ### What each prompt change fixed
 

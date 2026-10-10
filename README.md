@@ -79,10 +79,10 @@ The home page shows the answer from `GET /api/health`, fetched through the typed
 
 ```
 app/          Next.js pages and the /api route that mounts Hono
-server/       The Hono app (server/app.ts) and its API tests
+server/       Server-only code: the Hono app (server/app.ts), Gnani and LLM wrappers, API tests
 components/   React components, including shadcn/ui parts in components/ui
 hooks/        TanStack Query hooks
-lib/          The typed Hono client and shared helpers
+lib/          Code the browser may import: the typed Hono client and shared helpers
 e2e/          Playwright tests
 supabase/     Supabase CLI config
 scripts/      Hand-run scripts (the Gnani and LLM spike)
