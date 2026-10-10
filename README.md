@@ -26,6 +26,7 @@ It works in Hindi, Bengali, Marathi, Tamil, Telugu, Kannada, Malayalam, Gujarati
 | [Product Document](docs/PRD.md) | Problem, users, features, checklist and red flags, languages, success measures, decisions |
 | [Technical Requirements](docs/TRD.md) | Architecture, call pipeline, Gnani and LLM integration, data model, API, frontend, security, testing, deployment |
 | [Prototype](https://claude.ai/artifact/MtyZJxoHXg5a61X6216nTk) | Clickable visual reference with made-up sample calls |
+| [Posts](docs/posts.md) | Progress posts on LinkedIn and X: the rules every post follows, a log of what's live, and drafts |
 
 ## How Gnani AI is used
 
