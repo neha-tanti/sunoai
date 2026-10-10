@@ -4,7 +4,7 @@ SunoAI checks food delivery and quick-commerce support calls. It shows where the
 
 Built for Gnani AI's [Great Indian AI Internship Challenge 2026](https://www.gnani.ai/internship).
 
-> **Status:** planning. The product and technical documents are written; the app is not built yet.
+> **Status:** pre-production. The app is scaffolded with every tool in place; features are being built.
 
 ## What it does
 
@@ -37,7 +37,7 @@ It works in Hindi, Bengali, Marathi, Tamil, Telugu, Kannada, Malayalam, Gujarati
 
 The analysis (checklist, red flags, frustration, fix notes) comes from a free open-weight model on OpenRouter. Our own code checks every quote and counts the score.
 
-## Planned stack
+## Stack
 
 | Part | Choice |
 | --- | --- |
@@ -48,12 +48,47 @@ The analysis (checklist, red flags, frustration, fix notes) comes from a free op
 | Tests | Vitest and Playwright |
 | Package manager | pnpm |
 
+## Getting started
+
+You need Node 24 (see `.nvmrc`) and pnpm 10. Docker is needed only to run Supabase locally.
+
+```bash
+pnpm install
+pnpm exec playwright install chromium
+cp .env.example .env.local   # then fill in the values
+pnpm dev                     # http://localhost:3000
+```
+
+The home page shows the answer from `GET /api/health`, fetched through the typed Hono client.
+
+| Command | What it does |
+| --- | --- |
+| `pnpm dev` | Runs the app at http://localhost:3000 |
+| `pnpm build` | Builds the app for production |
+| `pnpm lint` | ESLint |
+| `pnpm typecheck` | Generates Next.js route types, then runs `tsc --noEmit` |
+| `pnpm test` | Vitest unit and API tests (`*.test.ts`) |
+| `pnpm test:e2e` | Playwright end-to-end tests (`e2e/*.spec.ts`); starts `pnpm dev` if it isn't running |
+| `pnpm format` | Prettier |
+
+**Supabase locally.** `pnpm supabase start` runs Postgres, Auth and Storage in Docker and prints the local URL and keys. Put the URL in `NEXT_PUBLIC_SUPABASE_URL`, the publishable key in `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` and the secret key in `SUPABASE_SECRET_KEY`. `pnpm supabase stop` stops it.
+
+`.env.local` is also read by the hand-run spike scripts in `scripts/spike/`. Never commit it.
+
 ## Repository layout
 
 ```
-docs/       PRD and TRD
-.claude/    Claude Code agents, commands, skills, rules and settings
-AGENTS.md   Instructions for coding agents working in this repo
+app/          Next.js pages and the /api route that mounts Hono
+server/       The Hono app (server/app.ts) and its API tests
+components/   React components, including shadcn/ui parts in components/ui
+hooks/        TanStack Query hooks
+lib/          The typed Hono client and shared helpers
+e2e/          Playwright tests
+supabase/     Supabase CLI config
+scripts/      Hand-run scripts (the Gnani and LLM spike)
+docs/         PRD, TRD and spike write-ups
+.claude/      Claude Code agents, commands, skills, rules and settings
+AGENTS.md     Instructions for coding agents working in this repo
 ```
 
 ## Data and privacy

@@ -37,12 +37,12 @@ This skill works with multiple input types:
 
 ## Testing Patterns by Target
 
-SunoAI tests only four kinds of thing — see `.claude/rules/testing.md` § Scope and `docs/TRD.md` § Testing. The app is not scaffolded yet, so the paths below are the ones the TRD names. Based on what you're testing:
+SunoAI tests only four kinds of thing — see `.claude/rules/testing.md` § Scope and `docs/TRD.md` § Testing. Based on what you're testing:
 
 | Target                       | Detect By                                                                                                                                       | Testing Approach                                                                                                              |
 | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | Pure rules                   | Code with no I/O: score bands, quote matching, segment id → time, building frustration ranges from per-segment moods, the handover from speaker roles, the LLM output schema, parsing Gnani's transcript | Vitest unit tests — given input, expect output                                                                                |
-| API routes                   | The Hono app mounted at `app/api/[[...route]]/route.ts`                                                                                         | Vitest API tests through Hono's `app.request()`, Gnani / OpenRouter stubbed at the network boundary, local Supabase                |
+| API routes                   | The Hono app in `server/app.ts`, mounted at `app/api/[[...route]]/route.ts`                                                                      | Vitest API tests through Hono's `app.request()`, Gnani / OpenRouter stubbed at the network boundary, local Supabase                |
 | User flows                   | Pages under `app/` (`/login`, `/`, `/calls`, `/calls/[id]`, `/checklist`)                                                                       | Playwright end to end, external services mocked                                                                               |
 | Real Gnani and LLM behaviour | The 6 test calls                                                                                                                                | The hand-run real-services script, compared with expected results written down first; never in `pnpm test` or `pnpm test:e2e` |
 | Components and hooks         | React components (`UploadDropzone`, `TranscriptView`, …), TanStack Query hooks                                                                  | No tests of their own — covered by the Playwright flow that uses them; stop and tell the user                                 |

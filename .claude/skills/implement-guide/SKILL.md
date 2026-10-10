@@ -277,7 +277,7 @@ _Components, data and API_
   -> Start from the stock shadcn/ui part (add it with the `shadcn` skill rather than hand-writing one) and keep its default Tailwind classes. Colours come from shadcn's CSS variables (`bg-primary`, `text-muted-foreground`) and SunoAI's calm / annoyed / angry tokens, so light and dark both hold — not raw palette colours. Every result reads in words as well as colour (Passed, Missed, Angry), and the call status line is announced to screen readers. (`docs/TRD.md` § Frontend)
 
 - _Reading or writing server data from a page?_
-  -> TanStack Query over the typed Hono client (`hc<AppType>('/api')`) — never a bare `fetch` in a component or an effect. The browser's Supabase client is only for sign-in and `uploadToSignedUrl`; everything else goes through Hono. Mutations invalidate the queries they change. (`docs/TRD.md` § Frontend, `useeffect-escape-hatch.md`)
+  -> TanStack Query over the typed Hono client (`api` from `lib/api-client.ts`, which is `hc<AppType>('/')`) — never a bare `fetch` in a component or an effect. The browser's Supabase client is only for sign-in and `uploadToSignedUrl`; everything else goes through Hono. Mutations invalidate the queries they change. (`docs/TRD.md` § Frontend, `useeffect-escape-hatch.md`)
 
 - _Adding or changing a Hono route?_
   -> Zod schema with `@hono/zod-validator` on every body and parameter. Errors are `{ "error": { "code", "message" } }` with a message a person can act on — upstream details are logged, never returned. Status changes are conditional updates from the status the step expects, so a webhook and a cron run arriving together finish the call once. (`docs/TRD.md` § API, § Call processing pipeline)

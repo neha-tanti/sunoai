@@ -39,14 +39,15 @@ There is no docs MCP server for this repo. For any library-specific code, check 
 
 ## Status
 
-Pre-production. The PRD and TRD are written; the app is not scaffolded yet. The planned commands are:
+Pre-production. The app is scaffolded: an empty Next.js app with the Hono API, TanStack Query, shadcn/ui, Supabase CLI, Vitest and Playwright in place. Setup steps are in the README's [Getting started](README.md#getting-started). The commands are:
 
 ```bash
-pnpm dev
+pnpm dev          # app at http://localhost:3000
+pnpm build
 pnpm lint
-pnpm typecheck
-pnpm test
-pnpm test:e2e
+pnpm typecheck    # next typegen && tsc --noEmit
+pnpm test         # Vitest: *.test.ts, unit and API tests
+pnpm test:e2e     # Playwright: e2e/*.spec.ts
 ```
 
 Claude-specific workflow assets — agents, commands, skills and permissions — live in `.claude/`. Other agents should read a `.claude/commands/*.md` or `.claude/skills/*/SKILL.md` for process guidance rather than trying to execute it.
