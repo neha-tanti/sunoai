@@ -54,7 +54,7 @@ flowchart LR
   timbre["Gnani Timbre<br/>Coaching voice"]
   openrouter["OpenRouter<br/>Free open-weight model"]
   subgraph supabase["Supabase"]
-    auth["Auth<br/>Team leaders sign in by email link"]
+    auth["Auth<br/>Team leaders sign in with email and password"]
     storage["Storage<br/>Recordings and coaching audio"]
     postgres["Postgres<br/>Calls, transcripts, reports, checklist"]
     cron["Cron<br/>pg_cron and pg_net, every minute"]
@@ -243,11 +243,12 @@ Eleven Hono routes under `/api`: nine for the page, one for Gnani's webhook and 
 
 ## Frontend
 
-Five Next.js routes built from shadcn/ui parts, with all server data going through TanStack Query and the typed Hono client. The [SunoAI Prototype](https://claude.ai/artifact/MtyZJxoHXg5a61X6216nTk) is the visual reference.
+Six Next.js routes built from shadcn/ui parts, with all server data going through TanStack Query and the typed Hono client. The [SunoAI Prototype](https://claude.ai/artifact/MtyZJxoHXg5a61X6216nTk) is the visual reference.
 
 | Route | Screen |
 | --- | --- |
-| `/login` | Sign in with an email link |
+| `/login` | Sign in with email and password |
+| `/signup` | Create an account with email and password |
 | `/` | Check a call: upload, call languages, coaching language, noise removal toggle, progress |
 | `/calls` | Recent calls and the team average |
 | `/calls/[id]` | The call report |
@@ -279,15 +280,15 @@ Five Next.js routes built from shadcn/ui parts, with all server data going throu
 | `useSaveChecklist` | `PUT /api/checklist` | Invalidates `['checklist']` |
 | `useDeleteCall` | `DELETE /api/calls/:id` | Invalidates `['calls']` |
 
-- The browser uses the Supabase client only to sign in and to upload to a signed URL (`uploadToSignedUrl`). Everything else goes through Hono.
+- The browser uses the Supabase client only to sign up, sign in and upload to a signed URL (`uploadToSignedUrl`). Everything else goes through Hono.
 - Light and dark themes use shadcn's CSS variables, plus SunoAI's own tokens for calm, annoyed and angry.
 - Results always use words as well as colour (Passed, Missed, Angry), and the status line is announced to screen readers.
 
 ## Auth, security and privacy
 
-Only invited team leaders can sign in, every table has row-level security, and API keys never reach the browser.
+Anyone can create an account, every table has row-level security, and API keys never reach the browser.
 
-- **Sign-in:** Supabase Auth with email links. Public sign-ups are turned off, and team leaders are invited from the Supabase dashboard.
+- **Sign-in:** Supabase Auth with email and password, from `/login` and `/signup` in the browser. Sign-up is open and email confirmation is off, so a new account is signed in at once and can see every call; the free plan doesn't allow custom email templates, and sending no email keeps sign-in simple for the demo. `proxy.ts` sends signed-out visitors to `/login`.
 - **Row-level security:** on for every table. Because there is one team, the policy lets any signed-in user read and write everything.
 - **Two Supabase clients in Hono:** page routes use the signed-in user's session, so row-level security applies. Only the webhook and cron routes use the service-role key.
 - **Storage:** both buckets are private. Gnani gets a signed URL valid for 2 hours; the page gets coaching audio through a signed URL valid for 10 minutes.
@@ -350,7 +351,7 @@ The rules that make the report trustworthy are tested in code; Gnani and the LLM
 One Vercel project serves the page and the API; one Supabase project holds the data, files and the cron job. There is no local Supabase: development uses a second, dev Supabase project, and API tests use a third, test project, so a test never touches dev or production data.
 
 - **Vercel:** connected to the GitHub repository. Every branch gets a preview URL; `main` deploys to production.
-- **Supabase:** migrations and the seed run with the Supabase CLI against the linked project. Production only ever gets `supabase db push`; `supabase db reset --linked` drops everything in the linked project, so it is used only to rebuild the dev or test project with the seed. A migration creates the two private buckets and turns on `pg_cron` and `pg_net`.
+- **Supabase:** migrations and the seed run with the Supabase CLI against the linked project. Production only ever gets `supabase db push`; `supabase db reset --linked` drops everything in the linked project, so it is used only to rebuild the dev or test project with the seed. The first migration creates the two private buckets; `pg_cron` and `pg_net` are turned on with the cron job in #9. Auth settings live in `supabase/config.toml` and reach a cloud project with `supabase config push`.
 - **Cron:** a `pg_cron` job runs every minute and uses `pg_net` to call `https://<app>/api/jobs/poll` with the `x-cron-secret` header.
 - **Local development:** Gnani can't reach `localhost`, so the webhook doesn't fire locally. Call `/api/jobs/poll` by hand, or open a tunnel to test the webhook.
 
