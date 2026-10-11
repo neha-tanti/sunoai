@@ -1,7 +1,10 @@
 import { expect, test } from '@playwright/test';
 
-test('home page shows the API health answer', async ({ page }) => {
+test('a signed-out visitor is sent to the sign-in page', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page.getByRole('status')).toHaveText('API: ok');
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(
+    page.getByRole('heading', { name: 'Sign in to SunoAI' }),
+  ).toBeVisible();
 });
