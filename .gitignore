@@ -13,10 +13,8 @@ next-env.d.ts
 .env.*
 !.env.example
 
-# Vercel and Supabase local state
+# Vercel local state
 .vercel/
-supabase/.temp/
-supabase/.branches/
 
 # Tests
 coverage/

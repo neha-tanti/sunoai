@@ -97,7 +97,7 @@ Each step moves the status forward only from the status it expects, with a condi
 
 ## Gnani integration
 
-SunoAI uses two Gnani APIs: Batch speech-to-text for every call and Timbre text-to-speech for coaching. Gnani has no JavaScript SDK, so a small typed `fetch` wrapper (`lib/gnani.ts`) calls them from Hono. All calls go to `https://api.vachana.ai` with the key in the `X-API-Key-ID` header. Details are from the [Batch STT](https://docs.gnani.ai/api/STT/stt-batch), [create job](https://docs.gnani.ai/api/STT/batch/create-job) and [quick start](https://docs.gnani.ai/api/introduction/quick-start) pages, checked 9 October 2026.
+SunoAI uses two Gnani APIs: Batch speech-to-text for every call and Timbre text-to-speech for coaching. Gnani has no JavaScript SDK, so a small typed `fetch` wrapper (`server/gnani.ts`) calls them from Hono. All calls go to `https://api.vachana.ai` with the key in the `X-API-Key-ID` header. Details are from the [Batch STT](https://docs.gnani.ai/api/STT/stt-batch), [create job](https://docs.gnani.ai/api/STT/batch/create-job) and [quick start](https://docs.gnani.ai/api/introduction/quick-start) pages, checked 9 October 2026.
 
 **Batch speech-to-text**
 
@@ -157,7 +157,7 @@ The [Gnani and LLM spike](spikes/gnani-llm-spike.md) chose these free open-weigh
 
 - The model list lives in the `LLM_MODELS` environment variable and is sent as OpenRouter's `models` array, so OpenRouter falls back to the next model on errors or rate limits ([model fallbacks](https://openrouter.ai/docs/guides/routing/model-fallbacks)).
 - Free models come and go, so the model that actually answered (the response's `model` field) is saved with each report.
-- The client is `@openrouter/sdk` (ESM only), created once in `lib/llm.ts` with `OPENROUTER_API_KEY`. Its docs show `openRouter.chat.send({ model, messages })`; confirm the names for `models`, the JSON response format and `reasoning` in the SDK reference before building.
+- The client is `@openrouter/sdk` (ESM only), created once in `server/llm.ts` with `OPENROUTER_API_KEY`. Its docs show `openRouter.chat.send({ model, messages })`; confirm the names for `models`, the JSON response format and `reasoning` in the SDK reference before building.
 
 **What goes in**
 
@@ -190,7 +190,7 @@ The [Gnani and LLM spike](spikes/gnani-llm-spike.md) chose these free open-weigh
 
 The prompt also states the rules that changed the spike's results: a check passes when either agent does it; `human_not_transferred` applies even when a transfer comes later; a quote is the shortest phrase that proves the point, copied character for character and never transliterated; and only red flags that happened are listed.
 
-The prompt lives in `lib/prompts/analyze.ts` with a `PROMPT_VERSION` constant, saved on each report with a snapshot of the checklist used. Editing the checklist later never changes old reports.
+The prompt lives in `server/prompts/analyze.ts` with a `PROMPT_VERSION` constant, saved on each report with a snapshot of the checklist used. Editing the checklist later never changes old reports.
 
 ## Data model
 
@@ -232,11 +232,12 @@ Eleven Hono routes under `/api`: nine for the page, one for Gnani's webhook and 
 | `POST /api/webhooks/gnani` | Gnani | Checks the token, then finishes the call (save transcript, analyse) |
 | `POST /api/jobs/poll` | Supabase Cron | Checks `CRON_SECRET` and sets calls in Analysing for over 5 minutes to Failed ("Analysis failed."), since their function was stopped. Then it asks Gnani about calls in Transcribing for over a minute, oldest first, and finishes the first one that is done; the rest wait for the next run |
 
-- **Mounting:** `app/api/[[...route]]/route.ts` exports `GET`, `POST`, `PUT` and `DELETE` from `handle(app)` in `hono/vercel`. It runs on the Node.js runtime with `maxDuration` set to 300 seconds, the Hobby plan's maximum with Fluid compute, so the analysis step has time.
+- **Server-only code:** everything under `server/` (the Hono app, the Gnani and LLM wrappers, the prompt) starts with `import 'server-only'`, so a client component that imports it fails the build; Vitest resolves the `react-server` condition so tests can load it. `lib/` holds only code the browser may import.
+- **Mounting:** the Hono app lives in `server/app.ts` with `basePath('/api')`, and `app/api/[[...route]]/route.ts` exports `GET`, `POST`, `PUT` and `DELETE` from `handle(app)` in `@hono/vercel`. It runs on the Node.js runtime (the only runtime Cache Components allows, so the route sets no `runtime`) with `maxDuration` set to 300 seconds, the Hobby plan's maximum with Fluid compute, so the analysis step has time.
 - **Background work:** the webhook, cron and Check again routes check their input, respond at once, and do the rest in Next.js `after()`, which runs within the same `maxDuration`. Neither Gnani, `pg_net` (2-second default timeout) nor the page waits on the analysis. An error thrown in that work sets the call to Failed with a conditional update from the status it was in: `transcription_failed` from Transcribing and `analysis_failed` from Analysing. Only a Gnani 429 or 5xx leaves a Transcribing call for the next cron run (see the failure table); the cron job's 5-minute sweep only catches functions that were stopped.
 - **Validation:** Zod schemas with `@hono/zod-validator` on every body and parameter.
 - **Auth:** middleware reads the Supabase session cookie with `@supabase/ssr` and returns 401 without one. The webhook and poll routes skip it and check their own secrets instead.
-- **Typed client:** the app's route type is exported as `AppType`, and the frontend calls the API through `hc<AppType>('/api')` from `hono/client`, so requests and responses are typed end to end.
+- **Typed client:** the app's route type is exported as `AppType`, and the frontend calls the API through `hc<AppType>('/')` from `hono/client` (as `api.api.health.$get()`, since `basePath('/api')` is part of the route type), so requests and responses are typed end to end.
 - **Errors:** every error is `{ "error": { "code", "message" } }` with a message a person can act on. Upstream error details are logged, never returned.
 - **Webhook security:** Gnani's docs show no signature, so the callback URL carries a secret `token`, compared in constant time.
 
@@ -334,7 +335,7 @@ The rules that make the report trustworthy are tested in code; Gnani and the LLM
 | Level | Tool | What it covers |
 | --- | --- | --- |
 | Unit | Vitest | Score bands, quote matching, segment id to time, building frustration ranges from per-segment moods, the handover from speaker roles, the LLM output schema, parsing Gnani's transcript JSON |
-| API | Vitest with Hono's `app.request()`, Gnani and OpenRouter mocked, and `after` from `next/server` replaced with one that runs the work and lets the test await it | Every route, status changes, the webhook and cron arriving together (only one finishes the call), the daily limit, the cron job failing a call in Analysing for over 5 minutes but not a newer one, and Check again refusing a call that isn't Failed or failed before analysis |
+| API | Vitest with Hono's `app.request()` against the Supabase test project, Gnani and OpenRouter mocked, and `after` from `next/server` replaced with one that runs the work and lets the test await it | Every route, status changes, the webhook and cron arriving together (only one finishes the call), the daily limit, the cron job failing a call in Analysing for over 5 minutes but not a newer one, and Check again refusing a call that isn't Failed or failed before analysis |
 | End to end | Playwright, external services mocked | Sign in, upload, see the report, play coaching, edit the checklist, delete a call |
 | Real services | A script run by hand | The 6 test calls through real Gnani and both LLMs, compared with their expected results |
 
@@ -346,10 +347,10 @@ The rules that make the report trustworthy are tested in code; Gnani and the LLM
 
 ## Deployment and environment variables
 
-One Vercel project serves the page and the API; one Supabase project holds the data, files and the cron job.
+One Vercel project serves the page and the API; one Supabase project holds the data, files and the cron job. There is no local Supabase: development uses a second, dev Supabase project, and API tests use a third, test project, so a test never touches dev or production data.
 
 - **Vercel:** connected to the GitHub repository. Every branch gets a preview URL; `main` deploys to production.
-- **Supabase:** migrations and the seed run with the Supabase CLI. A migration creates the two private buckets and turns on `pg_cron` and `pg_net`.
+- **Supabase:** migrations and the seed run with the Supabase CLI against the linked project. Production only ever gets `supabase db push`; `supabase db reset --linked` drops everything in the linked project, so it is used only to rebuild the dev or test project with the seed. A migration creates the two private buckets and turns on `pg_cron` and `pg_net`.
 - **Cron:** a `pg_cron` job runs every minute and uses `pg_net` to call `https://<app>/api/jobs/poll` with the `x-cron-secret` header.
 - **Local development:** Gnani can't reach `localhost`, so the webhook doesn't fire locally. Call `/api/jobs/poll` by hand, or open a tunnel to test the webhook.
 
