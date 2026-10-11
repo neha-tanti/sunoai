@@ -1,5 +1,6 @@
 import 'server-only';
 import { Hono } from 'hono';
+import { HTTPException } from 'hono/http-exception';
 
 export const app = new Hono()
   .basePath('/api')
@@ -13,6 +14,13 @@ app.notFound((c) =>
 );
 
 app.onError((err, c) => {
+  if (err instanceof HTTPException) {
+    return c.json(
+      { error: { code: 'invalid_request', message: err.message } },
+      err.status,
+    );
+  }
+
   console.error(`${c.req.method} ${c.req.path} failed`, err);
   return c.json(
     {
