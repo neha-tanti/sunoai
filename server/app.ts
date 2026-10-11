@@ -10,7 +10,7 @@ export type ErrorCode =
   | 'request_failed'
   | 'internal_error';
 
-type ApiError = { code: ErrorCode; message: string };
+type ErrorDetail = { code: ErrorCode; message: string };
 
 const apiError = (code: ErrorCode, message: string) => ({
   error: { code, message },
@@ -24,7 +24,7 @@ app.notFound((c) =>
   c.json(apiError('not_found', 'This API route does not exist.'), 404),
 );
 
-const clientErrors: Record<number, ApiError> = {
+const clientErrors: Record<number, ErrorDetail> = {
   400: {
     code: 'invalid_request',
     message: 'The request is not valid. Check it and try again.',
@@ -37,7 +37,7 @@ const clientErrors: Record<number, ApiError> = {
   },
 };
 
-const otherClientError: ApiError = {
+const otherClientError: ErrorDetail = {
   code: 'request_failed',
   message: 'The request could not be completed. Check it and try again.',
 };
