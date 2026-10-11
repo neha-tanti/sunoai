@@ -350,7 +350,7 @@ The rules that make the report trustworthy are tested in code; Gnani and the LLM
 One Vercel project serves the page and the API; one Supabase project holds the data, files and the cron job. There is no local Supabase: development uses a second, dev Supabase project, and API tests use a third, test project, so a test never touches dev or production data.
 
 - **Vercel:** connected to the GitHub repository. Every branch gets a preview URL; `main` deploys to production.
-- **Supabase:** migrations and the seed run with the Supabase CLI against the linked project (`supabase db push`, or `supabase db reset --linked` to rebuild it with the seed). A migration creates the two private buckets and turns on `pg_cron` and `pg_net`.
+- **Supabase:** migrations and the seed run with the Supabase CLI against the linked project. Production only ever gets `supabase db push`; `supabase db reset --linked` drops everything in the linked project, so it is used only to rebuild the dev or test project with the seed. A migration creates the two private buckets and turns on `pg_cron` and `pg_net`.
 - **Cron:** a `pg_cron` job runs every minute and uses `pg_net` to call `https://<app>/api/jobs/poll` with the `x-cron-secret` header.
 - **Local development:** Gnani can't reach `localhost`, so the webhook doesn't fire locally. Call `/api/jobs/poll` by hand, or open a tunnel to test the webhook.
 

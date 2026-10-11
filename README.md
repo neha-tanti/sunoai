@@ -71,7 +71,7 @@ The home page shows the answer from `GET /api/health`, fetched through the typed
 | `pnpm test:e2e` | Playwright end-to-end tests (`e2e/*.spec.ts`); starts `pnpm dev` if it isn't running |
 | `pnpm format` | Prettier |
 
-**Supabase.** Create a project at [supabase.com/dashboard](https://supabase.com/dashboard). From its **API Keys** page, put the project URL in `NEXT_PUBLIC_SUPABASE_URL`, the publishable key in `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` and the secret key in `SUPABASE_SECRET_KEY`. Then link the CLI with `pnpm supabase login` and `pnpm supabase link --project-ref <ref>`; `pnpm supabase db push` applies the migrations in `supabase/migrations`. API tests use a separate test project, never this one.
+**Supabase.** Create a project at [supabase.com/dashboard](https://supabase.com/dashboard). From its **API Keys** page, put the project URL in `NEXT_PUBLIC_SUPABASE_URL`, the publishable key in `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` and the secret key in `SUPABASE_SECRET_KEY`. Then link the CLI with `pnpm supabase login` and `pnpm supabase link --project-ref <ref>`; `pnpm supabase db push` applies the migrations in `supabase/migrations`. API tests will use a separate test project, never this one; its keys and how the tests read them are set up in #3.
 
 `.env.local` is also read by the hand-run spike scripts in `scripts/spike/`. Never commit it.
 

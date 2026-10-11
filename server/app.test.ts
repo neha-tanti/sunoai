@@ -46,10 +46,10 @@ describe('a request the API rejects', () => {
 
   it('answers 401 unauthorized with a message a person can act on', async () => {
     const res = await app.request('/api/test/signed-out');
-    const body = await res.json();
 
     expect(res.status).toBe(401);
-    expect(body).toMatchObject({ error: { code: 'unauthorized' } });
-    expect(body.error.message).not.toBe('');
+    expect(await res.json()).toMatchObject({
+      error: { code: 'unauthorized', message: expect.stringMatching(/\S/) },
+    });
   });
 });
