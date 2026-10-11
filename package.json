@@ -10,7 +10,9 @@
     "typecheck": "next typegen && tsc --noEmit",
     "format": "prettier --write .",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "db:types": "supabase gen types typescript --linked --schema public > lib/database.types.ts",
+    "db:reset:test": "node --env-file=.env.test.local scripts/db-reset-test.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
