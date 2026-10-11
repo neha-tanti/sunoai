@@ -85,14 +85,14 @@ These rules apply to ALL skills this agent executes. Read and internalize before
 2. **Realistic inputs over placeholder data** — Use made-up transcripts that read like real calls (Hinglish lines, a customer asking for a person, an order id spoken as words), the seeded checklist, and genuine user flows; never real recordings or personal data
 3. **Partial matching over exact equality** — Assert on the fields you care about, not every byte
 4. **Determinism is non-negotiable** — If a test can fail randomly, it's broken
-5. **Stub external services, not SunoAI** — Replace Gnani and OpenRouter at the network boundary and run Supabase locally (Supabase CLI); never mock SunoAI's own functions
+5. **Stub external services, not SunoAI** — Replace Gnani and OpenRouter at the network boundary and run API tests against the Supabase test project; never mock SunoAI's own functions
 6. **Test behavior, not implementation** — Tests shouldn't break when you refactor internals
 7. **One reason to fail** — Each test should fail for exactly one reason
 8. **Search before assuming** — When unsure about testing patterns or framework APIs, verify against the official Vitest and Playwright docs with WebFetch/WebSearch
 
 ## Test Type Selection
 
-SunoAI has exactly four kinds of test (planned): Vitest unit tests, Vitest API tests through Hono's `app.request()` with Gnani and OpenRouter stubbed at the network boundary, against a local Supabase, Playwright end-to-end tests with external services mocked, and a hand-run script against real services. See the Scope table in [testing.md](../rules/testing.md#scope). There are no snapshot tests, no component or hook tests of their own, and no real services in automated tests.
+SunoAI has exactly four kinds of test (planned): Vitest unit tests, Vitest API tests through Hono's `app.request()` with Gnani and OpenRouter stubbed at the network boundary, against the Supabase test project, Playwright end-to-end tests with external services mocked, and a hand-run script against real services. See the Scope table in [testing.md](../rules/testing.md#scope). There are no snapshot tests, no component or hook tests of their own, and no real Gnani or OpenRouter in automated tests.
 
 ## Fixture Design Patterns
 

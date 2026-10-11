@@ -50,7 +50,7 @@ The analysis (checklist, red flags, frustration, fix notes) comes from a free op
 
 ## Getting started
 
-You need Node 24 (see `.nvmrc`) and pnpm 10. Docker is needed only to run Supabase locally.
+You need Node 24 (see `.nvmrc`), pnpm 10 and a Supabase project for development. There is no local Supabase, so Docker isn't needed.
 
 ```bash
 pnpm install
@@ -71,7 +71,7 @@ The home page shows the answer from `GET /api/health`, fetched through the typed
 | `pnpm test:e2e` | Playwright end-to-end tests (`e2e/*.spec.ts`); starts `pnpm dev` if it isn't running |
 | `pnpm format` | Prettier |
 
-**Supabase locally.** `pnpm supabase start` runs Postgres, Auth and Storage in Docker and prints the local URL and keys. Put the URL in `NEXT_PUBLIC_SUPABASE_URL`, the publishable key in `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` and the secret key in `SUPABASE_SECRET_KEY`. `pnpm supabase stop` stops it.
+**Supabase.** Create a project at [supabase.com/dashboard](https://supabase.com/dashboard). From its **API Keys** page, put the project URL in `NEXT_PUBLIC_SUPABASE_URL`, the publishable key in `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` and the secret key in `SUPABASE_SECRET_KEY`. Then link the CLI with `pnpm supabase login` and `pnpm supabase link --project-ref <ref>`; `pnpm supabase db push` applies the migrations in `supabase/migrations`. API tests use a separate test project, never this one.
 
 `.env.local` is also read by the hand-run spike scripts in `scripts/spike/`. Never commit it.
 

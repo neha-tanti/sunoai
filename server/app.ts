@@ -13,10 +13,28 @@ app.notFound((c) =>
   ),
 );
 
+const clientErrors: Record<number, { code: string; message: string }> = {
+  400: {
+    code: 'invalid_request',
+    message: 'The request is not valid. Check it and try again.',
+  },
+  401: { code: 'unauthorized', message: 'Sign in to continue.' },
+  413: {
+    code: 'too_large',
+    message: 'The request is too large. Send a smaller file.',
+  },
+};
+
+const otherClientError = {
+  code: 'request_failed',
+  message: 'The request could not be completed. Check it and try again.',
+};
+
 app.onError((err, c) => {
-  if (err instanceof HTTPException) {
+  if (err instanceof HTTPException && err.status < 500) {
+    const known = clientErrors[err.status] ?? otherClientError;
     return c.json(
-      { error: { code: 'invalid_request', message: err.message } },
+      { error: { code: known.code, message: err.message || known.message } },
       err.status,
     );
   }

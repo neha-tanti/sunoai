@@ -42,7 +42,7 @@ SunoAI tests only four kinds of thing — see `.claude/rules/testing.md` § Scop
 | Target                       | Detect By                                                                                                                                       | Testing Approach                                                                                                              |
 | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | Pure rules                   | Code with no I/O: score bands, quote matching, segment id → time, building frustration ranges from per-segment moods, the handover from speaker roles, the LLM output schema, parsing Gnani's transcript | Vitest unit tests — given input, expect output                                                                                |
-| API routes                   | The Hono app in `server/app.ts`, mounted at `app/api/[[...route]]/route.ts`                                                                      | Vitest API tests through Hono's `app.request()`, Gnani / OpenRouter stubbed at the network boundary, local Supabase                |
+| API routes                   | The Hono app in `server/app.ts`, mounted at `app/api/[[...route]]/route.ts`                                                                      | Vitest API tests through Hono's `app.request()`, Gnani / OpenRouter stubbed at the network boundary, Supabase test project         |
 | User flows                   | Pages under `app/` (`/login`, `/`, `/calls`, `/calls/[id]`, `/checklist`)                                                                       | Playwright end to end, external services mocked                                                                               |
 | Real Gnani and LLM behaviour | The 6 test calls                                                                                                                                | The hand-run real-services script, compared with expected results written down first; never in `pnpm test` or `pnpm test:e2e` |
 | Components and hooks         | React components (`UploadDropzone`, `TranscriptView`, …), TanStack Query hooks                                                                  | No tests of their own — covered by the Playwright flow that uses them; stop and tell the user                                 |
@@ -107,9 +107,9 @@ MANDATORY: verify every third-party API (Vitest, Playwright, Hono, Supabase, Zod
 
 3. **Stub external services, not SunoAI:**
    - Stub Gnani and OpenRouter at the network boundary — intercept
-     the HTTP request, return a fixture response. Run Supabase locally
-     (Supabase CLI) so database rules, like the conditional status update,
-     are really exercised
+     the HTTP request, return a fixture response. Run API tests against the
+     Supabase test project so database rules, like the conditional status
+     update, are really exercised
    - In Playwright, `page.route()` only sees requests the browser makes
      (Supabase sign-in and the signed upload); calls Hono makes to Gnani and
      OpenRouter need the server-side stub
@@ -314,7 +314,7 @@ expect(await res.json()).toMatchObject({ error: { code: 'UNAUTHORIZED' } });
 1. **Result validation over coverage** — Good assertions matter more than line count
 2. **Realistic, made-up inputs** — Made-up data that reads like real calls; never real recordings or personal data
 3. **Partial matching** — Assert on what matters, not everything
-4. **Stub external services, not SunoAI** — Stub Gnani and OpenRouter at the network boundary and run Supabase locally; never mock SunoAI's own functions
+4. **Stub external services, not SunoAI** — Stub Gnani and OpenRouter at the network boundary and run API tests against the Supabase test project; never mock SunoAI's own functions
 5. **Determinism** — Tests must produce same result every time
 6. **One focus per test** — Each test should have one reason to fail
 7. **Readable tests** — Test code is documentation

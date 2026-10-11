@@ -9,7 +9,7 @@ A test earns its place only when it pins behaviour a team leader would see, or a
 | Kind              | Tool                                                                                               | Pins                                                                                                                                                                |
 | ----------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Unit**          | Vitest                                                                                             | The pure logic behind a report: score bands, quote matching, segment id to time, building frustration ranges from per-segment moods, the handover from speaker roles, the LLM output schema, parsing Gnani's transcript JSON |
-| **API**           | Vitest with Hono's `app.request()`; Gnani and OpenRouter stubbed at the network boundary, against a local Supabase | Every route, status changes, the webhook and cron job arriving together (only one finishes the call), the daily LLM limit                                           |
+| **API**           | Vitest with Hono's `app.request()`; Gnani and OpenRouter stubbed at the network boundary, against the Supabase test project | Every route, status changes, the webhook and cron job arriving together (only one finishes the call), the daily LLM limit                                           |
 | **End to end**    | Playwright, external services mocked                                                               | Sign in, upload, see the report, play coaching, edit the checklist, delete a call                                                                                   |
 | **Real services** | A script run by hand                                                                               | The test calls through real Gnani and the LLM, compared with expected results written down before the run                                                           |
 
@@ -23,7 +23,7 @@ Unit and API tests run under `pnpm test`; end-to-end tests run under `pnpm test:
 
 - **No snapshot tests.** No `toMatchSnapshot` / `toMatchInlineSnapshot`, and no frozen output fixtures compared with `toEqual`. Assert the property that matters — a score band, a dropped quote, a status change — not the exact output.
 - **No component or hook tests of their own.** The UI is covered by the Playwright flows that use it.
-- **No real services in automated tests.** `pnpm test` and `pnpm test:e2e` never reach Gnani, OpenRouter or Supabase; only the hand-run script does.
+- **No real services in automated tests.** `pnpm test` and `pnpm test:e2e` never reach Gnani or OpenRouter; only the hand-run script does. API tests reach only the Supabase test project, never the dev project.
 
 ## Core Philosophy
 
@@ -44,7 +44,7 @@ Unit and API tests run under `pnpm test`; end-to-end tests run under `pnpm test:
 2. **Realistic inputs over placeholder data** — Use made-up transcripts that read like real calls (Hinglish lines, a customer asking for a person, an order id spoken as words), the seeded checklist, and genuine user flows; never real recordings or personal data
 3. **Partial matching over exact equality** — Assert on the fields you care about, not every byte
 4. **Determinism is non-negotiable** — If a test can fail randomly, it's broken
-5. **Stub external services, not SunoAI** — Replace Gnani and OpenRouter at the network boundary and run Supabase locally (Supabase CLI); never mock SunoAI's own functions
+5. **Stub external services, not SunoAI** — Replace Gnani and OpenRouter at the network boundary and run API tests against the Supabase test project; never mock SunoAI's own functions
 6. **Test behavior, not implementation** — Tests shouldn't break when you refactor internals
 7. **One reason to fail** — Each test should fail for exactly one reason
 
