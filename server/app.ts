@@ -1,6 +1,7 @@
 import 'server-only';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
+import { checklist } from './checklist';
 
 export type ErrorCode =
   | 'invalid_request'
@@ -18,7 +19,8 @@ const apiError = (code: ErrorCode, message: string) => ({
 
 export const app = new Hono()
   .basePath('/api')
-  .get('/health', (c) => c.json({ status: 'ok' as const }));
+  .get('/health', (c) => c.json({ status: 'ok' as const }))
+  .route('/checklist', checklist);
 
 app.notFound((c) =>
   c.json(apiError('not_found', 'This API route does not exist.'), 404),
