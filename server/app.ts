@@ -6,15 +6,24 @@ import { requireUser } from './auth';
 import { calls } from './calls';
 import { checklist } from './checklist';
 import { ApiError, apiError, type ErrorCode } from './errors';
+import { jobs } from './jobs';
+import { webhooks } from './webhooks';
 
 type ErrorDetail = { code: ErrorCode; message: string };
 
 export const app = new Hono()
   .basePath('/api')
-  .use(except(['/api/health'], requireUser))
+  .use(
+    except(
+      ['/api/health', '/api/webhooks/gnani', '/api/jobs/poll'],
+      requireUser,
+    ),
+  )
   .get('/health', (c) => c.json({ status: 'ok' as const }))
   .route('/calls', calls)
-  .route('/checklist', checklist);
+  .route('/checklist', checklist)
+  .route('/webhooks', webhooks)
+  .route('/jobs', jobs);
 
 app.notFound((c) =>
   c.json(apiError('not_found', 'This API route does not exist.'), 404),

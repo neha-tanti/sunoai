@@ -122,7 +122,7 @@ We use Batch rather than the REST endpoint because REST returns only plain text,
 | `source` | `{"type":"cloud_storage","auth":{"mode":"public"},"paths":["<signed URL>"]}` | Gnani reads the file from Supabase, so there is no 10 MB upload limit |
 | `callback_url` | `https://<app>/api/webhooks/gnani?token=<secret>` | Webhook for terminal job events |
 
-The transcript gives `full_transcript`, `language_code`, `duration_seconds`, and `segments`, each with `segment_id`, `start_time`, `end_time`, `text` and `speaker_id`. Segments also have `sentiment` and `emotion` fields, but Gnani's examples leave them empty, so SunoAI doesn't use them. Batch returns numbers as spoken words (no number formatting), so order IDs and amounts can appear as words.
+The transcript gives `full_transcript`, `language_code`, `duration_seconds`, and `segments`, each with `segment_id`, `start_time`, `end_time`, `text` and `speaker_id`. Segments also have `sentiment` and `emotion` fields, but Gnani's examples leave them empty, so SunoAI doesn't use them. Batch returns numbers as spoken words (no number formatting), so order IDs and amounts can appear as words. Gnani's examples give every segment the same `segment_id`, so SunoAI sorts segments by `start_time` and numbers them 0, 1, 2 and so on.
 
 Job statuses `COMPLETED`, `PARTIAL_FAILURE`, `FAILED`, `START_FAILED` and `CANCELLED` are final. Polling must be no more often than every 10 seconds; our cron runs every minute.
 
@@ -318,10 +318,11 @@ The browser reads the length from the file before upload and blocks files over 3
 | Failure | What the team leader sees | What the system does |
 | --- | --- | --- |
 | Upload fails | "Upload failed. Check your connection and try again." | Call stays Uploaded and can be retried |
-| Gnani rejects the file | "Gnani couldn't read this file. Try an MP3 or WAV." | Status Failed (`file_rejected`) with the reason |
+| Gnani rejects the file | "Gnani couldn't read this file. Try an MP3 or WAV." | Status Failed (`file_rejected`); Gnani's reason is saved in `error` for us, never shown |
 | Gnani busy (429) or down (5xx) | Still Transcribing | `gnani_attempts` goes up by 1 and the next cron run retries; at 5 the call is Failed (`transcription_failed`) |
 | Saving the transcript fails for any other reason | "Transcription failed." | Status Failed (`transcription_failed`), so the call doesn't hold up the cron job's queue |
-| Job ends in `FAILED`, `START_FAILED` or `PARTIAL_FAILURE` | "Transcription failed." plus the reason | Status Failed (`transcription_failed`) |
+| Job ends in `FAILED`, `START_FAILED`, `PARTIAL_FAILURE` or `CANCELLED` | "Transcription failed." | Status Failed (`transcription_failed`); Gnani's reason is saved in `error` for us, never shown |
+| Gnani job still running 2 hours after the check | "Transcription failed." | Status Failed (`transcription_failed`); the signed link Gnani reads has expired |
 | Empty transcript | "No speech found. Check the call language." | Status Failed (`no_speech`) |
 | Call over 30 minutes after transcription | "This call is longer than 30 minutes. Split it and check each part." | Status Failed (`too_long`); the transcript isn't saved |
 | LLM returns bad JSON or no answer by the deadline | "Analysis failed." and a Check again button | Status Failed (`analysis_failed`); Check again reuses the saved transcript and reruns only the analysis |

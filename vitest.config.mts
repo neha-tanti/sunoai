@@ -14,6 +14,7 @@ export default defineConfig({
   test: {
     include: ['**/*.test.ts'],
     environment: 'node',
+    fileParallelism: false,
     env: existsSync(testEnvFile)
       ? parseEnv(readFileSync(testEnvFile, 'utf8'))
       : {},
