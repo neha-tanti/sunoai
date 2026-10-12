@@ -54,6 +54,7 @@ export async function signInTeamLeader() {
   if (signedIn.error) throw signedIn.error;
 
   return {
+    supabase: client,
     cookie: [...jar]
       .map(([name, value]) => `${name}=${encodeURIComponent(value)}`)
       .join('; '),

@@ -286,11 +286,11 @@ Six Next.js routes built from shadcn/ui parts, with all server data going throug
 
 ## Auth, security and privacy
 
-Anyone can create an account, every table has row-level security, and API keys never reach the browser.
+Anyone can create an account, the browser has no direct access to the database or Storage, and API keys never reach the browser.
 
 - **Sign-in:** Supabase Auth with email and password, from `/login` and `/signup` in the browser. Sign-up is open and email confirmation is off, so a new account is signed in at once and can see every call; the free plan doesn't allow custom email templates, and sending no email keeps sign-in simple for the demo. `proxy.ts` sends signed-out visitors to `/login`.
-- **Row-level security:** on for every table. Because there is one team, the policy lets any signed-in user read and write everything.
-- **Two Supabase clients in Hono:** page routes use the signed-in user's session, so row-level security applies. Only the webhook and cron routes use the service-role key.
+- **Database access:** only Hono reaches the database and Storage. Row-level security is on for every table with no policies, and the `authenticated` role has no table grants, so a signed-in browser's Supabase token can't read or write anything directly. Because there is one team, every signed-in user can see and change everything through Hono.
+- **Two Supabase clients in Hono:** the auth middleware reads the signed-in user's session only to check it; every route then reads and writes with the secret key. Rows that record who did something, like `calls.created_by`, get the user id from the session in the route.
 - **Storage:** both buckets are private. Gnani gets a signed URL valid for 2 hours; the page gets coaching audio through a signed URL valid for 10 minutes.
 - **Secrets:** Gnani, OpenRouter, the service-role key, the webhook token and the cron secret are server-only environment variables, never prefixed `NEXT_PUBLIC_`.
 - **Logs:** job ids, statuses and timings only. No transcript text, quotes or audio URLs.
@@ -359,7 +359,7 @@ One Vercel project serves the page and the API; one Supabase project holds the d
 | --- | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Browser and server | The Supabase project |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Browser and server | Sign-in and signed uploads (the anon key on older projects) |
-| `SUPABASE_SECRET_KEY` | Server | Webhook and cron routes (the service-role key on older projects) |
+| `SUPABASE_SECRET_KEY` | Server | Every Hono route's database and Storage access (the service-role key on older projects) |
 | `GNANI_API_KEY` | Server | Batch speech-to-text and Timbre |
 | `GNANI_WEBHOOK_TOKEN` | Server | The secret in the callback URL |
 | `OPENROUTER_API_KEY` | Server | The LLM |

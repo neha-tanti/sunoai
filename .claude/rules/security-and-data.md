@@ -6,7 +6,7 @@ API keys stay on the server, the browser reaches nothing but Hono and Supabase's
 
 - **Secrets are server-only.** The Gnani key (`GNANI_API_KEY`), the OpenRouter key (`OPENROUTER_API_KEY`), the Supabase secret / service-role key (`SUPABASE_SECRET_KEY`), the webhook token (`GNANI_WEBHOOK_TOKEN`) and the cron secret (`CRON_SECRET`) are never in browser code, never prefixed `NEXT_PUBLIC_`, and never committed. `.env*` files stay out of git; only `.env.example`, with placeholder values, is committed.
 - **The browser talks only to Hono**, plus Supabase for sign-up, sign-in and signed uploads (`uploadToSignedUrl`). Gnani, OpenRouter and the database are reached only from Hono.
-- **Page routes run as the signed-in user.** They use the user's Supabase session, so row-level security applies. Only the webhook (`POST /api/webhooks/gnani`) and cron (`POST /api/jobs/poll`) routes use the secret / service-role key.
+- **Only Hono reaches the database and Storage.** The `authenticated` role has no table grants and no row-level security or Storage policies, so a browser's Supabase token can do nothing directly. Page routes check the user's session in the auth middleware, then use the secret / service-role key; the webhook (`POST /api/webhooks/gnani`) and cron (`POST /api/jobs/poll`) routes check their own secrets instead. Never add a grant or policy for `authenticated`.
 - **Storage buckets are private.** Files are shared only through short-lived signed URLs: 2 hours for Gnani to read a recording, 10 minutes for the page to play coaching audio.
 - **Upstream errors stay on the server.** Never return Gnani, OpenRouter or Supabase error details to the client; log them server-side and return `{ "error": { "code", "message" } }` with a message a person can act on.
 - **Logs hold ids, statuses and timings only.** No transcript text, quotes or audio URLs.
@@ -16,4 +16,4 @@ API keys stay on the server, the browser reaches nothing but Hono and Supabase's
 
 ## Enforcement
 
-Review only — there is no automated scan. Reject at review a secret reachable from browser code, call content in a log line or error response, a real recording or real personal data in the repo, or LLM output used without the Zod and quote checks.
+`server/browser-access.test.ts` checks that a signed-in browser can't read or write the database or Storage directly; the rest is review only. Reject at review a grant or policy for `authenticated`, a secret reachable from browser code, call content in a log line or error response, a real recording or real personal data in the repo, or LLM output used without the Zod and quote checks.
