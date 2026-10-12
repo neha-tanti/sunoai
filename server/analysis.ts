@@ -7,6 +7,7 @@ import {
 } from '@openrouter/sdk/models/errors';
 import type { TablesInsert } from '@/lib/database.types';
 import { loadChecklist } from './checklist';
+import { loggableError } from './errors';
 import { failCall } from './fail-call';
 import { requestAnalysis } from './llm';
 import {
@@ -132,7 +133,7 @@ function parseAnswer(content: string | null) {
 
 function handleError(callId: string, err: unknown) {
   if (!(err instanceof AnalysisFailure)) {
-    console.error(`Analysing call ${callId} failed`, err);
+    console.error(`Analysing call ${callId} failed: ${loggableError(err)}`);
   }
   return failCall(callId, 'analyzing', {
     code: 'analysis_failed',

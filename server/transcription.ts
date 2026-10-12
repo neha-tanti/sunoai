@@ -8,6 +8,7 @@ import {
   GnaniError,
   listFiles,
 } from './gnani';
+import { loggableError } from './errors';
 import { failCall, type Failure } from './fail-call';
 import { createAdminClient } from './supabase';
 
@@ -139,7 +140,9 @@ async function handleError(
   const gnaniBusy =
     err instanceof GnaniError && (err.status === 429 || err.status >= 500);
   if (!gnaniBusy) {
-    console.error(`Finishing the transcription of call ${call.id} failed`, err);
+    console.error(
+      `Finishing the transcription of call ${call.id} failed: ${loggableError(err)}`,
+    );
     return fail(call.id, {
       code: 'transcription_failed',
       reason:

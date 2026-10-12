@@ -16,3 +16,9 @@ export class ApiError extends HTTPException {
     super(status, { message });
   }
 }
+
+export function loggableError(err: unknown) {
+  if (!(err instanceof Error)) return typeof err;
+  const code = 'code' in err ? ` ${String(err.code)}` : '';
+  return `${err.name}${code}: ${err.message}`;
+}

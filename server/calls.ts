@@ -8,7 +8,7 @@ import { createCallSchema } from '@/lib/call-upload';
 import { analyzeCall } from './analysis';
 import type { SignedInEnv } from './auth';
 import { requireEnv } from './env';
-import { ApiError } from './errors';
+import { ApiError, loggableError } from './errors';
 import { cancelJob, createJob, startJob } from './gnani';
 import { DEADLINE_MS } from './pipeline';
 import { createAdminClient } from './supabase';
@@ -42,7 +42,9 @@ async function createAndStartJob(
     await startJob(jobId, signal);
     return jobId;
   } catch (err) {
-    console.error(`Starting the Gnani job for call ${callId} failed`, err);
+    console.error(
+      `Starting the Gnani job for call ${callId} failed: ${loggableError(err)}`,
+    );
     if (jobId) await cancelOrLog(callId, jobId);
     throw new ApiError(
       503,
@@ -55,8 +57,7 @@ async function createAndStartJob(
 async function cancelOrLog(callId: string, jobId: string) {
   await cancelJob(jobId, AbortSignal.timeout(GNANI_REQUEST_MS)).catch((err) =>
     console.error(
-      `Cancelling Gnani job ${jobId} for call ${callId} failed`,
-      err,
+      `Cancelling Gnani job ${jobId} for call ${callId} failed: ${loggableError(err)}`,
     ),
   );
 }
