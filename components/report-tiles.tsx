@@ -16,7 +16,7 @@ import {
   SCORE_BAND_CLASS,
   SCORE_BAND_LABEL,
 } from '@/lib/report-labels';
-import { scoreBand } from '@/lib/score-band';
+import { scoreBand, scorePercent } from '@/lib/score-band';
 
 const HANDOVER_LABEL = {
   pass: 'Smooth',
@@ -57,7 +57,7 @@ function Tile({
 
 function ScoreTile({ report }: { report: ReportDetail }) {
   const { score_passed: passed, score_total: total } = report;
-  const band = scoreBand(passed, total);
+  const percent = scorePercent(passed, total);
   const notNeeded = report.checks.length - total;
 
   return (
@@ -69,9 +69,9 @@ function ScoreTile({ report }: { report: ReportDetail }) {
           / {total}
         </span>
       </p>
-      {band ? (
-        <Badge className={SCORE_BAND_CLASS[band]}>
-          {Math.round((passed / total) * 100)}% · {SCORE_BAND_LABEL[band]}
+      {percent !== null ? (
+        <Badge className={SCORE_BAND_CLASS[scoreBand(percent)]}>
+          {percent}% · {SCORE_BAND_LABEL[scoreBand(percent)]}
         </Badge>
       ) : (
         <Badge variant="secondary">No checks applied</Badge>

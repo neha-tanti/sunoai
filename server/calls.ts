@@ -33,6 +33,7 @@ type SavedReport = Pick<Report, ReportJsonColumn> & {
   checklist_snapshot: Checklist;
 };
 
+const RECENT_CALLS = 10;
 const HANDOVER_CHECK_ID = 'smooth_handover';
 const RECORDING_URL_SECONDS = 2 * 60 * 60;
 
@@ -111,6 +112,31 @@ async function readReport(
     red_flags: redFlags,
     handover_check:
       checks.find((check) => check.check_id === HANDOVER_CHECK_ID) ?? null,
+  };
+}
+
+async function recentCalls() {
+  const recent = await createAdminClient()
+    .from('calls')
+    .select(
+      'id, title, status, error_code, created_at, report:reports(score_passed, score_total, needs_review, frustration_peak)',
+    )
+    .not('checked_at', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(RECENT_CALLS);
+  if (recent.error) throw recent.error;
+
+  const ratios = recent.data.flatMap(({ report }) =>
+    report && report.score_total > 0
+      ? [report.score_passed / report.score_total]
+      : [],
+  );
+  if (ratios.length === 0) return { calls: recent.data, average: null };
+
+  const mean = ratios.reduce((sum, ratio) => sum + ratio, 0) / ratios.length;
+  return {
+    calls: recent.data,
+    average: { percent: Math.round(mean * 100), calls: ratios.length },
   };
 }
 
@@ -230,6 +256,7 @@ export const calls = new Hono<SignedInEnv>()
       201,
     );
   })
+  .get('/', async (c) => c.json(await recentCalls()))
   .get('/:id', zValidator('param', callIdParam, rejectInvalid), async (c) => {
     const { id } = c.req.valid('param');
     const supabase = createAdminClient();

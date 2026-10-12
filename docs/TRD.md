@@ -223,7 +223,7 @@ Eleven Hono routes under `/api`: nine for the page, one for Gnani's webhook and 
 | `POST /api/calls` | Page | Checks title, file name, size, type and languages; creates the call; returns its id and a signed upload URL |
 | `POST /api/calls/:id/check` | Page | Confirms the file is in Storage, creates and starts the Gnani job, sets Transcribing |
 | `POST /api/calls/:id/analyze` | Page | Check again: sets Analysing only for a Failed call whose `error_code` is `analysis_failed`, clearing the error, and reruns only the analysis. Any other call gets a 409 with code `not_retryable` |
-| `GET /api/calls` | Page | Recent calls, newest first, with score, Needs review, peak frustration and status, plus the team average |
+| `GET /api/calls` | Page | The 10 newest checked calls (a check was started), newest first, with score, Needs review, peak frustration and status, plus the team average: the mean of their score percentages, leaving out calls with no checks applied |
 | `GET /api/calls/:id` | Page | The call, its report and its transcript segments |
 | `POST /api/calls/:id/coaching-audio` | Page | Returns a signed URL for the coaching audio, generating it the first time |
 | `DELETE /api/calls/:id` | Page | Cancels a running Gnani job, then deletes the files and rows |

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { scoreBand } from './score-band';
+import { scoreBand, scorePercent } from './score-band';
 
 describe('scoreBand', () => {
   it.each([
@@ -10,10 +10,15 @@ describe('scoreBand', () => {
     [2, 5, 'poor'],
     [0, 3, 'poor'],
   ])('%i of %i passed is %s', (passed, total, band) => {
-    expect(scoreBand(passed, total)).toBe(band);
+    expect(scoreBand(scorePercent(passed, total)!)).toBe(band);
   });
 
-  it('gives no band when every check was not applicable', () => {
-    expect(scoreBand(0, 0)).toBeNull();
+  it('bands the percent as shown, so 39 of 49 reads 80% and Good', () => {
+    expect(scorePercent(39, 49)).toBe(80);
+    expect(scoreBand(80)).toBe('good');
+  });
+
+  it('gives no percent when every check was not applicable', () => {
+    expect(scorePercent(0, 0)).toBeNull();
   });
 });
