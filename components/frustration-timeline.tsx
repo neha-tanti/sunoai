@@ -138,13 +138,13 @@ function MarkerPin({ marker, left, row }: MarkerPinProps) {
         aria-label={`${label}. Show in the transcript`}
         title={names}
         className={cn(
-          'pointer-events-auto max-w-40 truncate rounded-md border border-transparent px-1.5 text-xs font-semibold hover:border-current',
+          'pointer-events-auto flex max-w-48 gap-1 rounded-md border border-transparent px-1.5 text-xs font-semibold whitespace-nowrap hover:border-current',
           marker.hasFlag
             ? 'bg-angry/15 text-destructive'
             : 'bg-secondary text-secondary-foreground',
         )}
       >
-        {names} · {time}
+        <span className="truncate">{names}</span>· {time}
       </a>
       <span
         className={cn(
@@ -182,7 +182,7 @@ function TimeAxis({ length, percent }: TimeAxisProps) {
             'absolute',
             index === ticks.length - 1
               ? '-translate-x-full'
-              : index > 0 && '-translate-x-1/2',
+              : index > 0 && 'hidden -translate-x-1/2 sm:block',
           )}
           style={{ left: `${percent(t)}%` }}
         >

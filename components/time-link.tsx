@@ -13,3 +13,16 @@ export function TimeLink({ segmentId, time }: TimeLinkProps) {
     </a>
   );
 }
+
+type QuoteLinkProps = { segmentId: number; quote: string };
+
+export function QuoteLink({ segmentId, quote }: QuoteLinkProps) {
+  return (
+    <a
+      href={`#segment-${segmentId}`}
+      className="italic underline-offset-4 hover:underline"
+    >
+      <q>{quote}</q>
+    </a>
+  );
+}

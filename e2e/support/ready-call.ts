@@ -254,6 +254,63 @@ export const COLD_BIRYANI_REPORT = {
   },
 } satisfies Report;
 
+export const CALM_QUESTION_SEGMENTS: Segment[] = [
+  {
+    segment_id: 0,
+    start_time: 0,
+    end_time: 4,
+    speaker_id: 1,
+    text: 'Namaste! SwadExpress support mein aapka swagat hai.',
+  },
+  {
+    segment_id: 1,
+    start_time: 4,
+    end_time: 9,
+    speaker_id: 2,
+    text: 'Kya aap log Sunday ko bhi deliver karte ho?',
+  },
+  {
+    segment_id: 2,
+    start_time: 9,
+    end_time: 15,
+    speaker_id: 1,
+    text: 'Haan ji, hum Sunday ko subah 8 se raat 11 baje tak deliver karte hain.',
+  },
+  {
+    segment_id: 3,
+    start_time: 15,
+    end_time: 18,
+    speaker_id: 2,
+    text: 'Theek hai, thanks.',
+  },
+];
+
+export const CALM_QUESTION_REPORT = {
+  score_passed: 0,
+  score_total: 0,
+  needs_review: false,
+  frustration_peak: 'calm',
+  frustration: { ranges: [{ start: 0, end: 18, level: 'calm' }], turn: null },
+  speakers: [
+    { speaker_id: 1, role: 'ai_agent', name: null },
+    { speaker_id: 2, role: 'customer', name: null },
+  ],
+  handover_segment_id: null,
+  checks: CHECKLIST_SNAPSHOT.checks.map((check) => ({
+    check_id: check.id,
+    result: 'na' as const,
+    segment_id: null,
+    time: null,
+    quote: null,
+    reason: 'A question about delivery days, with no order involved.',
+  })),
+  red_flags: [],
+  fix_notes: [],
+  summary:
+    'The customer asked whether SwadExpress delivers on Sundays. The AI agent gave the Sunday hours and the customer thanked it.',
+  coaching: null,
+} satisfies Report;
+
 export async function seedReadyCall(
   title: string,
   segments: Segment[],

@@ -21,7 +21,7 @@ export function TranscriptView({ report, segments }: TranscriptViewProps) {
         <CardTitle>Transcript</CardTitle>
         <CardDescription>Who said what is a best guess</CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-1 lg:overflow-y-auto">
+      <CardContent className="flex flex-col gap-1 lg:min-h-0 lg:overflow-y-auto">
         {segments.map((segment) => (
           <TranscriptLine
             key={segment.segment_id}
