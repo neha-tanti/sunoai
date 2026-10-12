@@ -73,9 +73,11 @@ export function stubGnani() {
     if (!fake || fake.transcript === undefined) {
       return new Response('Not found', { status: 404 });
     }
-    return Response.json(fake.transcript, {
-      status: fake.transcriptStatus ?? 200,
-    });
+    const init = { status: fake.transcriptStatus ?? 200 };
+    if (typeof fake.transcript === 'string') {
+      return new Response(fake.transcript, init);
+    }
+    return Response.json(fake.transcript, init);
   }
 
   const fakeFetch: typeof fetch = async (input, init) => {

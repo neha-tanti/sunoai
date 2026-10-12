@@ -380,6 +380,27 @@ describe('each failure in the TRD table', () => {
     expect(segments).toHaveLength(0);
   });
 
+  it('fails a transcript that is not JSON without logging or saving its text', async () => {
+    const transcriptText = 'Order late';
+    const consoleError = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+    const call = await transcribingCall(completedJob(transcriptText));
+
+    expect(await finishByWebhook(call.jobId)).toEqual(['failed']);
+
+    const { call: saved } = await readCall(call.id);
+    expect(saved).toMatchObject({
+      status: 'failed',
+      error_code: 'transcription_failed',
+    });
+    expect(saved?.error).not.toContain(transcriptText);
+    expect(consoleError).toHaveBeenCalled();
+    expect(JSON.stringify(consoleError.mock.calls)).not.toContain(
+      transcriptText,
+    );
+  });
+
   it('accepts a call of exactly 30 minutes', async () => {
     const call = await transcribingCall(
       completedJob(hinglishTranscript({ duration_seconds: 1800 })),
