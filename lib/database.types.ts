@@ -260,7 +260,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      save_transcript: {
+        Args: {
+          p_call_id: string
+          p_detected_lang: string
+          p_duration_seconds: number
+          p_segments: Json
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       call_error_code:
