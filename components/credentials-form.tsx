@@ -1,11 +1,9 @@
 'use client';
 
-import { useSyncExternalStore } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-
-const subscribeToNothing = () => () => {};
+import { useHydrated } from '@/hooks/use-hydrated';
 
 type CredentialsFormProps = {
   submitLabel: string;
@@ -22,11 +20,7 @@ export function CredentialsForm({
   error,
   onSubmit,
 }: CredentialsFormProps) {
-  const hydrated = useSyncExternalStore(
-    subscribeToNothing,
-    () => true,
-    () => false,
-  );
+  const hydrated = useHydrated();
 
   function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
