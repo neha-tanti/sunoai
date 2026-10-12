@@ -1,7 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
+import type { InferResponseType } from 'hono/client';
 import { api } from '@/lib/api-client';
 
 const REFETCH_MS = 3_000;
+
+type GetCall = (typeof api.api.calls)[':id']['$get'];
+export type CallDetail = InferResponseType<GetCall, 200>;
+export type CallReport = NonNullable<CallDetail['report']>;
+export type Segment = CallDetail['segments'][number];
 
 export function useCall(id: string) {
   return useQuery({
