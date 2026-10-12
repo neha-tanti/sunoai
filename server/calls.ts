@@ -302,15 +302,20 @@ export const calls = new Hono<SignedInEnv>()
       const { status, gnani_job_id: jobId, file_path: filePath } = call.data;
       if (status === 'transcribing' && jobId) await cancelOrLog(id, jobId);
 
+      const recording = await supabase.storage.from('calls').remove([filePath]);
+      if (recording.error) throw recording.error;
+
       const deleted = await supabase.from('calls').delete().eq('id', id);
       if (deleted.error) throw deleted.error;
 
-      const [recording, coaching] = await Promise.all([
-        supabase.storage.from('calls').remove([filePath]),
-        supabase.storage.from('coaching').remove([coachingAudioPath(id)]),
-      ]);
-      if (recording.error) throw recording.error;
-      if (coaching.error) throw coaching.error;
+      const coaching = await supabase.storage
+        .from('coaching')
+        .remove([coachingAudioPath(id)]);
+      if (coaching.error) {
+        console.error(
+          `Removing the coaching audio of deleted call ${id} failed: ${loggableError(coaching.error)}`,
+        );
+      }
 
       return c.body(null, 204);
     },
