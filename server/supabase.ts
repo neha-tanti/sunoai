@@ -9,12 +9,7 @@ import type { Context } from 'hono';
 import { setCookie } from 'hono/cookie';
 import type { CookieOptions as HonoCookieOptions } from 'hono/utils/cookie';
 import type { Database } from '@/lib/database.types';
-
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) throw new Error(`${name} is not set. See .env.example.`);
-  return value;
-}
+import { requireEnv } from './env';
 
 function toHonoCookieOptions(options: CookieOptions): HonoCookieOptions {
   const { domain, expires, httpOnly, maxAge, path, secure, sameSite } = options;

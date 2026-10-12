@@ -75,6 +75,10 @@ The home page shows the answer from `GET /api/health`, fetched through the typed
 
 **Test project.** API tests run against a second Supabase project, never the dev one. Create it, then put its URL and keys in `.env.test.local` under the same three names as above, plus `SUPABASE_TEST_DB_URL`: the **Session pooler** connection string from the project's **Connect** dialog, with the password filled in and percent-encoded. Apply the auth settings once with `pnpm supabase config push --project-ref <test ref>`, and run `pnpm db:reset:test` after every new migration. `pnpm test` reads only `.env.test.local`, and stops with a clear message if the file is missing or points at the dev project.
 
+**End-to-end tests.** `pnpm test:e2e` runs against `pnpm dev`, so it uses the dev project from `.env.local`. The tests under `e2e/signed-in/` create a team leader for the run, sign in, and delete the account and any calls they seeded when they finish. They never reach Gnani.
+
+**Webhook locally.** Gnani can't reach `localhost`, so its webhook doesn't fire in development. To finish a call stuck in Transcribing, call the poll route by hand: `curl -X POST http://localhost:3000/api/jobs/poll -H "x-cron-secret: $CRON_SECRET"`.
+
 `.env.local` is also read by the hand-run spike scripts in `scripts/spike/`. Never commit it.
 
 ## Repository layout

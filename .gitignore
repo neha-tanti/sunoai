@@ -34,3 +34,6 @@ Thumbs.db
 # Claude Code local files
 .claude/settings.local.json
 .claude/worktrees/
+
+# Playwright sign-in state
+e2e/.auth/

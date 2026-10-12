@@ -2,28 +2,29 @@ import 'server-only';
 import { Hono } from 'hono';
 import { except } from 'hono/combine';
 import { HTTPException } from 'hono/http-exception';
+import type { ErrorCode } from '@/lib/api-errors';
 import { requireUser } from './auth';
+import { calls } from './calls';
 import { checklist } from './checklist';
-
-export type ErrorCode =
-  | 'invalid_request'
-  | 'unauthorized'
-  | 'not_found'
-  | 'too_large'
-  | 'request_failed'
-  | 'internal_error';
+import { ApiError, apiError } from './errors';
+import { jobs } from './jobs';
+import { webhooks } from './webhooks';
 
 type ErrorDetail = { code: ErrorCode; message: string };
 
-const apiError = (code: ErrorCode, message: string) => ({
-  error: { code, message },
-});
-
 export const app = new Hono()
   .basePath('/api')
-  .use(except(['/api/health'], requireUser))
+  .use(
+    except(
+      ['/api/health', '/api/webhooks/gnani', '/api/jobs/poll'],
+      requireUser,
+    ),
+  )
   .get('/health', (c) => c.json({ status: 'ok' as const }))
-  .route('/checklist', checklist);
+  .route('/calls', calls)
+  .route('/checklist', checklist)
+  .route('/webhooks', webhooks)
+  .route('/jobs', jobs);
 
 app.notFound((c) =>
   c.json(apiError('not_found', 'This API route does not exist.'), 404),
@@ -48,6 +49,10 @@ const otherClientError: ErrorDetail = {
 };
 
 app.onError((err, c) => {
+  if (err instanceof ApiError) {
+    return c.json(apiError(err.code, err.message), err.status);
+  }
+
   if (err instanceof HTTPException && err.status < 500) {
     const known = clientErrors[err.status] ?? otherClientError;
     return c.json(
