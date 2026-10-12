@@ -48,7 +48,7 @@ function Tile({
   children: React.ReactNode;
 }) {
   return (
-    <Card>
+    <Card role="region" aria-label={label}>
       <CardHeader>
         <CardDescription className="text-xs font-semibold tracking-wider uppercase">
           {label}

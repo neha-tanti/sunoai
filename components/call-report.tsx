@@ -1,4 +1,5 @@
 import { CircleCheckIcon, TriangleAlertIcon } from 'lucide-react';
+import { FrustrationTimeline } from '@/components/frustration-timeline';
 import { ReportTiles } from '@/components/report-tiles';
 import { TranscriptView } from '@/components/transcript-view';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -11,6 +12,7 @@ export function CallReport({ report, segments }: CallReportProps) {
     <article className="flex flex-col gap-4" aria-label="Call report">
       <ReviewBanner redFlags={report.red_flags.length} />
       <ReportTiles report={report} segments={segments} />
+      <FrustrationTimeline report={report} segments={segments} />
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:items-start">
         <div className="flex min-w-0 flex-col gap-4" />
         <TranscriptView report={report} segments={segments} />
