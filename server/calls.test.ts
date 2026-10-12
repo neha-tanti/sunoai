@@ -14,6 +14,7 @@ import { MAX_FILE_BYTES, type CreateCall } from '@/lib/call-upload';
 import { analyzeCall } from './analysis';
 import type { Checklist } from './checklist';
 import { app } from './app';
+import { coachingAudioPath } from './calls';
 import { createAdminClient } from './supabase';
 import { flushAfter } from './test/after';
 import {
@@ -27,6 +28,8 @@ import {
 import { stubGnani, type GnaniStub } from './test/gnani-stub';
 import {
   ANSWERING_MODEL,
+  chatCompletion,
+  lateOrderAnswer,
   stubOpenRouter,
   type OpenRouterStub,
 } from './test/openrouter-stub';
@@ -98,8 +101,10 @@ async function seedCall(overrides: Parameters<typeof insertCall>[0] = {}) {
   return call;
 }
 
-async function seedAnalyzingCall() {
-  const call = await insertAnalyzingCall();
+async function seedAnalyzingCall(
+  overrides: Parameters<typeof insertAnalyzingCall>[0] = {},
+) {
+  const call = await insertAnalyzingCall(overrides);
   createdIds.push(call.id);
   return call;
 }
@@ -414,8 +419,164 @@ describe('DELETE /api/calls/:id', () => {
     expect(gnani.requestsTo('/cancel')).toHaveLength(0);
   });
 
+  it('deletes the coaching audio of a call that was coached', async () => {
+    const call = await seedCoachedCall();
+    await playCoaching(call.id);
+    expect(await coachingAudioExists(call.id)).toBe(true);
+
+    const res = await deleteCall(call.id);
+
+    expect(res.status).toBe(204);
+    expect(await coachingAudioExists(call.id)).toBe(false);
+  });
+
   it('answers 404 for a call that does not exist', async () => {
     const res = await deleteCall(randomUUID());
+
+    expect(res.status).toBe(404);
+  });
+});
+
+const COACHING = {
+  text: 'Ravi, aapne customer ko turant jawab diya, bahut achha. Agli baar order ID pehle confirm kijiye.',
+  english:
+    'Ravi, you answered the customer straight away, well done. Next time, confirm the order ID first.',
+};
+
+async function seedCoachedCall(coachingLang = 'hi-en') {
+  vi.spyOn(console, 'info').mockImplementation(() => {});
+  openRouter.reply(() =>
+    chatCompletion(
+      JSON.stringify({
+        ...lateOrderAnswer(),
+        speakers: [
+          { speaker_id: 1, role: 'human_agent', name: 'Ravi' },
+          { speaker_id: 2, role: 'customer', name: null },
+        ],
+        coaching: COACHING,
+      }),
+    ),
+  );
+  const call = await seedAnalyzingCall({ coaching_lang: coachingLang });
+  await analyzeCall(call.id, AbortSignal.timeout(30_000));
+  return call;
+}
+
+function playCoaching(id: string) {
+  return api.calls[':id']['coaching-audio'].$post(
+    { param: { id } },
+    { headers: { Cookie: session.cookie } },
+  );
+}
+
+async function coachingAudioExists(callId: string) {
+  const exists = await createAdminClient()
+    .storage.from('coaching')
+    .exists(coachingAudioPath(callId));
+  return exists.data;
+}
+
+describe('POST /api/calls/:id/coaching-audio', () => {
+  it.each([
+    ['Hindi', 'hi-IN', 'Nalini'],
+    ['Hinglish', 'hi-en', 'Poorvi'],
+  ])(
+    'speaks %s coaching with Timbre and returns a link to the saved audio',
+    async (_, language, voice) => {
+      const call = await seedCoachedCall(language);
+
+      const res = await playCoaching(call.id);
+
+      expect(res.status).toBe(200);
+      expect(gnani.requestsTo('/tts/inference')).toMatchObject([
+        {
+          method: 'POST',
+          body: {
+            text: COACHING.text,
+            voice,
+            language,
+            model: 'timbre-v2.5',
+            speed: 0.9,
+            audio_config: { container: 'wav', num_channels: 1 },
+          },
+        },
+      ]);
+      expect(await readReport(call.id)).toMatchObject({
+        coaching_audio_path: coachingAudioPath(call.id),
+      });
+      const audio = await fetch((await res.json()).url);
+      expect(audio.ok).toBe(true);
+      expect(audio.headers.get('content-type')).toBe('audio/wav');
+    },
+  );
+
+  it('plays the saved audio the second time without asking Timbre again', async () => {
+    const call = await seedCoachedCall();
+    await playCoaching(call.id);
+
+    const res = await playCoaching(call.id);
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).url).toContain(coachingAudioPath(call.id));
+    expect(gnani.requestsTo('/tts/inference')).toHaveLength(1);
+  });
+
+  it('saves nothing when Timbre fails, and the next play tries again', async () => {
+    const call = await seedCoachedCall();
+    const consoleError = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+    gnani.answers.tts = 429;
+
+    const failed = await playCoaching(call.id);
+
+    expect(failed.status).toBe(503);
+    expect(await failed.json()).toEqual({
+      error: {
+        code: 'coaching_audio_failed',
+        message: "Couldn't create the coaching audio. Try again.",
+      },
+    });
+    expect(await readReport(call.id)).toMatchObject({
+      coaching_audio_path: null,
+    });
+    expect(await coachingAudioExists(call.id)).toBe(false);
+    consoleError.mockRestore();
+
+    gnani.answers.tts = undefined;
+    const retried = await playCoaching(call.id);
+
+    expect(retried.status).toBe(200);
+    expect(gnani.requestsTo('/tts/inference')).toHaveLength(2);
+  });
+
+  it('refuses a call without a human agent, since it has no coaching', async () => {
+    vi.spyOn(console, 'info').mockImplementation(() => {});
+    const call = await seedAnalyzingCall();
+    await analyzeCall(call.id, AbortSignal.timeout(30_000));
+
+    const res = await playCoaching(call.id);
+
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ error: { code: 'no_coaching' } });
+    expect(gnani.requestsTo('/tts/inference')).toHaveLength(0);
+  });
+
+  it('refuses a call that has no report yet', async () => {
+    const call = await seedAnalyzingCall();
+
+    const res = await playCoaching(call.id);
+
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ error: { code: 'not_ready' } });
+    expect(gnani.requestsTo('/tts/inference')).toHaveLength(0);
+  });
+
+  it.each([
+    ['an id that is not a call id', 'a-call-that-does-not-exist'],
+    ['a call that does not exist', randomUUID()],
+  ])('answers 404 for %s', async (_, id) => {
+    const res = await playCoaching(id);
 
     expect(res.status).toBe(404);
   });

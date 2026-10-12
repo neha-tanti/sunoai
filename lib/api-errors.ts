@@ -8,6 +8,9 @@ export type ErrorCode =
   | 'file_missing'
   | 'gnani_unavailable'
   | 'not_retryable'
+  | 'not_ready'
+  | 'no_coaching'
+  | 'coaching_audio_failed'
   | 'internal_error';
 
 export async function apiError(res: { json(): Promise<unknown> }) {
