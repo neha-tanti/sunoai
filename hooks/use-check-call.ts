@@ -17,17 +17,24 @@ type UnfinishedCall = {
   id: string;
   path: string;
   token: string;
+  createdAt: number;
   uploaded: boolean;
 };
+
+const UPLOAD_TOKEN_REUSE_MS = 110 * 60 * 1000;
 
 const UPLOAD_FAILED_MESSAGE =
   'Upload failed. Check your connection and try again.';
 
-async function apiErrorMessage(res: { json(): Promise<unknown> }) {
+async function apiError(res: { json(): Promise<unknown> }) {
   const body = (await res.json().catch(() => null)) as {
-    error?: { message?: string };
+    error?: { code?: string; message?: string };
   } | null;
-  return body?.error?.message ?? 'Something went wrong. Try again in a minute.';
+  return {
+    code: body?.error?.code,
+    message:
+      body?.error?.message ?? 'Something went wrong. Try again in a minute.',
+  };
 }
 
 async function createCall({
@@ -37,7 +44,7 @@ async function createCall({
   const created = await api.api.calls.$post({
     json: { ...details, file_name: file.name, file_size: file.size },
   });
-  if (!created.ok) throw new Error(await apiErrorMessage(created));
+  if (!created.ok) throw new Error((await apiError(created)).message);
   const { id, path, token } = await created.json();
   return {
     file,
@@ -45,25 +52,37 @@ async function createCall({
     id,
     path,
     token,
+    createdAt: Date.now(),
     uploaded: false,
   };
 }
 
-function isRetryOf(input: CheckCallInput, call: UnfinishedCall) {
+function canReuse(input: CheckCallInput, call: UnfinishedCall) {
   const { file, ...details } = input;
-  return call.file === file && call.details === JSON.stringify(details);
+  if (call.file !== file || call.details !== JSON.stringify(details)) {
+    return false;
+  }
+  return call.uploaded || Date.now() - call.createdAt < UPLOAD_TOKEN_REUSE_MS;
+}
+
+async function discardCall(id: string) {
+  const callRoute = api.api.calls[':id'];
+  const read = await callRoute.$get({ param: { id } });
+  if (read.status === 404) return;
+  if (!read.ok) throw new Error((await apiError(read)).message);
+  const { call } = await read.json();
+  if (call.status !== 'uploaded') return;
+
+  const deleted = await callRoute.$delete({ param: { id } });
+  if (!deleted.ok) throw new Error((await apiError(deleted)).message);
 }
 
 async function callToCheck(
   input: CheckCallInput,
   previous: UnfinishedCall | null,
 ) {
-  if (previous && isRetryOf(input, previous)) return previous;
-  if (previous) {
-    await api.api.calls[':id']
-      .$delete({ param: { id: previous.id } })
-      .catch(() => undefined);
-  }
+  if (previous && canReuse(input, previous)) return previous;
+  if (previous) await discardCall(previous.id);
   return createCall(input);
 }
 
@@ -94,7 +113,10 @@ export function useCheckCall() {
       const checked = await api.api.calls[':id'].check.$post({
         param: { id: call.id },
       });
-      if (!checked.ok) throw new Error(await apiErrorMessage(checked));
+      if (!checked.ok) {
+        const error = await apiError(checked);
+        if (error.code !== 'not_uploaded') throw new Error(error.message);
+      }
       unfinished.current = null;
       return call.id;
     },

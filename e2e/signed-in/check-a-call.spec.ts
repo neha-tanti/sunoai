@@ -133,6 +133,45 @@ test.describe('uploading', () => {
     if (calls.error) throw calls.error;
     expect(calls.data).toHaveLength(1);
   });
+
+  test('a check that started but lost its answer opens the call on retry', async ({
+    page,
+  }) => {
+    let uploads = 0;
+    let checks = 0;
+    await page.route('**/storage/v1/object/upload/sign/**', (route) => {
+      uploads += 1;
+      return route.fulfill({ json: { Key: 'calls/missing-raita.mp3' } });
+    });
+    await page.route('**/api/calls/*/check', (route) => {
+      checks += 1;
+      if (checks === 1) return route.abort('connectionfailed');
+      return route.fulfill({
+        status: 409,
+        json: {
+          error: {
+            code: 'not_uploaded',
+            message: 'This call has already been checked.',
+          },
+        },
+      });
+    });
+    await page.goto('/');
+
+    await page.getByLabel('Call recording').setInputFiles({
+      name: 'missing-raita.mp3',
+      mimeType: 'audio/mpeg',
+      buffer: Buffer.from('not really audio'),
+    });
+    await page.getByLabel('Call title').fill(title);
+    const checkThisCall = page.getByRole('button', { name: 'Check this call' });
+    await checkThisCall.click();
+    await expect(page.getByRole('main').getByRole('alert')).toBeVisible();
+    await checkThisCall.click();
+
+    await expect(page).toHaveURL(/\/calls\/[0-9a-f-]{36}$/);
+    expect(uploads).toBe(1);
+  });
 });
 
 test.describe('a failed call', () => {
