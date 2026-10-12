@@ -264,6 +264,61 @@ test.describe('a failed call', () => {
     });
   }
 
+  test('offers Check again only when the analysis failed', async ({ page }) => {
+    for (const [errorCode] of failures) {
+      await page.goto(`/calls/${callIds.get(errorCode)}`);
+      await expect(page.getByRole('main').getByRole('status')).toBeVisible();
+
+      await expect(
+        page.getByRole('button', { name: 'Check again' }),
+      ).toHaveCount(errorCode === 'analysis_failed' ? 1 : 0);
+    }
+  });
+
+  test('Check again starts the analysis again', async ({ page }) => {
+    const id = callIds.get('analysis_failed');
+    await page.route(`**/api/calls/${id}/analyze`, (route) =>
+      route.fulfill({ status: 202, json: { status: 'analyzing' } }),
+    );
+    await page.goto(`/calls/${id}`);
+    const checkAgain = page.getByRole('button', { name: 'Check again' });
+    await expect(checkAgain).toBeVisible();
+    await page.route(`**/api/calls/${id}`, async (route) => {
+      const response = await route.fetch();
+      const body = await response.json();
+      body.call = { ...body.call, status: 'analyzing', error_code: null };
+      await route.fulfill({ response, json: body });
+    });
+
+    await checkAgain.click();
+
+    await expect(page.getByRole('main').getByRole('status')).toHaveText(
+      'Analysing the transcript…',
+    );
+  });
+
+  test('Check again shows why it was refused', async ({ page }) => {
+    const id = callIds.get('analysis_failed');
+    await page.route(`**/api/calls/${id}/analyze`, (route) =>
+      route.fulfill({
+        status: 409,
+        json: {
+          error: {
+            code: 'not_retryable',
+            message: 'Only a call whose analysis failed can be checked again.',
+          },
+        },
+      }),
+    );
+    await page.goto(`/calls/${id}`);
+
+    await page.getByRole('button', { name: 'Check again' }).click();
+
+    await expect(page.getByRole('main').getByRole('alert')).toHaveText(
+      'Only a call whose analysis failed can be checked again.',
+    );
+  });
+
   test('a call that does not exist says so', async ({ page }) => {
     await page.goto(`/calls/${randomUUID()}`);
 

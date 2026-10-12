@@ -15,6 +15,15 @@ export class GnaniError extends Error {
   }
 }
 
+async function readJson(res: Response, what: string): Promise<unknown> {
+  const body = await res.text();
+  try {
+    return JSON.parse(body);
+  } catch {
+    throw new GnaniError(res.status, `${what} was not valid JSON`);
+  }
+}
+
 async function gnani(
   path: string,
   signal: AbortSignal,
@@ -38,7 +47,7 @@ async function gnani(
       `Gnani ${method} ${path} answered ${res.status}`,
     );
   }
-  return res.json();
+  return readJson(res, `Gnani ${method} ${path}`);
 }
 
 export async function createJob(
@@ -162,5 +171,5 @@ export async function downloadTranscript(url: string, signal: AbortSignal) {
       `Transcript download answered ${res.status}`,
     );
   }
-  return parseGnaniTranscript(await res.json());
+  return parseGnaniTranscript(await readJson(res, 'The transcript'));
 }

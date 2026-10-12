@@ -56,6 +56,15 @@ describe('a signed-in browser going straight to Supabase', () => {
     expect(error).toMatchObject({ code: '42501' });
   });
 
+  it('cannot save a report', async () => {
+    const { error } = await session.supabase.rpc('save_report', {
+      p_call_id: randomUUID(),
+      p_report: { score_passed: 6, score_total: 6 },
+    });
+
+    expect(error).toMatchObject({ code: '42501' });
+  });
+
   it('cannot download a recording', async () => {
     const { data, error } = await session.supabase.storage
       .from('calls')

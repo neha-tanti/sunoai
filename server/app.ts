@@ -6,7 +6,7 @@ import type { ErrorCode } from '@/lib/api-errors';
 import { requireUser } from './auth';
 import { calls } from './calls';
 import { checklist } from './checklist';
-import { ApiError, apiError } from './errors';
+import { ApiError, apiError, loggableError } from './errors';
 import { jobs } from './jobs';
 import { webhooks } from './webhooks';
 
@@ -61,7 +61,7 @@ app.onError((err, c) => {
     );
   }
 
-  console.error(`${c.req.method} ${c.req.path} failed`, err);
+  console.error(`${c.req.method} ${c.req.path} failed: ${loggableError(err)}`);
   return c.json(
     apiError(
       'internal_error',

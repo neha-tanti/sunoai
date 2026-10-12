@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type { TablesInsert } from '@/lib/database.types';
+import { parseGnaniTranscript } from '../gnani';
 import { createAdminClient } from '../supabase';
+import { hinglishTranscript } from './gnani-stub';
 
 export async function insertCall(
   overrides: Partial<TablesInsert<'calls'>> = {},
@@ -22,6 +24,35 @@ export async function insertCall(
     .single();
   if (inserted.error) throw inserted.error;
   return inserted.data;
+}
+
+export async function insertAnalyzingCall(
+  overrides: Partial<TablesInsert<'calls'>> = {},
+) {
+  const transcript = parseGnaniTranscript(hinglishTranscript());
+  const call = await insertCall({
+    status: 'analyzing',
+    detected_lang: transcript.language,
+    duration_seconds: transcript.durationSeconds,
+    ...overrides,
+  });
+  const inserted = await createAdminClient()
+    .from('transcript_segments')
+    .insert(
+      transcript.segments.map((segment) => ({ ...segment, call_id: call.id })),
+    );
+  if (inserted.error) throw inserted.error;
+  return call;
+}
+
+export async function readReport(callId: string) {
+  const report = await createAdminClient()
+    .from('reports')
+    .select()
+    .eq('call_id', callId)
+    .maybeSingle();
+  if (report.error) throw report.error;
+  return report.data;
 }
 
 export async function uploadRecording(filePath: string) {

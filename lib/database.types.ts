@@ -260,6 +260,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      save_report: {
+        Args: { p_call_id: string; p_report: Json }
+        Returns: boolean
+      }
       save_transcript: {
         Args: {
           p_call_id: string
@@ -277,7 +281,6 @@ export type Database = {
         | "no_speech"
         | "too_long"
         | "analysis_failed"
-        | "daily_limit"
       call_status:
         | "uploaded"
         | "transcribing"
@@ -418,7 +421,6 @@ export const Constants = {
         "no_speech",
         "too_long",
         "analysis_failed",
-        "daily_limit",
       ],
       call_status: ["uploaded", "transcribing", "analyzing", "ready", "failed"],
       mood: ["calm", "annoyed", "angry"],

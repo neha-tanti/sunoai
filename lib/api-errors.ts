@@ -7,4 +7,16 @@ export type ErrorCode =
   | 'already_checked'
   | 'file_missing'
   | 'gnani_unavailable'
+  | 'not_retryable'
   | 'internal_error';
+
+export async function apiError(res: { json(): Promise<unknown> }) {
+  const body = (await res.json().catch(() => null)) as {
+    error?: { code?: ErrorCode; message?: string };
+  } | null;
+  return {
+    code: body?.error?.code,
+    message:
+      body?.error?.message ?? 'Something went wrong. Try again in a minute.',
+  };
+}

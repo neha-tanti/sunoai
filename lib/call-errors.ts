@@ -7,5 +7,4 @@ export const CALL_ERROR_MESSAGES: Record<Enums<'call_error_code'>, string> = {
   too_long:
     'This call is longer than 30 minutes. Split it and check each part.',
   analysis_failed: 'Analysis failed.',
-  daily_limit: "Today's check limit is reached. Checking resumes at 5:30 am.",
 };

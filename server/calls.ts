@@ -2,17 +2,22 @@ import 'server-only';
 import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
+import { after } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import { createCallSchema } from '@/lib/call-upload';
+import { analyzeCall } from './analysis';
 import type { SignedInEnv } from './auth';
 import { requireEnv } from './env';
-import { ApiError } from './errors';
+import { ApiError, loggableError } from './errors';
 import { cancelJob, createJob, startJob } from './gnani';
+import { DEADLINE_MS } from './pipeline';
 import { createAdminClient } from './supabase';
 import { callIdParam, rejectInvalid } from './validate';
 
 const CALL_COLUMNS =
   'id, title, status, error_code, call_langs, coaching_lang, denoise, detected_lang, duration_seconds, file_size_bytes, mime_type, created_at, checked_at';
+const REPORT_COLUMNS =
+  'score_passed, score_total, needs_review, frustration_peak, frustration, speakers, handover_segment_id, checks, red_flags, fix_notes, summary, coaching, llm_model, prompt_version, created_at';
 
 const GNANI_REQUEST_MS = 20_000;
 const RECORDING_URL_SECONDS = 2 * 60 * 60;
@@ -37,7 +42,9 @@ async function createAndStartJob(
     await startJob(jobId, signal);
     return jobId;
   } catch (err) {
-    console.error(`Starting the Gnani job for call ${callId} failed`, err);
+    console.error(
+      `Starting the Gnani job for call ${callId} failed: ${loggableError(err)}`,
+    );
     if (jobId) await cancelOrLog(callId, jobId);
     throw new ApiError(
       503,
@@ -50,8 +57,7 @@ async function createAndStartJob(
 async function cancelOrLog(callId: string, jobId: string) {
   await cancelJob(jobId, AbortSignal.timeout(GNANI_REQUEST_MS)).catch((err) =>
     console.error(
-      `Cancelling Gnani job ${jobId} for call ${callId} failed`,
-      err,
+      `Cancelling Gnani job ${jobId} for call ${callId} failed: ${loggableError(err)}`,
     ),
   );
 }
@@ -116,6 +122,32 @@ async function startCheck(id: string) {
   throw alreadyChecked();
 }
 
+async function reopenFailedAnalysis(id: string) {
+  const supabase = createAdminClient();
+  const updated = await supabase
+    .from('calls')
+    .update({ status: 'analyzing', error_code: null, error: null })
+    .eq('id', id)
+    .eq('status', 'failed')
+    .eq('error_code', 'analysis_failed')
+    .select('id');
+  if (updated.error) throw updated.error;
+  if (updated.data.length > 0) return;
+
+  const call = await supabase
+    .from('calls')
+    .select('id')
+    .eq('id', id)
+    .maybeSingle();
+  if (call.error) throw call.error;
+  if (!call.data) throw new HTTPException(404);
+  throw new ApiError(
+    409,
+    'not_retryable',
+    'Only a call whose analysis failed can be checked again.',
+  );
+}
+
 export const calls = new Hono<SignedInEnv>()
   .post('/', zValidator('json', createCallSchema, rejectInvalid), async (c) => {
     const body = c.req.valid('json');
@@ -149,19 +181,29 @@ export const calls = new Hono<SignedInEnv>()
   .get('/:id', zValidator('param', callIdParam, rejectInvalid), async (c) => {
     const { id } = c.req.valid('param');
     const supabase = createAdminClient();
-    const [call, segments] = await Promise.all([
+    const [call, segments, report] = await Promise.all([
       supabase.from('calls').select(CALL_COLUMNS).eq('id', id).maybeSingle(),
       supabase
         .from('transcript_segments')
         .select('segment_id, start_time, end_time, speaker_id, text')
         .eq('call_id', id)
         .order('start_time'),
+      supabase
+        .from('reports')
+        .select(REPORT_COLUMNS)
+        .eq('call_id', id)
+        .maybeSingle(),
     ]);
     if (call.error) throw call.error;
     if (segments.error) throw segments.error;
+    if (report.error) throw report.error;
     if (!call.data) throw new HTTPException(404);
 
-    return c.json({ call: call.data, segments: segments.data, report: null });
+    return c.json({
+      call: call.data,
+      segments: segments.data,
+      report: report.data,
+    });
   })
   .post(
     '/:id/check',
@@ -169,6 +211,18 @@ export const calls = new Hono<SignedInEnv>()
     async (c) => {
       await startCheck(c.req.valid('param').id);
       return c.json({ status: 'transcribing' as const });
+    },
+  )
+  .post(
+    '/:id/analyze',
+    zValidator('param', callIdParam, rejectInvalid),
+    async (c) => {
+      const { id } = c.req.valid('param');
+      await reopenFailedAnalysis(id);
+
+      const signal = AbortSignal.timeout(DEADLINE_MS);
+      after(() => analyzeCall(id, signal));
+      return c.json({ status: 'analyzing' as const }, 202);
     },
   )
   .delete(
