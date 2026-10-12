@@ -5,13 +5,11 @@ import { createMiddleware } from 'hono/factory';
 import { HTTPException } from 'hono/http-exception';
 import { after } from 'next/server';
 import { z } from 'zod';
+import { finishCall } from './analysis';
 import { secretMatches } from './env';
 import { DEADLINE_MS } from './pipeline';
 import { createAdminClient } from './supabase';
-import {
-  finishTranscription,
-  TRANSCRIBING_CALL_COLUMNS,
-} from './transcription';
+import { TRANSCRIBING_CALL_COLUMNS } from './transcription';
 import { rejectInvalid } from './validate';
 
 const requireWebhookToken = createMiddleware(async (c, next) => {
@@ -38,7 +36,7 @@ export const webhooks = new Hono().post(
     if (call.error) throw call.error;
 
     const transcribing = call.data;
-    if (transcribing) after(() => finishTranscription(transcribing, signal));
+    if (transcribing) after(() => finishCall(transcribing, signal));
     return c.json({ received: true as const });
   },
 );

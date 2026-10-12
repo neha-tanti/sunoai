@@ -16,8 +16,10 @@ import { createAdminClient } from './supabase';
 import { flushAfter } from './test/after';
 import {
   deleteCalls,
+  insertAnalyzingCall,
   insertCall,
   readCall,
+  readReport,
   uploadRecording,
 } from './test/calls';
 import {
@@ -26,6 +28,11 @@ import {
   type FakeJob,
   type GnaniStub,
 } from './test/gnani-stub';
+import {
+  ANSWERING_MODEL,
+  stubOpenRouter,
+  type OpenRouterStub,
+} from './test/openrouter-stub';
 import { signInTeamLeader } from './test/session';
 
 vi.mock('next/server', async (importOriginal) => {
@@ -45,6 +52,7 @@ const completedJob = (transcript: unknown = hinglishTranscript()): FakeJob => ({
 });
 
 let gnani: GnaniStub;
+let openRouter: OpenRouterStub;
 const createdIds: string[] = [];
 
 beforeEach(() => {
@@ -52,8 +60,11 @@ beforeEach(() => {
   vi.stubEnv('GNANI_WEBHOOK_TOKEN', WEBHOOK_TOKEN);
   vi.stubEnv('CRON_SECRET', CRON_SECRET);
   vi.stubEnv('APP_URL', 'https://sunoai.test');
+  vi.stubEnv('OPENROUTER_API_KEY', 'test-openrouter-key');
+  vi.stubEnv('LLM_MODELS', ANSWERING_MODEL);
   vi.spyOn(console, 'info').mockImplementation(() => {});
   gnani = stubGnani();
+  openRouter = stubOpenRouter();
 });
 
 afterEach(async () => {
@@ -117,7 +128,7 @@ async function finishByWebhook(jobId: string) {
   return flushAfter();
 }
 
-describe('a call from upload to Analysing', () => {
+describe('a call from upload to Ready', () => {
   let session: Awaited<ReturnType<typeof signInTeamLeader>>;
 
   beforeAll(async () => {
@@ -128,7 +139,7 @@ describe('a call from upload to Analysing', () => {
     await session?.deleteTeamLeader();
   });
 
-  it('goes Uploaded, then Transcribing, then Analysing with its segments saved', async () => {
+  it('goes Uploaded, then Transcribing, then Ready with its segments and report saved', async () => {
     const api = testClient(app).api;
     const headers = { Cookie: session.cookie };
     const created = await api.calls.$post(
@@ -159,10 +170,10 @@ describe('a call from upload to Analysing', () => {
     gnani.jobs.set(transcribing!.gnani_job_id!, completedJob());
     const outcomes = await finishByWebhook(transcribing!.gnani_job_id!);
 
-    expect(outcomes).toEqual(['analyzing']);
+    expect(outcomes).toEqual(['ready']);
     const { call, segments } = await readCall(id);
     expect(call).toMatchObject({
-      status: 'analyzing',
+      status: 'ready',
       error_code: null,
       detected_lang: 'hi-IN',
       duration_seconds: 42.5,
@@ -172,6 +183,7 @@ describe('a call from upload to Analysing', () => {
       speaker_id: 2,
       text: 'Mujhe kisi insaan se baat karni hai, please.',
     });
+    expect(await readReport(id)).toMatchObject({ llm_model: ANSWERING_MODEL });
   });
 });
 
@@ -196,13 +208,18 @@ describe('the webhook and the poll arriving together', () => {
             .filter((entry) => entry.callId === call.id)
             .map((entry) => entry.outcome),
     );
-    const [winner, ...losers] = outcomes.sort();
-    expect(winner).toBe('analyzing');
-    expect(losers.every((outcome) => outcome === 'lost_race')).toBe(true);
+    expect(outcomes.filter((outcome) => outcome === 'ready')).toHaveLength(1);
+    expect(
+      outcomes
+        .filter((outcome) => outcome !== 'ready')
+        .every((outcome) => outcome === 'lost_race'),
+    ).toBe(true);
     expect(consoleError).not.toHaveBeenCalled();
+    expect(openRouter.requests).toHaveLength(1);
     const { call: saved, segments } = await readCall(call.id);
-    expect(saved).toMatchObject({ status: 'analyzing', error_code: null });
+    expect(saved).toMatchObject({ status: 'ready', error_code: null });
     expect(segments).toHaveLength(4);
+    expect(await readReport(call.id)).not.toBeNull();
   });
 });
 
@@ -368,7 +385,7 @@ describe('each failure in the TRD table', () => {
       completedJob(hinglishTranscript({ duration_seconds: 1800 })),
     );
 
-    expect(await finishByWebhook(call.jobId)).toEqual(['analyzing']);
+    expect(await finishByWebhook(call.jobId)).toEqual(['ready']);
   });
 
   it.each([429, 503])(
@@ -461,8 +478,8 @@ describe('POST /api/jobs/poll', () => {
     const call = await transcribingCall(completedJob());
     await backdate(call.id, 2);
 
-    expect(await poll()).toEqual([{ callId: call.id, outcome: 'analyzing' }]);
-    expect((await readCall(call.id)).call?.status).toBe('analyzing');
+    expect(await poll()).toEqual([{ callId: call.id, outcome: 'ready' }]);
+    expect((await readCall(call.id)).call?.status).toBe('ready');
   });
 
   it('leaves a call that started transcribing under a minute ago', async () => {
@@ -485,7 +502,7 @@ describe('POST /api/jobs/poll', () => {
 
     expect(await poll()).toEqual([
       { callId: running.id, outcome: 'pending' },
-      { callId: oldestDone.id, outcome: 'analyzing' },
+      { callId: oldestDone.id, outcome: 'ready' },
     ]);
     expect((await readCall(newerDone.id)).call?.status).toBe('transcribing');
   });
@@ -505,5 +522,25 @@ describe('POST /api/jobs/poll', () => {
       status: 'transcribing',
       gnani_attempts: 0,
     });
+  });
+
+  it('fails calls left in Analysing for over 5 minutes, and only those', async () => {
+    const stopped = await insertAnalyzingCall();
+    const running = await insertAnalyzingCall();
+    const ready = await insertCall({ status: 'ready' });
+    createdIds.push(stopped.id, running.id, ready.id);
+    await backdate(stopped.id, 10);
+    await backdate(running.id, 1);
+    await backdate(ready.id, 10);
+
+    await poll();
+
+    expect((await readCall(stopped.id)).call).toMatchObject({
+      status: 'failed',
+      error_code: 'analysis_failed',
+    });
+    expect((await readCall(running.id)).call?.status).toBe('analyzing');
+    expect((await readCall(ready.id)).call?.status).toBe('ready');
+    expect(openRouter.requests).toHaveLength(0);
   });
 });

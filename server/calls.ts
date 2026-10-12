@@ -13,6 +13,8 @@ import { callIdParam, rejectInvalid } from './validate';
 
 const CALL_COLUMNS =
   'id, title, status, error_code, call_langs, coaching_lang, denoise, detected_lang, duration_seconds, file_size_bytes, mime_type, created_at, checked_at';
+const REPORT_COLUMNS =
+  'score_passed, score_total, needs_review, frustration_peak, frustration, speakers, handover_segment_id, checks, red_flags, fix_notes, summary, coaching, llm_model, prompt_version, created_at';
 
 const GNANI_REQUEST_MS = 20_000;
 const RECORDING_URL_SECONDS = 2 * 60 * 60;
@@ -149,19 +151,29 @@ export const calls = new Hono<SignedInEnv>()
   .get('/:id', zValidator('param', callIdParam, rejectInvalid), async (c) => {
     const { id } = c.req.valid('param');
     const supabase = createAdminClient();
-    const [call, segments] = await Promise.all([
+    const [call, segments, report] = await Promise.all([
       supabase.from('calls').select(CALL_COLUMNS).eq('id', id).maybeSingle(),
       supabase
         .from('transcript_segments')
         .select('segment_id, start_time, end_time, speaker_id, text')
         .eq('call_id', id)
         .order('start_time'),
+      supabase
+        .from('reports')
+        .select(REPORT_COLUMNS)
+        .eq('call_id', id)
+        .maybeSingle(),
     ]);
     if (call.error) throw call.error;
     if (segments.error) throw segments.error;
+    if (report.error) throw report.error;
     if (!call.data) throw new HTTPException(404);
 
-    return c.json({ call: call.data, segments: segments.data, report: null });
+    return c.json({
+      call: call.data,
+      segments: segments.data,
+      report: report.data,
+    });
   })
   .post(
     '/:id/check',

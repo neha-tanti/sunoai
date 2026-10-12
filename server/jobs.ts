@@ -2,16 +2,27 @@ import 'server-only';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import { after } from 'next/server';
+import { finishCall } from './analysis';
 import { secretMatches } from './env';
 import { DEADLINE_MS } from './pipeline';
 import { createAdminClient } from './supabase';
-import {
-  finishTranscription,
-  type FinishOutcome,
-  TRANSCRIBING_CALL_COLUMNS,
-} from './transcription';
+import { TRANSCRIBING_CALL_COLUMNS } from './transcription';
 
 const STUCK_AFTER_MS = 60_000;
+const STOPPED_ANALYSIS_MS = 5 * 60_000;
+
+async function failStoppedAnalyses() {
+  const failed = await createAdminClient()
+    .from('calls')
+    .update({
+      status: 'failed',
+      error_code: 'analysis_failed',
+      error: 'The analysis stopped before it finished',
+    })
+    .eq('status', 'analyzing')
+    .lt('status_at', new Date(Date.now() - STOPPED_ANALYSIS_MS).toISOString());
+  if (failed.error) throw failed.error;
+}
 
 async function pollTranscribingCalls(signal: AbortSignal) {
   const due = await createAdminClient()
@@ -23,10 +34,13 @@ async function pollTranscribingCalls(signal: AbortSignal) {
     .order('status_at');
   if (due.error) throw due.error;
 
-  const outcomes: { callId: string; outcome: FinishOutcome }[] = [];
+  const outcomes: {
+    callId: string;
+    outcome: Awaited<ReturnType<typeof finishCall>>;
+  }[] = [];
   for (const call of due.data) {
     if (signal.aborted) break;
-    const outcome = await finishTranscription(call, signal);
+    const outcome = await finishCall(call, signal);
     outcomes.push({ callId: call.id, outcome });
     if (outcome !== 'pending') break;
   }
@@ -39,6 +53,9 @@ export const jobs = new Hono().post('/poll', (c) => {
   }
 
   const signal = AbortSignal.timeout(DEADLINE_MS);
-  after(() => pollTranscribingCalls(signal));
+  after(async () => {
+    await failStoppedAnalyses();
+    return pollTranscribingCalls(signal);
+  });
   return c.json({ status: 'polling' as const }, 202);
 });

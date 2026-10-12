@@ -11,15 +11,18 @@ import {
   vi,
 } from 'vitest';
 import { MAX_FILE_BYTES, type CreateCall } from '@/lib/call-upload';
+import { analyzeCall } from './analysis';
 import { app } from './app';
 import { createAdminClient } from './supabase';
 import {
   deleteCalls,
+  insertAnalyzingCall,
   insertCall,
   readCall,
   uploadRecording,
 } from './test/calls';
 import { stubGnani, type GnaniStub } from './test/gnani-stub';
+import { ANSWERING_MODEL, stubOpenRouter } from './test/openrouter-stub';
 import { signInTeamLeader } from './test/session';
 
 const api = testClient(app).api;
@@ -47,12 +50,16 @@ afterAll(async () => {
 
 beforeEach(() => {
   vi.stubEnv('GNANI_API_KEY', 'test-gnani-key');
+  vi.stubEnv('OPENROUTER_API_KEY', 'test-openrouter-key');
+  vi.stubEnv('LLM_MODELS', ANSWERING_MODEL);
   gnani = stubGnani();
+  stubOpenRouter();
 });
 
 afterEach(async () => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
+  vi.restoreAllMocks();
   await deleteCalls(createdIds.splice(0));
 });
 
@@ -70,6 +77,12 @@ async function createCall(body: Record<string, unknown>) {
 
 async function seedCall(overrides: Parameters<typeof insertCall>[0] = {}) {
   const call = await insertCall(overrides);
+  createdIds.push(call.id);
+  return call;
+}
+
+async function seedAnalyzingCall() {
+  const call = await insertAnalyzingCall();
   createdIds.push(call.id);
   return call;
 }
@@ -222,6 +235,29 @@ describe('GET /api/calls/:id', () => {
     expect(body.call).not.toHaveProperty('gnani_job_id');
     expect(body.segments.map((segment) => segment.segment_id)).toEqual([0, 1]);
     expect(body.report).toBeNull();
+  });
+
+  it('returns the report of a Ready call', async () => {
+    vi.spyOn(console, 'info').mockImplementation(() => {});
+    const call = await seedAnalyzingCall();
+    await analyzeCall(call.id, AbortSignal.timeout(30_000));
+
+    const res = await api.calls[':id'].$get(
+      { param: { id: call.id } },
+      { headers: { Cookie: session.cookie } },
+    );
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.call.status).toBe('ready');
+    expect(body.report).toMatchObject({
+      score_passed: 1,
+      score_total: 5,
+      needs_review: true,
+      frustration_peak: 'angry',
+      llm_model: ANSWERING_MODEL,
+    });
+    expect(body.report).not.toHaveProperty('checklist_snapshot');
   });
 
   it.each([

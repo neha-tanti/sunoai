@@ -10,12 +10,19 @@ import {
 } from './prompts/analyze';
 import { buildReport } from './report';
 import { createAdminClient } from './supabase';
+import { finishTranscription, type TranscribingCall } from './transcription';
 
 export type AnalysisOutcome = 'ready' | 'failed' | 'lost_race';
 
 type Analysis = { outcome: AnalysisOutcome; detail: string };
 
 class AnalysisFailure extends Error {}
+
+export async function finishCall(call: TranscribingCall, signal: AbortSignal) {
+  const outcome = await finishTranscription(call, signal);
+  if (outcome !== 'analyzing') return outcome;
+  return analyzeCall(call.id, signal);
+}
 
 export async function analyzeCall(
   callId: string,
