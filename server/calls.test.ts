@@ -14,16 +14,30 @@ import { MAX_FILE_BYTES, type CreateCall } from '@/lib/call-upload';
 import { analyzeCall } from './analysis';
 import { app } from './app';
 import { createAdminClient } from './supabase';
+import { flushAfter } from './test/after';
 import {
   deleteCalls,
   insertAnalyzingCall,
   insertCall,
   readCall,
+  readReport,
   uploadRecording,
 } from './test/calls';
 import { stubGnani, type GnaniStub } from './test/gnani-stub';
-import { ANSWERING_MODEL, stubOpenRouter } from './test/openrouter-stub';
+import {
+  ANSWERING_MODEL,
+  stubOpenRouter,
+  type OpenRouterStub,
+} from './test/openrouter-stub';
 import { signInTeamLeader } from './test/session';
+
+vi.mock('next/server', async (importOriginal) => {
+  const { collectAfter } = await import('./test/after');
+  return {
+    ...(await importOriginal<typeof import('next/server')>()),
+    after: collectAfter,
+  };
+});
 
 const api = testClient(app).api;
 
@@ -38,6 +52,7 @@ const LATE_ORDER_CALL: CreateCall = {
 
 let session: Awaited<ReturnType<typeof signInTeamLeader>>;
 let gnani: GnaniStub;
+let openRouter: OpenRouterStub;
 const createdIds: string[] = [];
 
 beforeAll(async () => {
@@ -53,13 +68,14 @@ beforeEach(() => {
   vi.stubEnv('OPENROUTER_API_KEY', 'test-openrouter-key');
   vi.stubEnv('LLM_MODELS', ANSWERING_MODEL);
   gnani = stubGnani();
-  stubOpenRouter();
+  openRouter = stubOpenRouter();
 });
 
 afterEach(async () => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
   vi.restoreAllMocks();
+  await flushAfter();
   await deleteCalls(createdIds.splice(0));
 });
 
@@ -519,5 +535,97 @@ describe('POST /api/calls/:id/check', () => {
     const res = await checkCall(id);
 
     expect(res.status).toBe(404);
+  });
+});
+
+describe('POST /api/calls/:id/analyze', () => {
+  function checkAgain(id: string) {
+    return api.calls[':id'].analyze.$post(
+      { param: { id } },
+      { headers: { Cookie: session.cookie } },
+    );
+  }
+
+  async function failedAnalysis() {
+    const call = await seedAnalyzingCall();
+    const failed = await createAdminClient()
+      .from('calls')
+      .update({
+        status: 'failed',
+        error_code: 'analysis_failed',
+        error: 'The LLM answer was not valid JSON',
+      })
+      .eq('id', call.id);
+    if (failed.error) throw failed.error;
+    return call;
+  }
+
+  it('reruns only the analysis, from the saved transcript, to Ready', async () => {
+    vi.spyOn(console, 'info').mockImplementation(() => {});
+    const call = await failedAnalysis();
+
+    const res = await checkAgain(call.id);
+
+    expect(res.status).toBe(202);
+    expect(await res.json()).toEqual({ status: 'analyzing' });
+    expect((await readCall(call.id)).call).toMatchObject({
+      status: 'analyzing',
+      error_code: null,
+      error: null,
+    });
+
+    expect(await flushAfter()).toEqual(['ready']);
+    expect((await readCall(call.id)).call?.status).toBe('ready');
+    expect(await readReport(call.id)).toMatchObject({
+      llm_model: ANSWERING_MODEL,
+    });
+    expect(openRouter.requests).toHaveLength(1);
+    expect(gnani.requests).toHaveLength(0);
+  });
+
+  it('checks again only once when asked twice at once', async () => {
+    vi.spyOn(console, 'info').mockImplementation(() => {});
+    const call = await failedAnalysis();
+
+    const responses = await Promise.all([
+      checkAgain(call.id),
+      checkAgain(call.id),
+    ]);
+
+    expect(responses.map((res) => res.status).sort()).toEqual([202, 409]);
+    await flushAfter();
+    expect(openRouter.requests).toHaveLength(1);
+  });
+
+  it.each([
+    ['a Ready call', { status: 'ready' as const }],
+    ['a call being analysed', { status: 'analyzing' as const }],
+    ['an uploaded call', { status: 'uploaded' as const }],
+    [
+      'a call whose transcription failed',
+      {
+        status: 'failed' as const,
+        error_code: 'transcription_failed' as const,
+        error: 'Gnani job ended FAILED',
+      },
+    ],
+  ])('refuses %s with not_retryable', async (_, overrides) => {
+    const call = await seedCall(overrides);
+
+    const res = await checkAgain(call.id);
+
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({
+      error: { code: 'not_retryable' },
+    });
+    expect((await readCall(call.id)).call).toMatchObject(overrides);
+    expect(await flushAfter()).toEqual([]);
+  });
+
+  it('answers 404 for a call that does not exist', async () => {
+    const res = await checkAgain(randomUUID());
+
+    expect(res.status).toBe(404);
+    expect(await flushAfter()).toEqual([]);
   });
 });

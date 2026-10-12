@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { api } from '@/lib/api-client';
-import type { ErrorCode } from '@/lib/api-errors';
+import { apiError } from '@/lib/api-errors';
 import {
   mimeTypeFor,
   UPLOAD_TOKEN_REUSE_MS,
@@ -28,17 +28,6 @@ type UnfinishedCall = {
 
 const UPLOAD_FAILED_MESSAGE =
   'Upload failed. Check your connection and try again.';
-
-async function apiError(res: { json(): Promise<unknown> }) {
-  const body = (await res.json().catch(() => null)) as {
-    error?: { code?: ErrorCode; message?: string };
-  } | null;
-  return {
-    code: body?.error?.code,
-    message:
-      body?.error?.message ?? 'Something went wrong. Try again in a minute.',
-  };
-}
 
 async function createCall({
   file,

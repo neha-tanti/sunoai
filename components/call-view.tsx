@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { CallStatus } from '@/components/call-status';
+import { CheckAgainButton } from '@/components/check-again-button';
 import { useCall } from '@/hooks/use-call';
 
 export function CallView() {
@@ -40,6 +41,7 @@ export function CallView() {
     <div className="flex flex-col gap-2">
       <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
       <CallStatus status={status} errorCode={errorCode} />
+      {errorCode === 'analysis_failed' && <CheckAgainButton callId={id} />}
       {call.isError && (
         <p className="text-muted-foreground text-sm">
           Couldn&apos;t refresh this call. Retrying…
