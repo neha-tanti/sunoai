@@ -1,8 +1,8 @@
 import 'server-only';
 import { Hono } from 'hono';
-import { requireUser } from './auth';
+import type { SignedInEnv } from './auth';
 
-export const checklist = new Hono().get('/', requireUser, async (c) => {
+export const checklist = new Hono<SignedInEnv>().get('/', async (c) => {
   const supabase = c.var.supabase;
   const [checks, redFlags, rules] = await Promise.all([
     supabase

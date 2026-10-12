@@ -198,7 +198,7 @@ Six Postgres tables and two private Storage buckets; each report's detailed resu
 
 | Table | Main columns | Notes |
 | --- | --- | --- |
-| `calls` | `id`, `title`, `file_path`, `file_size_bytes`, `mime_type`, `call_langs` (text[]), `coaching_lang`, `denoise`, `status`, `error_code`, `error`, `gnani_job_id`, `detected_lang`, `duration_seconds`, `created_by`, `created_at`, `checked_at`, `status_at`, `gnani_attempts` | `status` is a Postgres enum with the 5 pipeline statuses. `status_at` defaults to `now()` and a trigger resets it whenever `status` changes, so the cron job can find stuck calls. `error_code` is a Postgres enum: `file_rejected`, `transcription_failed`, `no_speech`, `too_long`, `analysis_failed` or `daily_limit`. `gnani_attempts` counts Gnani 429 and 5xx answers for the call |
+| `calls` | `id`, `title`, `file_path`, `file_size_bytes`, `mime_type`, `call_langs` (text[]), `coaching_lang`, `denoise`, `status`, `error_code`, `error`, `gnani_job_id`, `detected_lang`, `duration_seconds`, `created_by`, `created_at`, `checked_at`, `status_at`, `gnani_attempts` | `status` is a Postgres enum with the 5 pipeline statuses. `status_at` defaults to `now()` and a trigger resets it whenever `status` changes, so the cron job can find stuck calls. `error_code` is a Postgres enum: `file_rejected`, `transcription_failed`, `no_speech`, `too_long`, `analysis_failed` or `daily_limit`, and a check constraint keeps it set exactly when the call is Failed. `gnani_job_id` is unique, since the webhook finds its call by it. `gnani_attempts` counts Gnani 429 and 5xx answers for the call |
 | `transcript_segments` | `id`, `call_id`, `segment_id`, `start_time`, `end_time`, `speaker_id`, `text` | Deleted with its call |
 | `reports` | `call_id`, `score_passed`, `score_total`, `needs_review`, `frustration_peak`, `frustration`, `speakers`, `handover_segment_id`, `checks`, `red_flags`, `fix_notes`, `summary`, `coaching`, `coaching_audio_path`, `llm_model`, `prompt_version`, `checklist_snapshot`, `created_at` | One row per call. Score, Needs review and peak are columns for the Recent calls list; the rest is JSON |
 | `checklist_checks` | `id` (slug), `name`, `rule`, `position`, `active` | Seeded with the 6 default checks |
@@ -207,8 +207,8 @@ Six Postgres tables and two private Storage buckets; each report's detailed resu
 
 | Bucket | Path | Holds |
 | --- | --- | --- |
-| `calls` | `{call_id}/{file name}` | Uploaded recordings |
-| `coaching` | `{call_id}.wav` | Generated coaching audio |
+| `calls` | `{call_id}/{file name}` | Uploaded recordings; accepts `audio/*`, `video/mp4` and `video/webm` |
+| `coaching` | `{call_id}.wav` | Generated coaching audio; accepts `audio/wav` |
 
 - Indexes: `calls (created_at desc)` for Recent calls, `calls (status, status_at)` for the cron job, and `transcript_segments (call_id, start_time)`.
 - Removed checks and red flags are set to `active = false` rather than deleted, so old snapshots still read correctly.
@@ -236,7 +236,7 @@ Eleven Hono routes under `/api`: nine for the page, one for Gnani's webhook and 
 - **Mounting:** the Hono app lives in `server/app.ts` with `basePath('/api')`, and `app/api/[[...route]]/route.ts` exports `GET`, `POST`, `PUT` and `DELETE` from `handle(app)` in `@hono/vercel`. It runs on the Node.js runtime (the only runtime Cache Components allows, so the route sets no `runtime`) with `maxDuration` set to 300 seconds, the Hobby plan's maximum with Fluid compute, so the analysis step has time.
 - **Background work:** the webhook, cron and Check again routes check their input, respond at once, and do the rest in Next.js `after()`, which runs within the same `maxDuration`. Neither Gnani, `pg_net` (2-second default timeout) nor the page waits on the analysis. An error thrown in that work sets the call to Failed with a conditional update from the status it was in: `transcription_failed` from Transcribing and `analysis_failed` from Analysing. Only a Gnani 429 or 5xx leaves a Transcribing call for the next cron run (see the failure table); the cron job's 5-minute sweep only catches functions that were stopped.
 - **Validation:** Zod schemas with `@hono/zod-validator` on every body and parameter.
-- **Auth:** middleware reads the Supabase session cookie with `@supabase/ssr` and returns 401 without one. The webhook and poll routes skip it and check their own secrets instead.
+- **Auth:** middleware reads the Supabase session cookie with `@supabase/ssr` and returns 401 without one. It runs on every route except the ones listed beside it in `server/app.ts`: the health check, and the webhook and poll routes, which check their own secrets instead.
 - **Typed client:** the app's route type is exported as `AppType`, and the frontend calls the API through `hc<AppType>('/')` from `hono/client` (as `api.api.health.$get()`, since `basePath('/api')` is part of the route type), so requests and responses are typed end to end.
 - **Errors:** every error is `{ "error": { "code", "message" } }` with a message a person can act on. Upstream error details are logged, never returned.
 - **Webhook security:** Gnani's docs show no signature, so the callback URL carries a secret `token`, compared in constant time.

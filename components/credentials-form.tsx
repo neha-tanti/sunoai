@@ -28,7 +28,7 @@ export function CredentialsForm({
     () => false,
   );
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     onSubmit({

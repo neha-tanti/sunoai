@@ -1,4 +1,7 @@
-import type { AuthError } from '@supabase/supabase-js';
+import {
+  isAuthRetryableFetchError,
+  type AuthError,
+} from '@supabase/supabase-js';
 import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
@@ -16,9 +19,14 @@ const AUTH_MESSAGES: Record<string, string> = {
 };
 
 function toReadableError(error: AuthError) {
+  if (isAuthRetryableFetchError(error)) {
+    return new Error(
+      "Couldn't reach the sign-in service. Check your connection and try again.",
+    );
+  }
   return new Error(
     AUTH_MESSAGES[error.code ?? ''] ??
-      "Couldn't reach the sign-in service. Check your connection and try again.",
+      'Something went wrong signing you in. Try again in a minute.',
   );
 }
 

@@ -1,10 +1,11 @@
-import { createServerClient } from '@supabase/ssr';
+import { createServerClient, type SetAllCookies } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 const PUBLIC_PAGES = ['/login', '/signup'];
 
 export async function proxy(request: NextRequest) {
-  let response = NextResponse.next({ request });
+  let refreshedCookies: Parameters<SetAllCookies>[0] = [];
+  let cacheHeaders: Parameters<SetAllCookies>[1] = {};
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
@@ -15,28 +16,28 @@ export async function proxy(request: NextRequest) {
           for (const { name, value } of cookies) {
             request.cookies.set(name, value);
           }
-          response = NextResponse.next({ request });
-          for (const { name, value, options } of cookies) {
-            response.cookies.set(name, value, options);
-          }
-          for (const [name, value] of Object.entries(headers)) {
-            response.headers.set(name, value);
-          }
+          refreshedCookies = cookies;
+          cacheHeaders = headers;
         },
       },
     },
   );
 
   const { data } = await supabase.auth.getClaims();
-  if (data || PUBLIC_PAGES.includes(request.nextUrl.pathname)) {
-    return response;
-  }
+  const response =
+    data || PUBLIC_PAGES.includes(request.nextUrl.pathname)
+      ? NextResponse.next({ request })
+      : NextResponse.redirect(new URL('/login', request.url));
 
-  const toLogin = NextResponse.redirect(new URL('/login', request.url));
-  for (const cookie of response.cookies.getAll()) toLogin.cookies.set(cookie);
-  return toLogin;
+  for (const { name, value, options } of refreshedCookies) {
+    response.cookies.set(name, value, options);
+  }
+  for (const [name, value] of Object.entries(cacheHeaders)) {
+    response.headers.set(name, value);
+  }
+  return response;
 }
 
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|.*\..*).*)'],
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|.*\\..*).*)'],
 };

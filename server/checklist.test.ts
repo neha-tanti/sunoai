@@ -1,3 +1,4 @@
+import { testClient } from 'hono/testing';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { app } from './app';
 import { createAdminClient } from './supabase';
@@ -18,9 +19,11 @@ const SEEDED_RED_FLAGS = [
   'safety_not_escalated',
 ];
 
+const api = testClient(app).api;
+
 describe('GET /api/checklist signed out', () => {
   it('answers 401 without a session cookie', async () => {
-    const res = await app.request('/api/checklist');
+    const res = await api.checklist.$get();
 
     expect(res.status).toBe(401);
     expect(await res.json()).toMatchObject({
@@ -29,7 +32,7 @@ describe('GET /api/checklist signed out', () => {
   });
 
   it('answers 401 for a session cookie that is not a session', async () => {
-    const res = await app.request('/api/checklist', {
+    const res = await api.checklist.$get(undefined, {
       headers: { Cookie: `${sessionCookieName()}=base64-bm90LWEtc2Vzc2lvbg` },
     });
 
@@ -57,15 +60,16 @@ describe('GET /api/checklist signed in', () => {
   });
 
   afterAll(async () => {
-    await createAdminClient()
+    const deleted = await createAdminClient()
       .from('checklist_checks')
       .delete()
       .eq('id', retiredCheckId);
-    await session?.signOut();
+    if (deleted.error) throw deleted.error;
+    await session?.deleteTeamLeader();
   });
 
   async function readChecklist() {
-    const res = await app.request('/api/checklist', {
+    const res = await api.checklist.$get(undefined, {
       headers: { Cookie: session.cookie },
     });
     expect(res.status).toBe(200);
@@ -74,7 +78,7 @@ describe('GET /api/checklist signed in', () => {
 
   it('lists the active seeded checks in checklist order', async () => {
     const body = await readChecklist();
-    const ids: string[] = body.checks.map((check: { id: string }) => check.id);
+    const ids = body.checks.map((check) => check.id);
 
     expect(ids.filter((id) => SEEDED_CHECKS.includes(id))).toEqual(
       SEEDED_CHECKS,
@@ -92,7 +96,7 @@ describe('GET /api/checklist signed in', () => {
   it('lists the seeded red flags and the refund rules', async () => {
     const body = await readChecklist();
 
-    expect(body.red_flags.map((flag: { id: string }) => flag.id)).toEqual(
+    expect(body.red_flags.map((flag) => flag.id)).toEqual(
       expect.arrayContaining(SEEDED_RED_FLAGS),
     );
     expect(body.rules).toMatch(/refund/i);

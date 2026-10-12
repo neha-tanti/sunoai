@@ -4,9 +4,10 @@ import { parseEnv } from 'node:util';
 import { createServerClient } from '@supabase/ssr';
 import { createAdminClient } from '../supabase';
 
-function testProjectUrl(): string {
+function testProject() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  if (!url) {
+  const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !publishableKey) {
     throw new Error(
       'API tests need the Supabase test project. Create .env.test.local (see README).',
     );
@@ -20,15 +21,15 @@ function testProjectUrl(): string {
       '.env.test.local points at the dev project. API tests must use the test project.',
     );
   }
-  return url;
+  return { url, publishableKey };
 }
 
 export function sessionCookieName(): string {
-  return `sb-${new URL(testProjectUrl()).hostname.split('.')[0]}-auth-token`;
+  return `sb-${new URL(testProject().url).hostname.split('.')[0]}-auth-token`;
 }
 
 export async function signInTeamLeader() {
-  const url = testProjectUrl();
+  const { url, publishableKey } = testProject();
   const admin = createAdminClient();
   const email = `team-leader-${randomUUID()}@example.test`;
   const password = randomUUID();
@@ -41,18 +42,14 @@ export async function signInTeamLeader() {
   if (created.error) throw created.error;
 
   const jar = new Map<string, string>();
-  const client = createServerClient(
-    url,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? '',
-    {
-      cookies: {
-        getAll: () => [...jar].map(([name, value]) => ({ name, value })),
-        setAll: (cookies) => {
-          for (const { name, value } of cookies) jar.set(name, value);
-        },
+  const client = createServerClient(url, publishableKey, {
+    cookies: {
+      getAll: () => [...jar].map(([name, value]) => ({ name, value })),
+      setAll: (cookies) => {
+        for (const { name, value } of cookies) jar.set(name, value);
       },
     },
-  );
+  });
   const signedIn = await client.auth.signInWithPassword({ email, password });
   if (signedIn.error) throw signedIn.error;
 
@@ -60,8 +57,9 @@ export async function signInTeamLeader() {
     cookie: [...jar]
       .map(([name, value]) => `${name}=${encodeURIComponent(value)}`)
       .join('; '),
-    signOut: async () => {
-      await admin.auth.admin.deleteUser(created.data.user.id);
+    deleteTeamLeader: async () => {
+      const deleted = await admin.auth.admin.deleteUser(created.data.user.id);
+      if (deleted.error) throw deleted.error;
     },
   };
 }
