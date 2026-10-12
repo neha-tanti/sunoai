@@ -5,19 +5,35 @@ import { HTTPException } from 'hono/http-exception';
 import { after } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import { createCallSchema } from '@/lib/call-upload';
+import type { Tables } from '@/lib/database.types';
 import { analyzeCall } from './analysis';
 import type { SignedInEnv } from './auth';
+import type { Checklist } from './checklist';
 import { requireEnv } from './env';
 import { ApiError, loggableError } from './errors';
 import { cancelJob, createJob, startJob } from './gnani';
 import { DEADLINE_MS } from './pipeline';
+import type { Report } from './report';
 import { createAdminClient } from './supabase';
 import { callIdParam, rejectInvalid } from './validate';
 
 const CALL_COLUMNS =
   'id, title, status, error_code, call_langs, coaching_lang, denoise, detected_lang, duration_seconds, file_size_bytes, mime_type, created_at, checked_at';
 const REPORT_COLUMNS =
-  'score_passed, score_total, needs_review, frustration_peak, frustration, speakers, handover_segment_id, checks, red_flags, fix_notes, summary, coaching, llm_model, prompt_version, created_at';
+  'score_passed, score_total, needs_review, frustration_peak, frustration, speakers, handover_segment_id, checks, red_flags, fix_notes, summary, coaching, llm_model, prompt_version, checklist_snapshot, created_at';
+
+type ReportJsonColumn =
+  | 'frustration'
+  | 'speakers'
+  | 'checks'
+  | 'red_flags'
+  | 'fix_notes'
+  | 'coaching';
+type SavedReport = Omit<
+  Tables<'reports'>,
+  ReportJsonColumn | 'checklist_snapshot' | 'call_id' | 'coaching_audio_path'
+> &
+  Pick<Report, ReportJsonColumn> & { checklist_snapshot: Checklist };
 
 const GNANI_REQUEST_MS = 20_000;
 const RECORDING_URL_SECONDS = 2 * 60 * 60;
@@ -60,6 +76,28 @@ async function cancelOrLog(callId: string, jobId: string) {
       `Cancelling Gnani job ${jobId} for call ${callId} failed: ${loggableError(err)}`,
     ),
   );
+}
+
+function namedReport(saved: SavedReport) {
+  const { checklist_snapshot: snapshot, ...report } = saved;
+  const checkById = new Map(snapshot.checks.map((check) => [check.id, check]));
+  const flagById = new Map(snapshot.red_flags.map((flag) => [flag.id, flag]));
+
+  return {
+    ...report,
+    checks: report.checks.map((check) => {
+      const known = checkById.get(check.check_id);
+      return {
+        ...check,
+        name: known?.name ?? check.check_id,
+        rule: known?.rule ?? '',
+      };
+    }),
+    red_flags: report.red_flags.map((flag) => ({
+      ...flag,
+      name: flagById.get(flag.flag_id)?.name ?? flag.flag_id,
+    })),
+  };
 }
 
 async function startCheck(id: string) {
@@ -181,8 +219,15 @@ export const calls = new Hono<SignedInEnv>()
   .get('/:id', zValidator('param', callIdParam, rejectInvalid), async (c) => {
     const { id } = c.req.valid('param');
     const supabase = createAdminClient();
-    const [call, segments, report] = await Promise.all([
-      supabase.from('calls').select(CALL_COLUMNS).eq('id', id).maybeSingle(),
+    const call = await supabase
+      .from('calls')
+      .select(CALL_COLUMNS)
+      .eq('id', id)
+      .maybeSingle();
+    if (call.error) throw call.error;
+    if (!call.data) throw new HTTPException(404);
+
+    const [segments, report] = await Promise.all([
       supabase
         .from('transcript_segments')
         .select('segment_id, start_time, end_time, speaker_id, text')
@@ -192,17 +237,16 @@ export const calls = new Hono<SignedInEnv>()
         .from('reports')
         .select(REPORT_COLUMNS)
         .eq('call_id', id)
-        .maybeSingle(),
+        .maybeSingle()
+        .overrideTypes<SavedReport, { merge: false }>(),
     ]);
-    if (call.error) throw call.error;
     if (segments.error) throw segments.error;
     if (report.error) throw report.error;
-    if (!call.data) throw new HTTPException(404);
 
     return c.json({
       call: call.data,
       segments: segments.data,
-      report: report.data,
+      report: report.data && namedReport(report.data),
     });
   })
   .post(

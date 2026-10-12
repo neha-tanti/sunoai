@@ -274,6 +274,16 @@ describe('GET /api/calls/:id', () => {
       llm_model: ANSWERING_MODEL,
     });
     expect(body.report).not.toHaveProperty('checklist_snapshot');
+    expect(body.report?.checks[0]).toMatchObject({
+      check_id: 'order_confirmed',
+      name: 'Order confirmed',
+      rule: 'Confirms which order the call is about',
+    });
+    for (const flag of body.report?.red_flags ?? []) {
+      expect(flag.name).not.toBe(flag.flag_id);
+      expect(flag).not.toHaveProperty('example');
+    }
+    expect(body.report?.red_flags.length).toBeGreaterThan(0);
   });
 
   it.each([
