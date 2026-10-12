@@ -7,18 +7,32 @@ import { randomUUID } from 'node:crypto';
 import { createCallSchema } from '@/lib/call-upload';
 import { analyzeCall } from './analysis';
 import type { SignedInEnv } from './auth';
+import type { Checklist } from './checklist';
 import { requireEnv } from './env';
 import { ApiError, loggableError } from './errors';
 import { cancelJob, createJob, startJob } from './gnani';
 import { DEADLINE_MS } from './pipeline';
+import type { Report } from './report';
 import { createAdminClient } from './supabase';
 import { callIdParam, rejectInvalid } from './validate';
 
 const CALL_COLUMNS =
   'id, title, status, error_code, call_langs, coaching_lang, denoise, detected_lang, duration_seconds, file_size_bytes, mime_type, created_at, checked_at';
 const REPORT_COLUMNS =
-  'score_passed, score_total, needs_review, frustration_peak, frustration, speakers, handover_segment_id, checks, red_flags, fix_notes, summary, coaching, llm_model, prompt_version, created_at';
+  'score_passed, score_total, needs_review, frustration_peak, frustration, speakers, handover_segment_id, checks, red_flags, fix_notes, summary, coaching, llm_model, prompt_version, checklist_snapshot, created_at';
 
+type ReportJsonColumn =
+  | 'frustration'
+  | 'speakers'
+  | 'checks'
+  | 'red_flags'
+  | 'fix_notes'
+  | 'coaching';
+type SavedReport = Pick<Report, ReportJsonColumn> & {
+  checklist_snapshot: Checklist;
+};
+
+const HANDOVER_CHECK_ID = 'smooth_handover';
 const GNANI_REQUEST_MS = 20_000;
 const RECORDING_URL_SECONDS = 2 * 60 * 60;
 
@@ -60,6 +74,44 @@ async function cancelOrLog(callId: string, jobId: string) {
       `Cancelling Gnani job ${jobId} for call ${callId} failed: ${loggableError(err)}`,
     ),
   );
+}
+
+async function readReport(
+  supabase: ReturnType<typeof createAdminClient>,
+  callId: string,
+) {
+  const saved = await supabase
+    .from('reports')
+    .select(REPORT_COLUMNS)
+    .eq('call_id', callId)
+    .maybeSingle()
+    .overrideTypes<SavedReport>();
+  if (saved.error) throw saved.error;
+  if (!saved.data) return null;
+
+  const { checklist_snapshot: snapshot, ...report } = saved.data;
+  const checkById = new Map(snapshot.checks.map((check) => [check.id, check]));
+  const flagById = new Map(snapshot.red_flags.map((flag) => [flag.id, flag]));
+
+  const checks = report.checks.map((check) => {
+    const known = checkById.get(check.check_id);
+    if (!known)
+      throw new Error(`Check ${check.check_id} is not in the snapshot`);
+    return { ...check, name: known.name, rule: known.rule };
+  });
+  const redFlags = report.red_flags.map((flag) => {
+    const known = flagById.get(flag.flag_id);
+    if (!known) throw new Error(`Flag ${flag.flag_id} is not in the snapshot`);
+    return { ...flag, name: known.name };
+  });
+
+  return {
+    ...report,
+    checks,
+    red_flags: redFlags,
+    handover_check:
+      checks.find((check) => check.check_id === HANDOVER_CHECK_ID) ?? null,
+  };
 }
 
 async function startCheck(id: string) {
@@ -181,28 +233,28 @@ export const calls = new Hono<SignedInEnv>()
   .get('/:id', zValidator('param', callIdParam, rejectInvalid), async (c) => {
     const { id } = c.req.valid('param');
     const supabase = createAdminClient();
-    const [call, segments, report] = await Promise.all([
-      supabase.from('calls').select(CALL_COLUMNS).eq('id', id).maybeSingle(),
+    const call = await supabase
+      .from('calls')
+      .select(CALL_COLUMNS)
+      .eq('id', id)
+      .maybeSingle();
+    if (call.error) throw call.error;
+    if (!call.data) throw new HTTPException(404);
+
+    const [segments, report] = await Promise.all([
       supabase
         .from('transcript_segments')
         .select('segment_id, start_time, end_time, speaker_id, text')
         .eq('call_id', id)
         .order('start_time'),
-      supabase
-        .from('reports')
-        .select(REPORT_COLUMNS)
-        .eq('call_id', id)
-        .maybeSingle(),
+      readReport(supabase, id),
     ]);
-    if (call.error) throw call.error;
     if (segments.error) throw segments.error;
-    if (report.error) throw report.error;
-    if (!call.data) throw new HTTPException(404);
 
     return c.json({
       call: call.data,
       segments: segments.data,
-      report: report.data,
+      report,
     });
   })
   .post(

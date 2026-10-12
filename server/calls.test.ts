@@ -12,6 +12,7 @@ import {
 } from 'vitest';
 import { MAX_FILE_BYTES, type CreateCall } from '@/lib/call-upload';
 import { analyzeCall } from './analysis';
+import type { Checklist } from './checklist';
 import { app } from './app';
 import { createAdminClient } from './supabase';
 import { flushAfter } from './test/after';
@@ -274,6 +275,50 @@ describe('GET /api/calls/:id', () => {
       llm_model: ANSWERING_MODEL,
     });
     expect(body.report).not.toHaveProperty('checklist_snapshot');
+    expect(body.report?.checks[0]).toMatchObject({
+      check_id: 'order_confirmed',
+      name: 'Order confirmed',
+      rule: 'Confirms which order the call is about',
+    });
+    for (const flag of body.report?.red_flags ?? []) {
+      expect(flag.name).not.toBe(flag.flag_id);
+      expect(flag).not.toHaveProperty('example');
+    }
+    expect(body.report?.red_flags.length).toBeGreaterThan(0);
+    expect(body.report?.handover_check).toMatchObject({
+      check_id: 'smooth_handover',
+      name: 'Smooth handover',
+      result: 'na',
+    });
+  });
+
+  it('fails a report whose check is missing from its checklist snapshot', async () => {
+    vi.spyOn(console, 'info').mockImplementation(() => {});
+    const logError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const call = await seedAnalyzingCall();
+    await analyzeCall(call.id, AbortSignal.timeout(30_000));
+    const saved = await readReport(call.id);
+    const snapshot = saved?.checklist_snapshot as Checklist;
+    const corrupted = await createAdminClient()
+      .from('reports')
+      .update({
+        checklist_snapshot: { ...snapshot, checks: snapshot.checks.slice(1) },
+      })
+      .eq('call_id', call.id);
+    if (corrupted.error) throw corrupted.error;
+
+    const res = await api.calls[':id'].$get(
+      { param: { id: call.id } },
+      { headers: { Cookie: session.cookie } },
+    );
+
+    expect(res.status).toBe(500);
+    expect(await res.json()).toMatchObject({
+      error: { code: 'internal_error' },
+    });
+    expect(logError).toHaveBeenCalledWith(
+      expect.stringMatching(/Check order_confirmed is not in the snapshot/),
+    );
   });
 
   it.each([

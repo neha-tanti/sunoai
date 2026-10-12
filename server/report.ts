@@ -12,6 +12,8 @@ type EvidenceFor = (
 
 const MOODS = moodSchema.options;
 
+export type Report = ReturnType<typeof buildReport>['report'];
+
 export function normalize(text: string) {
   return text
     .normalize('NFC')
