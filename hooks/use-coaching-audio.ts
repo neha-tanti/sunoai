@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
+import { apiError } from '@/lib/api-errors';
 
 const URL_FRESH_MS = 9 * 60 * 1000;
 
@@ -10,9 +11,7 @@ export function useCoachingAudio(id: string, enabled: boolean) {
       const res = await api.api.calls[':id']['coaching-audio'].$post({
         param: { id },
       });
-      if (!res.ok) {
-        throw new Error("Couldn't create the coaching audio. Try again.");
-      }
+      if (!res.ok) throw new Error((await apiError(res)).message);
       return (await res.json()).url;
     },
     enabled,

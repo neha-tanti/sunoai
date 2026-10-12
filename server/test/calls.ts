@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { TablesInsert } from '@/lib/database.types';
-import { coachingAudioPath } from '../calls';
+import { coachingAudioPath } from '../coaching';
 import { parseGnaniTranscript } from '../gnani';
 import { createAdminClient } from '../supabase';
 import { hinglishTranscript } from './gnani-stub';

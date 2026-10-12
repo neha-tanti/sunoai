@@ -39,20 +39,22 @@ export const CALL_LANGUAGES = [
 ] as const;
 
 export const COACHING_LANGUAGES = [
-  { code: 'hi-IN', label: 'Hindi', voice: 'Nalini' },
-  { code: 'hi-en', label: 'Hinglish', voice: 'Poorvi' },
-  { code: 'en-IN', label: 'English', voice: 'Kaveri' },
-  { code: 'bn-IN', label: 'Bengali', voice: 'Kirra' },
-  { code: 'mr-IN', label: 'Marathi', voice: 'Zahira' },
-  { code: 'ta-IN', label: 'Tamil', voice: 'Asmita' },
-  { code: 'te-IN', label: 'Telugu', voice: 'Suhana' },
-  { code: 'kn-IN', label: 'Kannada', voice: 'Saanvi' },
-  { code: 'ml-IN', label: 'Malayalam', voice: 'Reshma' },
-  { code: 'gu-IN', label: 'Gujarati', voice: 'Falak' },
-  { code: 'pa-IN', label: 'Punjabi', voice: 'Mehuli' },
+  { code: 'hi-IN', label: 'Hindi' },
+  { code: 'hi-en', label: 'Hinglish' },
+  { code: 'en-IN', label: 'English' },
+  { code: 'bn-IN', label: 'Bengali' },
+  { code: 'mr-IN', label: 'Marathi' },
+  { code: 'ta-IN', label: 'Tamil' },
+  { code: 'te-IN', label: 'Telugu' },
+  { code: 'kn-IN', label: 'Kannada' },
+  { code: 'ml-IN', label: 'Malayalam' },
+  { code: 'gu-IN', label: 'Gujarati' },
+  { code: 'pa-IN', label: 'Punjabi' },
 ] as const;
 
 type LanguageCode<T extends readonly { code: string }[]> = T[number]['code'];
+
+export type CoachingLanguageCode = LanguageCode<typeof COACHING_LANGUAGES>;
 
 const codes = <T extends readonly { code: string }[]>(languages: T) =>
   languages.map((language) => language.code) as [

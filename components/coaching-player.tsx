@@ -14,7 +14,7 @@ export function CoachingPlayer({ callId }: { callId: string }) {
     else setRequested(true);
   }
 
-  if (audio.data) {
+  if (requested && audio.data) {
     return (
       <audio
         controls

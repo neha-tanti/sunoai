@@ -4,13 +4,14 @@ import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import { after } from 'next/server';
 import { randomUUID } from 'node:crypto';
-import { COACHING_LANGUAGES, createCallSchema } from '@/lib/call-upload';
+import { createCallSchema } from '@/lib/call-upload';
 import { analyzeCall } from './analysis';
 import type { SignedInEnv } from './auth';
 import type { Checklist } from './checklist';
+import { coachingAudioPath, coachingAudioUrl } from './coaching';
 import { requireEnv } from './env';
 import { ApiError, loggableError } from './errors';
-import { cancelJob, createJob, startJob, synthesizeSpeech } from './gnani';
+import { GNANI_REQUEST_MS, cancelJob, createJob, startJob } from './gnani';
 import { DEADLINE_MS } from './pipeline';
 import type { Report } from './report';
 import { createAdminClient } from './supabase';
@@ -33,11 +34,7 @@ type SavedReport = Pick<Report, ReportJsonColumn> & {
 };
 
 const HANDOVER_CHECK_ID = 'smooth_handover';
-const GNANI_REQUEST_MS = 20_000;
 const RECORDING_URL_SECONDS = 2 * 60 * 60;
-const COACHING_URL_SECONDS = 10 * 60;
-
-export const coachingAudioPath = (callId: string) => `${callId}.wav`;
 
 const alreadyChecked = () =>
   new ApiError(409, 'already_checked', 'This call has already been checked.');
@@ -115,114 +112,6 @@ async function readReport(
     handover_check:
       checks.find((check) => check.check_id === HANDOVER_CHECK_ID) ?? null,
   };
-}
-
-type CoachingSource = {
-  coaching_lang: string;
-  reports: {
-    coaching: Report['coaching'];
-    coaching_audio_path: string | null;
-  } | null;
-};
-
-async function coachingAudioUrl(id: string) {
-  const supabase = createAdminClient();
-  const call = await supabase
-    .from('calls')
-    .select('coaching_lang, reports(coaching, coaching_audio_path)')
-    .eq('id', id)
-    .maybeSingle()
-    .overrideTypes<CoachingSource>();
-  if (call.error) throw call.error;
-  if (!call.data) throw new HTTPException(404);
-
-  const report = call.data.reports;
-  if (!report) {
-    throw new ApiError(
-      409,
-      'not_ready',
-      "This call hasn't finished checking yet.",
-    );
-  }
-  if (!report.coaching) {
-    throw new ApiError(
-      409,
-      'no_coaching',
-      'This call has no coaching because no human agent took part.',
-    );
-  }
-
-  const path =
-    report.coaching_audio_path ??
-    (await createCoachingAudio(
-      id,
-      report.coaching.text,
-      call.data.coaching_lang,
-    ));
-
-  const signed = await supabase.storage
-    .from('coaching')
-    .createSignedUrl(path, COACHING_URL_SECONDS);
-  if (signed.error) throw signed.error;
-  return signed.data.signedUrl;
-}
-
-type CoachingLanguage = (typeof COACHING_LANGUAGES)[number];
-
-async function createCoachingAudio(
-  id: string,
-  text: string,
-  coachingLang: string,
-) {
-  const language = COACHING_LANGUAGES.find(
-    (lang) => lang.code === coachingLang,
-  );
-  if (!language) throw new Error(`No Timbre voice for ${coachingLang}`);
-
-  const saved = await saveCoachingAudio(id, text, language).catch((err) => {
-    console.error(
-      `Creating the coaching audio for call ${id} failed: ${loggableError(err)}`,
-    );
-    throw new ApiError(
-      503,
-      'coaching_audio_failed',
-      "Couldn't create the coaching audio. Try again.",
-    );
-  });
-  if (saved) return coachingAudioPath(id);
-
-  const removed = await createAdminClient()
-    .storage.from('coaching')
-    .remove([coachingAudioPath(id)]);
-  if (removed.error) throw removed.error;
-  throw new HTTPException(404);
-}
-
-async function saveCoachingAudio(
-  id: string,
-  text: string,
-  language: CoachingLanguage,
-) {
-  const audio = await synthesizeSpeech(
-    text,
-    { language: language.code, voice: language.voice },
-    AbortSignal.timeout(GNANI_REQUEST_MS),
-  );
-
-  const supabase = createAdminClient();
-  const path = coachingAudioPath(id);
-  const uploaded = await supabase.storage
-    .from('coaching')
-    .upload(path, audio, { contentType: 'audio/wav', upsert: true });
-  if (uploaded.error) throw uploaded.error;
-
-  const updated = await supabase
-    .from('reports')
-    .update({ coaching_audio_path: path })
-    .eq('call_id', id)
-    .select('call_id');
-  if (updated.error) throw updated.error;
-  return updated.data.length > 0;
 }
 
 async function startCheck(id: string) {
@@ -413,15 +302,15 @@ export const calls = new Hono<SignedInEnv>()
       const { status, gnani_job_id: jobId, file_path: filePath } = call.data;
       if (status === 'transcribing' && jobId) await cancelOrLog(id, jobId);
 
+      const deleted = await supabase.from('calls').delete().eq('id', id);
+      if (deleted.error) throw deleted.error;
+
       const [recording, coaching] = await Promise.all([
         supabase.storage.from('calls').remove([filePath]),
         supabase.storage.from('coaching').remove([coachingAudioPath(id)]),
       ]);
       if (recording.error) throw recording.error;
       if (coaching.error) throw coaching.error;
-
-      const deleted = await supabase.from('calls').delete().eq('id', id);
-      if (deleted.error) throw deleted.error;
 
       return c.body(null, 204);
     },

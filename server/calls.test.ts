@@ -14,7 +14,7 @@ import { MAX_FILE_BYTES, type CreateCall } from '@/lib/call-upload';
 import { analyzeCall } from './analysis';
 import type { Checklist } from './checklist';
 import { app } from './app';
-import { coachingAudioPath } from './calls';
+import { coachingAudioPath } from './coaching';
 import { createAdminClient } from './supabase';
 import { flushAfter } from './test/after';
 import {

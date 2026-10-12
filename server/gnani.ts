@@ -5,6 +5,10 @@ import { requireEnv } from './env';
 const GNANI_URL = 'https://api.vachana.ai';
 const JOBS = '/stt/v3/batch/jobs';
 
+export const GNANI_REQUEST_MS = 20_000;
+
+type GnaniRequest = { method?: 'GET' | 'POST'; body?: unknown };
+
 export class GnaniError extends Error {
   constructor(
     readonly status: number,
@@ -27,18 +31,15 @@ async function readJson(res: Response, what: string): Promise<unknown> {
 async function send(
   path: string,
   signal: AbortSignal,
-  init: { method?: 'GET' | 'POST'; body?: unknown } = {},
+  { method = 'GET', body }: GnaniRequest = {},
 ): Promise<Response> {
-  const method = init.method ?? 'GET';
   const res = await fetch(`${GNANI_URL}${path}`, {
     method,
     headers: {
       'X-API-Key-ID': requireEnv('GNANI_API_KEY'),
-      ...(init.body === undefined
-        ? {}
-        : { 'Content-Type': 'application/json' }),
+      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
     },
-    body: init.body === undefined ? undefined : JSON.stringify(init.body),
+    body: body === undefined ? undefined : JSON.stringify(body),
     signal,
   });
   if (!res.ok) {
@@ -53,10 +54,9 @@ async function send(
 async function gnani(
   path: string,
   signal: AbortSignal,
-  init: { method?: 'GET' | 'POST'; body?: unknown } = {},
+  request: GnaniRequest = {},
 ): Promise<unknown> {
-  const res = await send(path, signal, init);
-  return readJson(res, `Gnani ${init.method ?? 'GET'} ${path}`);
+  return readJson(await send(path, signal, request), `Gnani ${path}`);
 }
 
 export async function createJob(
