@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { CALL_ERROR_MESSAGES } from '@/lib/call-errors';
+import { UPLOAD_TOKEN_REUSE_MS } from '@/lib/call-upload';
 import type { Enums } from '@/lib/database.types';
 import { createDevAdminClient } from '../support/team-leader';
 
@@ -200,7 +201,7 @@ test.describe('uploading', () => {
       .single();
     if (first.error) throw first.error;
 
-    await page.clock.fastForward('01:51:00');
+    await page.clock.fastForward(UPLOAD_TOKEN_REUSE_MS + 60_000);
     await checkThisCall.click();
     await expect.poll(() => uploads).toBe(2);
 

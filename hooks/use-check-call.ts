@@ -3,7 +3,11 @@ import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { api } from '@/lib/api-client';
 import type { ErrorCode } from '@/lib/api-errors';
-import { mimeTypeFor, type CreateCall } from '@/lib/call-upload';
+import {
+  mimeTypeFor,
+  UPLOAD_TOKEN_REUSE_MS,
+  type CreateCall,
+} from '@/lib/call-upload';
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 
 export type CheckCallInput = Omit<CreateCall, 'file_name' | 'file_size'> & {
@@ -21,8 +25,6 @@ type UnfinishedCall = {
   createdAt: number;
   uploaded: boolean;
 };
-
-const UPLOAD_TOKEN_REUSE_MS = 110 * 60 * 1000;
 
 const UPLOAD_FAILED_MESSAGE =
   'Upload failed. Check your connection and try again.';

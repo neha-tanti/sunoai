@@ -3,6 +3,7 @@ import { z } from 'zod';
 export const MAX_FILE_BYTES = 50 * 1024 * 1024;
 export const MAX_CALL_SECONDS = 30 * 60;
 export const MAX_CALL_LANGUAGES = 3;
+export const UPLOAD_TOKEN_REUSE_MS = 110 * 60 * 1000;
 
 const MIME_BY_EXTENSION: Record<string, string> = {
   wav: 'audio/wav',
