@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { api } from '@/lib/api-client';
+import type { ErrorCode } from '@/lib/api-errors';
 import { mimeTypeFor, type CreateCall } from '@/lib/call-upload';
 import { createSupabaseBrowserClient } from '@/lib/supabase-browser';
 
@@ -28,7 +29,7 @@ const UPLOAD_FAILED_MESSAGE =
 
 async function apiError(res: { json(): Promise<unknown> }) {
   const body = (await res.json().catch(() => null)) as {
-    error?: { code?: string; message?: string };
+    error?: { code?: ErrorCode; message?: string };
   } | null;
   return {
     code: body?.error?.code,
@@ -115,7 +116,7 @@ export function useCheckCall() {
       });
       if (!checked.ok) {
         const error = await apiError(checked);
-        if (error.code !== 'not_uploaded') throw new Error(error.message);
+        if (error.code !== 'already_checked') throw new Error(error.message);
       }
       unfinished.current = null;
       return call.id;

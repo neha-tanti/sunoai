@@ -150,7 +150,7 @@ test.describe('uploading', () => {
         status: 409,
         json: {
           error: {
-            code: 'not_uploaded',
+            code: 'already_checked',
             message: 'This call has already been checked.',
           },
         },
@@ -171,6 +171,46 @@ test.describe('uploading', () => {
 
     await expect(page).toHaveURL(/\/calls\/[0-9a-f-]{36}$/);
     expect(uploads).toBe(1);
+  });
+
+  test('trying again after the upload link expires replaces the call', async ({
+    page,
+  }) => {
+    let uploads = 0;
+    await page.route('**/storage/v1/object/upload/sign/**', (route) => {
+      uploads += 1;
+      return route.abort('connectionfailed');
+    });
+    await page.clock.install();
+    await page.goto('/');
+
+    await page.getByLabel('Call recording').setInputFiles({
+      name: 'missing-raita.mp3',
+      mimeType: 'audio/mpeg',
+      buffer: Buffer.from('not really audio'),
+    });
+    await page.getByLabel('Call title').fill(title);
+    const checkThisCall = page.getByRole('button', { name: 'Check this call' });
+    await checkThisCall.click();
+    await expect(page.getByRole('main').getByRole('alert')).toBeVisible();
+    const first = await createDevAdminClient()
+      .from('calls')
+      .select('id')
+      .eq('title', title)
+      .single();
+    if (first.error) throw first.error;
+
+    await page.clock.fastForward('01:51:00');
+    await checkThisCall.click();
+    await expect.poll(() => uploads).toBe(2);
+
+    const calls = await createDevAdminClient()
+      .from('calls')
+      .select('id')
+      .eq('title', title);
+    if (calls.error) throw calls.error;
+    expect(calls.data).toHaveLength(1);
+    expect(calls.data[0].id).not.toBe(first.data.id);
   });
 });
 

@@ -2,10 +2,11 @@ import 'server-only';
 import { Hono } from 'hono';
 import { except } from 'hono/combine';
 import { HTTPException } from 'hono/http-exception';
+import type { ErrorCode } from '@/lib/api-errors';
 import { requireUser } from './auth';
 import { calls } from './calls';
 import { checklist } from './checklist';
-import { ApiError, apiError, type ErrorCode } from './errors';
+import { ApiError, apiError } from './errors';
 import { jobs } from './jobs';
 import { webhooks } from './webhooks';
 

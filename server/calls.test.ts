@@ -404,7 +404,7 @@ describe('POST /api/calls/:id/check', () => {
     expect(responses.map((res) => res.status).sort()).toEqual([200, 409]);
     const loser = responses.find((res) => res.status === 409)!;
     expect(await loser.json()).toMatchObject({
-      error: { code: 'not_uploaded' },
+      error: { code: 'already_checked' },
     });
     const { call: saved } = await readCall(call.id);
     const otherJobs = [...gnani.jobs.keys()].filter(
@@ -426,7 +426,7 @@ describe('POST /api/calls/:id/check', () => {
 
     expect(res.status).toBe(409);
     expect(await res.json()).toMatchObject({
-      error: { code: 'not_uploaded', message: expect.stringMatching(/\S/) },
+      error: { code: 'already_checked', message: expect.stringMatching(/\S/) },
     });
     expect(gnani.requests).toHaveLength(0);
   });

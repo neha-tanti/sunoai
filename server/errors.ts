@@ -1,17 +1,7 @@
 import 'server-only';
 import type { ContentfulStatusCode } from 'hono/utils/http-status';
 import { HTTPException } from 'hono/http-exception';
-
-export type ErrorCode =
-  | 'invalid_request'
-  | 'unauthorized'
-  | 'not_found'
-  | 'too_large'
-  | 'request_failed'
-  | 'not_uploaded'
-  | 'file_missing'
-  | 'gnani_unavailable'
-  | 'internal_error';
+import type { ErrorCode } from '@/lib/api-errors';
 
 export const apiError = (code: ErrorCode, message: string) => ({
   error: { code, message },

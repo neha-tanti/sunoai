@@ -18,7 +18,7 @@ const GNANI_REQUEST_MS = 20_000;
 const RECORDING_URL_SECONDS = 2 * 60 * 60;
 
 const alreadyChecked = () =>
-  new ApiError(409, 'not_uploaded', 'This call has already been checked.');
+  new ApiError(409, 'already_checked', 'This call has already been checked.');
 
 function webhookUrl() {
   const url = new URL('/api/webhooks/gnani', requireEnv('APP_URL'));
