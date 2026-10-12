@@ -16,8 +16,9 @@ export class GnaniError extends Error {
 }
 
 async function readJson(res: Response, what: string): Promise<unknown> {
+  const body = await res.text();
   try {
-    return await res.json();
+    return JSON.parse(body);
   } catch {
     throw new GnaniError(res.status, `${what} was not valid JSON`);
   }

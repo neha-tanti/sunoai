@@ -381,6 +381,7 @@ describe('each failure in the TRD table', () => {
   });
 
   it('fails a transcript that is not JSON without logging or saving its text', async () => {
+    // V8 quotes only the first 10 characters of invalid JSON in its error message.
     const transcriptText = 'Order late';
     const consoleError = vi
       .spyOn(console, 'error')
