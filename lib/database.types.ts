@@ -260,6 +260,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      save_report: {
+        Args: { p_call_id: string; p_report: Json }
+        Returns: boolean
+      }
       save_transcript: {
         Args: {
           p_call_id: string

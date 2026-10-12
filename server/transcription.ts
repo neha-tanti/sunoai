@@ -1,6 +1,6 @@
 import 'server-only';
 import { MAX_CALL_SECONDS } from '@/lib/call-upload';
-import type { Enums, Tables } from '@/lib/database.types';
+import type { Tables } from '@/lib/database.types';
 import {
   downloadTranscript,
   FINAL_JOB_STATUSES,
@@ -8,9 +8,9 @@ import {
   GnaniError,
   listFiles,
 } from './gnani';
+import { failCall, type Failure } from './pipeline';
 import { createAdminClient } from './supabase';
 
-export const DEADLINE_MS = 280_000;
 const MAX_GNANI_ATTEMPTS = 5;
 const MAX_TRANSCRIBING_MS = 2 * 60 * 60 * 1000;
 
@@ -24,8 +24,6 @@ export type TranscribingCall = Pick<
 
 export type FinishOutcome =
   'pending' | 'gnani_busy' | 'analyzing' | 'failed' | 'lost_race';
-
-type Failure = { code: Enums<'call_error_code'>; reason: string };
 
 type JobFiles = Awaited<ReturnType<typeof listFiles>>;
 
@@ -130,19 +128,8 @@ function jobFailure(
   };
 }
 
-async function fail(callId: string, failure: Failure): Promise<FinishOutcome> {
-  const updated = await createAdminClient()
-    .from('calls')
-    .update({
-      status: 'failed',
-      error_code: failure.code,
-      error: failure.reason,
-    })
-    .eq('id', callId)
-    .eq('status', 'transcribing')
-    .select('id');
-  if (updated.error) throw updated.error;
-  return updated.data.length > 0 ? 'failed' : 'lost_race';
+function fail(callId: string, failure: Failure) {
+  return failCall(callId, 'transcribing', failure);
 }
 
 async function handleError(

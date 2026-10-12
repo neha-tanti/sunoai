@@ -6,9 +6,9 @@ import { HTTPException } from 'hono/http-exception';
 import { after } from 'next/server';
 import { z } from 'zod';
 import { secretMatches } from './env';
+import { DEADLINE_MS } from './pipeline';
 import { createAdminClient } from './supabase';
 import {
-  DEADLINE_MS,
   finishTranscription,
   TRANSCRIBING_CALL_COLUMNS,
 } from './transcription';
