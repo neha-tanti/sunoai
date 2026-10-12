@@ -1,8 +1,12 @@
 import 'server-only';
-import { OpenRouterError } from '@openrouter/sdk/models/errors';
+import {
+  HTTPClientError,
+  OpenRouterError,
+} from '@openrouter/sdk/models/errors';
+import type { TablesInsert } from '@/lib/database.types';
 import { loadChecklist } from './checklist';
+import { failCall } from './fail-call';
 import { requestAnalysis } from './llm';
-import { failCall } from './pipeline';
 import {
   buildMessages,
   llmAnswerSchema,
@@ -10,19 +14,12 @@ import {
 } from './prompts/analyze';
 import { buildReport } from './report';
 import { createAdminClient } from './supabase';
-import { finishTranscription, type TranscribingCall } from './transcription';
 
 export type AnalysisOutcome = 'ready' | 'failed' | 'lost_race';
 
 type Analysis = { outcome: AnalysisOutcome; detail: string };
 
 class AnalysisFailure extends Error {}
-
-export async function finishCall(call: TranscribingCall, signal: AbortSignal) {
-  const outcome = await finishTranscription(call, signal);
-  if (outcome !== 'analyzing') return outcome;
-  return analyzeCall(call.id, signal);
-}
 
 export async function analyzeCall(
   callId: string,
@@ -80,7 +77,10 @@ async function analyze(callId: string, signal: AbortSignal): Promise<Analysis> {
       llm_model: llm.model,
       prompt_version: PROMPT_VERSION,
       checklist_snapshot: checklist,
-    },
+    } satisfies Omit<
+      TablesInsert<'reports'>,
+      'call_id' | 'created_at' | 'coaching_audio_path'
+    >,
   });
   if (saved.error) throw saved.error;
   return {
@@ -102,8 +102,10 @@ async function askLlm(
     if (err instanceof OpenRouterError) {
       throw new AnalysisFailure(`OpenRouter answered ${err.statusCode}`);
     }
-    const name = err instanceof Error ? err.name : 'unknown error';
-    throw new AnalysisFailure(`The LLM request failed (${name})`);
+    if (err instanceof HTTPClientError) {
+      throw new AnalysisFailure(`The LLM request failed (${err.name})`);
+    }
+    throw err;
   }
 }
 
@@ -124,16 +126,14 @@ function parseAnswer(content: string | null) {
 }
 
 function handleError(callId: string, err: unknown) {
-  if (err instanceof AnalysisFailure) {
-    return failCall(callId, 'analyzing', {
-      code: 'analysis_failed',
-      reason: err.message,
-    });
+  if (!(err instanceof AnalysisFailure)) {
+    console.error(`Analysing call ${callId} failed`, err);
   }
-
-  console.error(`Analysing call ${callId} failed`, err);
   return failCall(callId, 'analyzing', {
     code: 'analysis_failed',
-    reason: err instanceof Error ? err.message : 'Saving the report failed',
+    reason:
+      err instanceof AnalysisFailure
+        ? err.message
+        : 'The analysis failed unexpectedly',
   });
 }

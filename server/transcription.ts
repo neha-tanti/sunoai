@@ -8,7 +8,7 @@ import {
   GnaniError,
   listFiles,
 } from './gnani';
-import { failCall, type Failure } from './pipeline';
+import { failCall, type Failure } from './fail-call';
 import { createAdminClient } from './supabase';
 
 const MAX_GNANI_ATTEMPTS = 5;

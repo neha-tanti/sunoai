@@ -295,7 +295,7 @@ Anyone can create an account, the browser has no direct access to the database o
 - **Logs:** job ids, statuses and timings only. No transcript text, quotes or audio URLs.
 - **Test data:** synthetic calls made with Gnani Timbre where possible, otherwise our own acted recordings. The challenge rules allow no real customers, phone numbers, addresses, Aadhaar, PAN, payment details or real recorded calls.
 - **Deleting:** deleting a call removes its recording, coaching audio, transcript and report.
-- **OpenRouter:** prompts are not logged by default. Leave the account's data-training setting off.
+- **OpenRouter:** prompts are not logged by default. Leave the account's data-training setting off. Sign-up is open and there is no daily limit, so the `OPENROUTER_API_KEY` key has a credit limit set in OpenRouter to cap spend.
 
 ## Limits and error handling
 

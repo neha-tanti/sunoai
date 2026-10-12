@@ -5,6 +5,10 @@ import { type LlmAnswer, type Mood, moodSchema } from './prompts/analyze';
 
 type AnswerCheck = LlmAnswer['checks'][number];
 type Evidence = { segment_id: number; time: number; quote: string };
+type EvidenceFor = (
+  segmentId: number | null,
+  quote: string | null,
+) => Evidence | null;
 
 const MOODS = moodSchema.options;
 
@@ -33,10 +37,7 @@ export function buildReport(input: {
 }) {
   const { answer, segments, checklist } = input;
   const segmentById = new Map(segments.map((s) => [s.segment_id, s]));
-  const evidenceFor = (
-    segmentId: number | null,
-    quote: string | null,
-  ): Evidence | null => {
+  const evidenceFor: EvidenceFor = (segmentId, quote) => {
     const segment = segmentId === null ? undefined : segmentById.get(segmentId);
     if (!segment || !quote || !quoteFound(segment.text, quote)) return null;
     return { segment_id: segment.segment_id, time: segment.start_time, quote };
@@ -111,10 +112,7 @@ export function buildReport(input: {
 function checkResult(
   checkId: string,
   answer: AnswerCheck | undefined,
-  evidenceFor: (
-    segmentId: number | null,
-    quote: string | null,
-  ) => Evidence | null,
+  evidenceFor: EvidenceFor,
 ) {
   if (!answer) {
     return {

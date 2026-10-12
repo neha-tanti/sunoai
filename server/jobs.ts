@@ -2,9 +2,8 @@ import 'server-only';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import { after } from 'next/server';
-import { finishCall } from './analysis';
 import { secretMatches } from './env';
-import { DEADLINE_MS } from './pipeline';
+import { DEADLINE_MS, finishCall } from './pipeline';
 import { createAdminClient } from './supabase';
 import { TRANSCRIBING_CALL_COLUMNS } from './transcription';
 
@@ -20,8 +19,13 @@ async function failStoppedAnalyses() {
       error: 'The analysis stopped before it finished',
     })
     .eq('status', 'analyzing')
-    .lt('status_at', new Date(Date.now() - STOPPED_ANALYSIS_MS).toISOString());
+    .lt('status_at', new Date(Date.now() - STOPPED_ANALYSIS_MS).toISOString())
+    .select('id');
   if (failed.error) throw failed.error;
+  if (failed.data.length === 0) return;
+
+  const ids = failed.data.map((call) => call.id).join(', ');
+  console.warn(`Failed stopped analyses for calls ${ids}`);
 }
 
 async function pollTranscribingCalls(signal: AbortSignal) {
