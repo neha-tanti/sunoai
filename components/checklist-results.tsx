@@ -7,10 +7,10 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import type { CallReport } from '@/hooks/use-call';
+import type { ReportDetail } from '@/hooks/use-call';
 import { RESULT_CLASS, RESULT_LABEL } from '@/lib/report-labels';
 
-type Check = CallReport['checks'][number];
+type Check = ReportDetail['checks'][number];
 
 export function ChecklistResults({ checks }: { checks: Check[] }) {
   return (

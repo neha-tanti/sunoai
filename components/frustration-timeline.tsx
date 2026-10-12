@@ -5,7 +5,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import type { CallReport, Segment } from '@/hooks/use-call';
+import type { ReportDetail, Segment } from '@/hooks/use-call';
 import {
   findSpeaker,
   formatTime,
@@ -24,7 +24,7 @@ type Marker = {
   hasFlag: boolean;
 };
 
-type TimelineProps = { report: CallReport; segments: Segment[] };
+type TimelineProps = { report: ReportDetail; segments: Segment[] };
 
 export function FrustrationTimeline({ report, segments }: TimelineProps) {
   const { ranges } = report.frustration;
@@ -82,7 +82,7 @@ export function FrustrationTimeline({ report, segments }: TimelineProps) {
   );
 }
 
-function timelineMarkers(report: CallReport, segments: Segment[]) {
+function timelineMarkers(report: ReportDetail, segments: Segment[]) {
   const markers = new Map<number, Marker>();
   const add = (
     time: number,

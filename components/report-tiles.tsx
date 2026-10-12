@@ -6,29 +6,25 @@ import {
   CardDescription,
   CardHeader,
 } from '@/components/ui/card';
-import type { CallReport, Segment } from '@/hooks/use-call';
+import type { ReportDetail, Segment } from '@/hooks/use-call';
 import {
   findSpeaker,
   formatTime,
   MOOD_CLASS,
   MOOD_LABEL,
+  RESULT_CLASS,
   SCORE_BAND_CLASS,
   SCORE_BAND_LABEL,
 } from '@/lib/report-labels';
 import { scoreBand } from '@/lib/score-band';
 
-const SMOOTH_HANDOVER_CHECK_ID = 'smooth_handover';
-
-const HANDOVER_RESULT = {
-  pass: { label: 'Smooth', className: MOOD_CLASS.calm },
-  miss: { label: 'Problem', className: MOOD_CLASS.angry },
-  na: {
-    label: 'Not needed',
-    className: 'bg-secondary text-secondary-foreground',
-  },
+const HANDOVER_LABEL = {
+  pass: 'Smooth',
+  miss: 'Problem',
+  na: 'Not needed',
 } as const;
 
-type TilesProps = { report: CallReport; segments: Segment[] };
+type TilesProps = { report: ReportDetail; segments: Segment[] };
 
 export function ReportTiles({ report, segments }: TilesProps) {
   return (
@@ -59,7 +55,7 @@ function Tile({
   );
 }
 
-function ScoreTile({ report }: { report: CallReport }) {
+function ScoreTile({ report }: { report: ReportDetail }) {
   const { score_passed: passed, score_total: total } = report;
   const band = scoreBand(passed, total);
   const notNeeded = report.checks.length - total;
@@ -119,9 +115,7 @@ function HandoverTile({ report, segments }: TilesProps) {
   const handover = segments.find(
     (segment) => segment.segment_id === report.handover_segment_id,
   );
-  const check = report.checks.find(
-    (c) => c.check_id === SMOOTH_HANDOVER_CHECK_ID,
-  );
+  const check = report.handover_check;
 
   return (
     <Tile label="Handover">
@@ -129,8 +123,8 @@ function HandoverTile({ report, segments }: TilesProps) {
         {handover ? handoverTitle(report, handover) : 'No handover'}
       </p>
       {check && (
-        <Badge className={HANDOVER_RESULT[check.result].className}>
-          {HANDOVER_RESULT[check.result].label}
+        <Badge className={RESULT_CLASS[check.result]}>
+          {HANDOVER_LABEL[check.result]}
         </Badge>
       )}
       {check && <p className="text-sm text-muted-foreground">{check.reason}</p>}
@@ -138,7 +132,7 @@ function HandoverTile({ report, segments }: TilesProps) {
   );
 }
 
-function handoverTitle(report: CallReport, handover: Segment) {
+function handoverTitle(report: ReportDetail, handover: Segment) {
   const name = findSpeaker(report.speakers, handover.speaker_id)?.name;
   return `AI to ${name ?? 'human agent'} at ${formatTime(handover.start_time)}`;
 }

@@ -7,9 +7,9 @@ import { ReportTiles } from '@/components/report-tiles';
 import { TranscriptView } from '@/components/transcript-view';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { CallReport as Report, Segment } from '@/hooks/use-call';
+import type { ReportDetail, Segment } from '@/hooks/use-call';
 
-type CallReportProps = { report: Report; segments: Segment[] };
+type CallReportProps = { report: ReportDetail; segments: Segment[] };
 
 export function CallReport({ report, segments }: CallReportProps) {
   return (
@@ -40,7 +40,7 @@ export function CallReport({ report, segments }: CallReportProps) {
 function ReviewBanner({ redFlags }: { redFlags: number }) {
   if (redFlags === 0) {
     return (
-      <Alert>
+      <Alert role="region" aria-label="Review">
         <CircleCheckIcon />
         <AlertTitle>No red flags</AlertTitle>
         <AlertDescription>
@@ -51,7 +51,12 @@ function ReviewBanner({ redFlags }: { redFlags: number }) {
   }
 
   return (
-    <Alert variant="destructive" className="bg-angry/10">
+    <Alert
+      role="region"
+      aria-label="Review"
+      variant="destructive"
+      className="bg-angry/10"
+    >
       <TriangleAlertIcon />
       <AlertTitle>Needs review</AlertTitle>
       <AlertDescription>

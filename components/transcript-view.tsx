@@ -6,11 +6,11 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import type { CallReport, Segment } from '@/hooks/use-call';
+import type { ReportDetail, Segment } from '@/hooks/use-call';
 import { findSpeaker, formatTime } from '@/lib/report-labels';
 import { cn } from '@/lib/utils';
 
-type TranscriptViewProps = { report: CallReport; segments: Segment[] };
+type TranscriptViewProps = { report: ReportDetail; segments: Segment[] };
 
 export function TranscriptView({ report, segments }: TranscriptViewProps) {
   const turnSegmentId = report.frustration.turn?.segment_id;
@@ -36,7 +36,7 @@ export function TranscriptView({ report, segments }: TranscriptViewProps) {
 }
 
 type TranscriptLineProps = {
-  report: CallReport;
+  report: ReportDetail;
   segment: Segment;
   isTurn: boolean;
 };

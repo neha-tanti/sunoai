@@ -1,9 +1,9 @@
+import type { ReportDetail } from '@/hooks/use-call';
 import type { Enums } from '@/lib/database.types';
 import type { ScoreBand } from '@/lib/score-band';
 
 type Mood = Enums<'mood'>;
-type SpeakerRole = 'ai_agent' | 'human_agent' | 'customer' | 'unknown';
-type Speaker = { speaker_id: number; role: SpeakerRole; name: string | null };
+type Speaker = ReportDetail['speakers'][number];
 
 export const MOOD_LABEL: Record<Mood, string> = {
   calm: 'Calm',

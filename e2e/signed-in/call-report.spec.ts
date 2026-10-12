@@ -35,8 +35,12 @@ test('a Ready report shows the verdict and the tiles in words', async ({
   const main = page.getByRole('main');
 
   await expect(main.getByRole('status')).toHaveText('Ready.');
-  await expect(main.getByRole('alert')).toContainText('Needs review');
-  await expect(main.getByRole('alert')).toContainText('2 red flags');
+  await expect(main.getByRole('region', { name: 'Review' })).toContainText(
+    'Needs review',
+  );
+  await expect(main.getByRole('region', { name: 'Review' })).toContainText(
+    '2 red flags',
+  );
   await expect(main.getByRole('region', { name: 'Score' })).toContainText(
     '83% · Good',
   );
@@ -133,7 +137,9 @@ test('a calm call with nothing to flag says so in each section', async ({
   await page.goto(`/calls/${calmQuestion}`);
   const main = page.getByRole('main');
 
-  await expect(main.getByRole('alert')).toContainText('No red flags');
+  await expect(main.getByRole('region', { name: 'Review' })).toContainText(
+    'No red flags',
+  );
   await expect(main.getByRole('region', { name: 'Score' })).toContainText(
     'No checks applied',
   );

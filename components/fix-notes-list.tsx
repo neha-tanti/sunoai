@@ -6,9 +6,9 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import type { CallReport } from '@/hooks/use-call';
+import type { ReportDetail } from '@/hooks/use-call';
 
-type FixNote = CallReport['fix_notes'][number];
+type FixNote = ReportDetail['fix_notes'][number];
 
 export function FixNotesList({ notes }: { notes: FixNote[] }) {
   return (

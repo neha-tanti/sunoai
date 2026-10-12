@@ -8,9 +8,9 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import type { CallReport, Segment } from '@/hooks/use-call';
+import type { ReportDetail, Segment } from '@/hooks/use-call';
 
-type RedFlagsListProps = { report: CallReport; segments: Segment[] };
+type RedFlagsListProps = { report: ReportDetail; segments: Segment[] };
 
 export function RedFlagsList({ report, segments }: RedFlagsListProps) {
   if (report.red_flags.length === 0) return null;
