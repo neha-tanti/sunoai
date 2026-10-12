@@ -1,6 +1,7 @@
 import { validator } from 'hono/validator';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { app } from './app';
+import { ApiError } from './errors';
 import { signInTeamLeader } from './test/session';
 
 app.post(
@@ -8,6 +9,14 @@ app.post(
   validator('json', (body) => body),
   (c) => c.json(c.req.valid('json')),
 );
+
+app.get('/test/gnani-down', () => {
+  throw new ApiError(
+    503,
+    'gnani_unavailable',
+    "Couldn't start the check. Try again in a minute.",
+  );
+});
 
 describe('GET /api/health', () => {
   it('answers ok', async () => {
@@ -51,6 +60,20 @@ describe('signed in', () => {
 
     expect(res.status).toBe(404);
     expect(await res.json()).toMatchObject({ error: { code: 'not_found' } });
+  });
+
+  it('a route error with its own code keeps its status, code and message', async () => {
+    const res = await app.request('/api/test/gnani-down', {
+      headers: { Cookie: session.cookie },
+    });
+
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({
+      error: {
+        code: 'gnani_unavailable',
+        message: "Couldn't start the check. Try again in a minute.",
+      },
+    });
   });
 
   it('malformed JSON answers 400 invalid_request', async () => {
