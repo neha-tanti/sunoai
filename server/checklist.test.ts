@@ -64,8 +64,8 @@ describe('GET /api/checklist signed in', () => {
       .from('checklist_checks')
       .delete()
       .eq('id', retiredCheckId);
-    if (deleted.error) throw deleted.error;
     await session?.deleteTeamLeader();
+    if (deleted.error) throw deleted.error;
   });
 
   async function readChecklist() {

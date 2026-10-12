@@ -5,6 +5,7 @@ import { signInTeamLeader } from './test/session';
 
 describe('a signed-in browser going straight to Supabase', () => {
   const recordingPath = `${randomUUID()}/late-order-call.mp3`;
+  const signedUploadPath = `${randomUUID()}/wrong-item-call.mp3`;
   let session: Awaited<ReturnType<typeof signInTeamLeader>>;
 
   beforeAll(async () => {
@@ -21,9 +22,9 @@ describe('a signed-in browser going straight to Supabase', () => {
   afterAll(async () => {
     const removed = await createAdminClient()
       .storage.from('calls')
-      .remove([recordingPath]);
-    if (removed.error) throw removed.error;
+      .remove([recordingPath, signedUploadPath]);
     await session?.deleteTeamLeader();
+    if (removed.error) throw removed.error;
   });
 
   it('cannot read the checklist', async () => {
@@ -63,5 +64,22 @@ describe('a signed-in browser going straight to Supabase', () => {
 
     expect(data).toBeNull();
     expect(error).not.toBeNull();
+  });
+
+  it('can upload a recording with a signed upload URL', async () => {
+    const signed = await createAdminClient()
+      .storage.from('calls')
+      .createSignedUploadUrl(signedUploadPath);
+    if (signed.error) throw signed.error;
+
+    const { error } = await session.supabase.storage
+      .from('calls')
+      .uploadToSignedUrl(
+        signedUploadPath,
+        signed.data.token,
+        new Blob(['not really audio'], { type: 'audio/mpeg' }),
+      );
+
+    expect(error).toBeNull();
   });
 });

@@ -28,7 +28,7 @@ describe('a route that is not the health check, signed out', () => {
 
     expect(res.status).toBe(401);
     expect(await res.json()).toMatchObject({
-      error: { code: 'unauthorized', message: expect.stringMatching(/S/) },
+      error: { code: 'unauthorized', message: expect.stringMatching(/\S/) },
     });
   });
 });
