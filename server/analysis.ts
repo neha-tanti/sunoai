@@ -2,6 +2,8 @@ import 'server-only';
 import {
   HTTPClientError,
   OpenRouterError,
+  ResponseValidationError,
+  SDKValidationError,
 } from '@openrouter/sdk/models/errors';
 import type { TablesInsert } from '@/lib/database.types';
 import { loadChecklist } from './checklist';
@@ -99,10 +101,13 @@ async function askLlm(
     if (signal.aborted) {
       throw new AnalysisFailure('No answer from the LLM before the deadline');
     }
+    if (err instanceof ResponseValidationError) {
+      throw new AnalysisFailure('The OpenRouter response was not readable');
+    }
     if (err instanceof OpenRouterError) {
       throw new AnalysisFailure(`OpenRouter answered ${err.statusCode}`);
     }
-    if (err instanceof HTTPClientError) {
+    if (err instanceof HTTPClientError || err instanceof SDKValidationError) {
       throw new AnalysisFailure(`The LLM request failed (${err.name})`);
     }
     throw err;

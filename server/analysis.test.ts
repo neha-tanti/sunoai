@@ -169,6 +169,51 @@ describe('an answer that cannot be trusted', () => {
       error: 'No answer from the LLM before the deadline',
     });
   });
+
+  it('fails the call when OpenRouter cannot be reached', async () => {
+    openRouter.reply(() => {
+      throw new TypeError('fetch failed');
+    });
+    const call = await analyzingCall();
+
+    expect(await analyze(call.id)).toBe('failed');
+
+    expect((await readCall(call.id)).call).toMatchObject({
+      status: 'failed',
+      error_code: 'analysis_failed',
+      error: 'The LLM request failed (ConnectionError)',
+    });
+  });
+
+  it('fails the call when the OpenRouter response is not a chat completion', async () => {
+    openRouter.reply(() => Response.json({ unexpected: true }));
+    const call = await analyzingCall();
+
+    expect(await analyze(call.id)).toBe('failed');
+
+    expect((await readCall(call.id)).call).toMatchObject({
+      status: 'failed',
+      error_code: 'analysis_failed',
+      error: 'The OpenRouter response was not readable',
+    });
+  });
+
+  it('logs a missing OpenRouter key and saves a fixed reason', async () => {
+    vi.stubEnv('OPENROUTER_API_KEY', '');
+    const consoleError = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+    const call = await analyzingCall();
+
+    expect(await analyze(call.id)).toBe('failed');
+
+    expect(consoleError).toHaveBeenCalledOnce();
+    expect((await readCall(call.id)).call).toMatchObject({
+      status: 'failed',
+      error_code: 'analysis_failed',
+      error: 'The analysis failed unexpectedly',
+    });
+  });
 });
 
 describe('a call that stops being analysed', () => {
