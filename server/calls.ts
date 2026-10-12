@@ -76,8 +76,11 @@ async function cancelOrLog(callId: string, jobId: string) {
   );
 }
 
-async function readReport(callId: string) {
-  const saved = await createAdminClient()
+async function readReport(
+  supabase: ReturnType<typeof createAdminClient>,
+  callId: string,
+) {
+  const saved = await supabase
     .from('reports')
     .select(REPORT_COLUMNS)
     .eq('call_id', callId)
@@ -244,7 +247,7 @@ export const calls = new Hono<SignedInEnv>()
         .select('segment_id, start_time, end_time, speaker_id, text')
         .eq('call_id', id)
         .order('start_time'),
-      readReport(id),
+      readReport(supabase, id),
     ]);
     if (segments.error) throw segments.error;
 
