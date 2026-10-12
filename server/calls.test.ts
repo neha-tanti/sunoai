@@ -294,7 +294,7 @@ describe('GET /api/calls/:id', () => {
 
   it('fails a report whose check is missing from its checklist snapshot', async () => {
     vi.spyOn(console, 'info').mockImplementation(() => {});
-    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const logError = vi.spyOn(console, 'error').mockImplementation(() => {});
     const call = await seedAnalyzingCall();
     await analyzeCall(call.id, AbortSignal.timeout(30_000));
     const saved = await readReport(call.id);
@@ -316,6 +316,9 @@ describe('GET /api/calls/:id', () => {
     expect(await res.json()).toMatchObject({
       error: { code: 'internal_error' },
     });
+    expect(logError).toHaveBeenCalledWith(
+      expect.stringMatching(/Check order_confirmed is not in the snapshot/),
+    );
   });
 
   it.each([
