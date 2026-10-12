@@ -1,17 +1,28 @@
 import { CircleCheckIcon, TriangleAlertIcon } from 'lucide-react';
 import { ChecklistResults } from '@/components/checklist-results';
+import { CoachingPlayer } from '@/components/coaching-player';
 import { FixNotesList } from '@/components/fix-notes-list';
 import { FrustrationTimeline } from '@/components/frustration-timeline';
 import { RedFlagsList } from '@/components/red-flags-list';
 import { ReportTiles } from '@/components/report-tiles';
 import { TranscriptView } from '@/components/transcript-view';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import type { ReportDetail, Segment } from '@/hooks/use-call';
 
-type CallReportProps = { report: ReportDetail; segments: Segment[] };
+type CallReportProps = {
+  callId: string;
+  report: ReportDetail;
+  segments: Segment[];
+};
 
-export function CallReport({ report, segments }: CallReportProps) {
+export function CallReport({ callId, report, segments }: CallReportProps) {
   return (
     <article className="flex flex-col gap-4" aria-label="Call report">
       <ReviewBanner redFlags={report.red_flags.length} />
@@ -30,6 +41,9 @@ export function CallReport({ report, segments }: CallReportProps) {
           <RedFlagsList report={report} segments={segments} />
           <ChecklistResults checks={report.checks} />
           <FixNotesList notes={report.fix_notes} />
+          {report.coaching && (
+            <CoachingCard callId={callId} coaching={report.coaching} />
+          )}
         </div>
         <TranscriptView report={report} segments={segments} />
       </div>
@@ -64,5 +78,28 @@ function ReviewBanner({ redFlags }: { redFlags: number }) {
         should look at this call.
       </AlertDescription>
     </Alert>
+  );
+}
+
+type CoachingCardProps = {
+  callId: string;
+  coaching: NonNullable<ReportDetail['coaching']>;
+};
+
+function CoachingCard({ callId, coaching }: CoachingCardProps) {
+  return (
+    <Card role="region" aria-label="Coaching">
+      <CardHeader>
+        <CardTitle>Coaching</CardTitle>
+        <CardDescription>For the human agent</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        <p>{coaching.text}</p>
+        {coaching.english !== coaching.text && (
+          <p className="text-sm text-muted-foreground">{coaching.english}</p>
+        )}
+        <CoachingPlayer callId={callId} />
+      </CardContent>
+    </Card>
   );
 }
