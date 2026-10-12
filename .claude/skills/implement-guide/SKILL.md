@@ -285,7 +285,7 @@ _Components, data and API_
 _Secrets and data_
 
 - _Adding an environment variable, a key, or a Supabase client?_
-  -> Secrets stay server-only — never `NEXT_PUBLIC_`; only the Supabase URL and publishable key reach the browser. Page routes use the signed-in user's session so row-level security applies; only the webhook and cron routes use the secret key. (`security-and-data.md`)
+  -> Secrets stay server-only — never `NEXT_PUBLIC_`; only the Supabase URL and publishable key reach the browser. Only Hono reaches the database and Storage: page routes pass the auth middleware, then use the secret key; the browser's Supabase token gets no grants or policies. (`security-and-data.md`)
 
 _Tests_
 

@@ -1,7 +1,14 @@
 import { expect, test } from '@playwright/test';
 
-test('home page shows the API health answer', async ({ page }) => {
-  await page.goto('/');
+for (const path of ['/', '/calls/a-call-that-does-not-exist']) {
+  test(`a signed-out visitor to ${path} is sent to the sign-in page`, async ({
+    page,
+  }) => {
+    await page.goto(path);
 
-  await expect(page.getByRole('status')).toHaveText('API: ok');
-});
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(
+      page.getByRole('heading', { name: 'Sign in to SunoAI' }),
+    ).toBeVisible();
+  });
+}

@@ -54,7 +54,7 @@ flowchart LR
   timbre["Gnani Timbre<br/>Coaching voice"]
   openrouter["OpenRouter<br/>Free open-weight model"]
   subgraph supabase["Supabase"]
-    auth["Auth<br/>Team leaders sign in by email link"]
+    auth["Auth<br/>Team leaders sign in with email and password"]
     storage["Storage<br/>Recordings and coaching audio"]
     postgres["Postgres<br/>Calls, transcripts, reports, checklist"]
     cron["Cron<br/>pg_cron and pg_net, every minute"]
@@ -198,7 +198,7 @@ Six Postgres tables and two private Storage buckets; each report's detailed resu
 
 | Table | Main columns | Notes |
 | --- | --- | --- |
-| `calls` | `id`, `title`, `file_path`, `file_size_bytes`, `mime_type`, `call_langs` (text[]), `coaching_lang`, `denoise`, `status`, `error_code`, `error`, `gnani_job_id`, `detected_lang`, `duration_seconds`, `created_by`, `created_at`, `checked_at`, `status_at`, `gnani_attempts` | `status` is a Postgres enum with the 5 pipeline statuses. `status_at` defaults to `now()` and a trigger resets it whenever `status` changes, so the cron job can find stuck calls. `error_code` is a Postgres enum: `file_rejected`, `transcription_failed`, `no_speech`, `too_long`, `analysis_failed` or `daily_limit`. `gnani_attempts` counts Gnani 429 and 5xx answers for the call |
+| `calls` | `id`, `title`, `file_path`, `file_size_bytes`, `mime_type`, `call_langs` (text[]), `coaching_lang`, `denoise`, `status`, `error_code`, `error`, `gnani_job_id`, `detected_lang`, `duration_seconds`, `created_by`, `created_at`, `checked_at`, `status_at`, `gnani_attempts` | `status` is a Postgres enum with the 5 pipeline statuses. `status_at` defaults to `now()` and a trigger resets it whenever `status` changes, so the cron job can find stuck calls. `error_code` is a Postgres enum: `file_rejected`, `transcription_failed`, `no_speech`, `too_long`, `analysis_failed` or `daily_limit`, and a check constraint keeps it set exactly when the call is Failed. `gnani_job_id` is unique, since the webhook finds its call by it. `gnani_attempts` counts Gnani 429 and 5xx answers for the call |
 | `transcript_segments` | `id`, `call_id`, `segment_id`, `start_time`, `end_time`, `speaker_id`, `text` | Deleted with its call |
 | `reports` | `call_id`, `score_passed`, `score_total`, `needs_review`, `frustration_peak`, `frustration`, `speakers`, `handover_segment_id`, `checks`, `red_flags`, `fix_notes`, `summary`, `coaching`, `coaching_audio_path`, `llm_model`, `prompt_version`, `checklist_snapshot`, `created_at` | One row per call. Score, Needs review and peak are columns for the Recent calls list; the rest is JSON |
 | `checklist_checks` | `id` (slug), `name`, `rule`, `position`, `active` | Seeded with the 6 default checks |
@@ -207,8 +207,8 @@ Six Postgres tables and two private Storage buckets; each report's detailed resu
 
 | Bucket | Path | Holds |
 | --- | --- | --- |
-| `calls` | `{call_id}/{file name}` | Uploaded recordings |
-| `coaching` | `{call_id}.wav` | Generated coaching audio |
+| `calls` | `{call_id}/{file name}` | Uploaded recordings; accepts `audio/*`, `video/mp4` and `video/webm` |
+| `coaching` | `{call_id}.wav` | Generated coaching audio; accepts `audio/wav` |
 
 - Indexes: `calls (created_at desc)` for Recent calls, `calls (status, status_at)` for the cron job, and `transcript_segments (call_id, start_time)`.
 - Removed checks and red flags are set to `active = false` rather than deleted, so old snapshots still read correctly.
@@ -236,18 +236,19 @@ Eleven Hono routes under `/api`: nine for the page, one for Gnani's webhook and 
 - **Mounting:** the Hono app lives in `server/app.ts` with `basePath('/api')`, and `app/api/[[...route]]/route.ts` exports `GET`, `POST`, `PUT` and `DELETE` from `handle(app)` in `@hono/vercel`. It runs on the Node.js runtime (the only runtime Cache Components allows, so the route sets no `runtime`) with `maxDuration` set to 300 seconds, the Hobby plan's maximum with Fluid compute, so the analysis step has time.
 - **Background work:** the webhook, cron and Check again routes check their input, respond at once, and do the rest in Next.js `after()`, which runs within the same `maxDuration`. Neither Gnani, `pg_net` (2-second default timeout) nor the page waits on the analysis. An error thrown in that work sets the call to Failed with a conditional update from the status it was in: `transcription_failed` from Transcribing and `analysis_failed` from Analysing. Only a Gnani 429 or 5xx leaves a Transcribing call for the next cron run (see the failure table); the cron job's 5-minute sweep only catches functions that were stopped.
 - **Validation:** Zod schemas with `@hono/zod-validator` on every body and parameter.
-- **Auth:** middleware reads the Supabase session cookie with `@supabase/ssr` and returns 401 without one. The webhook and poll routes skip it and check their own secrets instead.
+- **Auth:** middleware reads the Supabase session cookie with `@supabase/ssr` and returns 401 without one. It runs on every route except the ones listed beside it in `server/app.ts`: the health check, and the webhook and poll routes, which check their own secrets instead.
 - **Typed client:** the app's route type is exported as `AppType`, and the frontend calls the API through `hc<AppType>('/')` from `hono/client` (as `api.api.health.$get()`, since `basePath('/api')` is part of the route type), so requests and responses are typed end to end.
 - **Errors:** every error is `{ "error": { "code", "message" } }` with a message a person can act on. Upstream error details are logged, never returned.
 - **Webhook security:** Gnani's docs show no signature, so the callback URL carries a secret `token`, compared in constant time.
 
 ## Frontend
 
-Five Next.js routes built from shadcn/ui parts, with all server data going through TanStack Query and the typed Hono client. The [SunoAI Prototype](https://claude.ai/artifact/MtyZJxoHXg5a61X6216nTk) is the visual reference.
+Six Next.js routes built from shadcn/ui parts, with all server data going through TanStack Query and the typed Hono client. The [SunoAI Prototype](https://claude.ai/artifact/MtyZJxoHXg5a61X6216nTk) is the visual reference.
 
 | Route | Screen |
 | --- | --- |
-| `/login` | Sign in with an email link |
+| `/login` | Sign in with email and password |
+| `/signup` | Create an account with email and password |
 | `/` | Check a call: upload, call languages, coaching language, noise removal toggle, progress |
 | `/calls` | Recent calls and the team average |
 | `/calls/[id]` | The call report |
@@ -279,17 +280,17 @@ Five Next.js routes built from shadcn/ui parts, with all server data going throu
 | `useSaveChecklist` | `PUT /api/checklist` | Invalidates `['checklist']` |
 | `useDeleteCall` | `DELETE /api/calls/:id` | Invalidates `['calls']` |
 
-- The browser uses the Supabase client only to sign in and to upload to a signed URL (`uploadToSignedUrl`). Everything else goes through Hono.
+- The browser uses the Supabase client only to sign up, sign in and upload to a signed URL (`uploadToSignedUrl`). Everything else goes through Hono.
 - Light and dark themes use shadcn's CSS variables, plus SunoAI's own tokens for calm, annoyed and angry.
 - Results always use words as well as colour (Passed, Missed, Angry), and the status line is announced to screen readers.
 
 ## Auth, security and privacy
 
-Only invited team leaders can sign in, every table has row-level security, and API keys never reach the browser.
+Anyone can create an account, the browser has no direct access to the database or Storage, and API keys never reach the browser.
 
-- **Sign-in:** Supabase Auth with email links. Public sign-ups are turned off, and team leaders are invited from the Supabase dashboard.
-- **Row-level security:** on for every table. Because there is one team, the policy lets any signed-in user read and write everything.
-- **Two Supabase clients in Hono:** page routes use the signed-in user's session, so row-level security applies. Only the webhook and cron routes use the service-role key.
+- **Sign-in:** Supabase Auth with email and password, from `/login` and `/signup` in the browser. Sign-up is open and email confirmation is off, so a new account is signed in at once and can see every call; the free plan doesn't allow custom email templates, and sending no email keeps sign-in simple for the demo. `proxy.ts` sends signed-out visitors to `/login`.
+- **Database access:** only Hono reaches the database and Storage. Row-level security is on for every table with no policies, and the `authenticated` role has no table grants, so a signed-in browser's Supabase token can't read or write anything directly. Because there is one team, every signed-in user can see and change everything through Hono.
+- **Two Supabase clients in Hono:** the auth middleware reads the signed-in user's session only to check it and puts their user id on the request context as `userId`, which sub-apps built with `new Hono<SignedInEnv>()` read with `c.get('userId')`; every route then reads and writes with the secret key. Rows that record who did something, like `calls.created_by`, take that `userId`.
 - **Storage:** both buckets are private. Gnani gets a signed URL valid for 2 hours; the page gets coaching audio through a signed URL valid for 10 minutes.
 - **Secrets:** Gnani, OpenRouter, the service-role key, the webhook token and the cron secret are server-only environment variables, never prefixed `NEXT_PUBLIC_`.
 - **Logs:** job ids, statuses and timings only. No transcript text, quotes or audio URLs.
@@ -350,7 +351,7 @@ The rules that make the report trustworthy are tested in code; Gnani and the LLM
 One Vercel project serves the page and the API; one Supabase project holds the data, files and the cron job. There is no local Supabase: development uses a second, dev Supabase project, and API tests use a third, test project, so a test never touches dev or production data.
 
 - **Vercel:** connected to the GitHub repository. Every branch gets a preview URL; `main` deploys to production.
-- **Supabase:** migrations and the seed run with the Supabase CLI against the linked project. Production only ever gets `supabase db push`; `supabase db reset --linked` drops everything in the linked project, so it is used only to rebuild the dev or test project with the seed. A migration creates the two private buckets and turns on `pg_cron` and `pg_net`.
+- **Supabase:** migrations and the seed run with the Supabase CLI against the linked project. Production only ever gets `supabase db push`; `supabase db reset --linked` drops everything in the linked project, so it is used only to rebuild the dev or test project with the seed. The first migration creates the two private buckets; `pg_cron` and `pg_net` are turned on with the cron job in #9. Auth settings live in `supabase/config.toml` and reach a cloud project with `supabase config push`.
 - **Cron:** a `pg_cron` job runs every minute and uses `pg_net` to call `https://<app>/api/jobs/poll` with the `x-cron-secret` header.
 - **Local development:** Gnani can't reach `localhost`, so the webhook doesn't fire locally. Call `/api/jobs/poll` by hand, or open a tunnel to test the webhook.
 
@@ -358,7 +359,7 @@ One Vercel project serves the page and the API; one Supabase project holds the d
 | --- | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Browser and server | The Supabase project |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Browser and server | Sign-in and signed uploads (the anon key on older projects) |
-| `SUPABASE_SECRET_KEY` | Server | Webhook and cron routes (the service-role key on older projects) |
+| `SUPABASE_SECRET_KEY` | Server | Every Hono route's database and Storage access (the service-role key on older projects) |
 | `GNANI_API_KEY` | Server | Batch speech-to-text and Timbre |
 | `GNANI_WEBHOOK_TOKEN` | Server | The secret in the callback URL |
 | `OPENROUTER_API_KEY` | Server | The LLM |

@@ -4,3 +4,4 @@ scripts/spike/
 supabase/
 test-calls/
 pnpm-lock.yaml
+lib/database.types.ts
