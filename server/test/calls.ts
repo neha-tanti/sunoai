@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { TablesInsert } from '@/lib/database.types';
+import { coachingAudioPath } from '../coaching';
 import { parseGnaniTranscript } from '../gnani';
 import { createAdminClient } from '../supabase';
 import { hinglishTranscript } from './gnani-stub';
@@ -84,10 +85,14 @@ export async function deleteCalls(ids: string[]) {
   if (rows.error) throw rows.error;
   if (rows.data.length === 0) return;
 
-  const removed = await supabase.storage
-    .from('calls')
-    .remove(rows.data.map((row) => row.file_path));
-  if (removed.error) throw removed.error;
+  const [recordings, coaching] = await Promise.all([
+    supabase.storage
+      .from('calls')
+      .remove(rows.data.map((row) => row.file_path)),
+    supabase.storage.from('coaching').remove(ids.map(coachingAudioPath)),
+  ]);
+  if (recordings.error) throw recordings.error;
+  if (coaching.error) throw coaching.error;
   const deleted = await supabase.from('calls').delete().in('id', ids);
   if (deleted.error) throw deleted.error;
 }

@@ -3,7 +3,9 @@ import { vi } from 'vitest';
 
 const GNANI_URL = 'https://api.vachana.ai';
 const JOBS = `${GNANI_URL}/stt/v3/batch/jobs`;
+const TTS = `${GNANI_URL}/api/v1/tts/inference`;
 const TRANSCRIPTS_URL = 'https://transcripts.gnani.test';
+const FAKE_WAV = new Uint8Array([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0]);
 
 export type FakeFile = {
   status: 'COMPLETED' | 'FAILED' | 'SKIPPED' | 'CANCELLED';
@@ -25,7 +27,12 @@ export function stubGnani() {
   const realFetch = globalThis.fetch;
   const jobs = new Map<string, FakeJob>();
   const requests: GnaniRequest[] = [];
-  const answers: { create?: number; start?: number; cancel?: number } = {};
+  const answers: {
+    create?: number;
+    start?: number;
+    cancel?: number;
+    tts?: number;
+  } = {};
 
   function answer(step: keyof typeof answers, body: unknown, status = 200) {
     const failure = answers[step];
@@ -93,6 +100,14 @@ export function stubGnani() {
       method === 'POST' ? await request.json().catch(() => null) : null;
     requests.push({ method, url, body });
 
+    if (url === TTS && method === 'POST') {
+      if (answers.tts) {
+        return Response.json({ error: 'STUBBED' }, { status: answers.tts });
+      }
+      return new Response(FAKE_WAV, {
+        headers: { 'Content-Type': 'audio/wav' },
+      });
+    }
     if (url === JOBS && method === 'POST') {
       const jobId = randomUUID();
       const response = answer(

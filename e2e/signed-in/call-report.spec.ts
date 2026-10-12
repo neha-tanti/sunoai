@@ -154,3 +154,73 @@ test('a calm call with nothing to flag says so in each section', async ({
     main.getByRole('region', { name: 'AI fix notes' }),
   ).toContainText('No problems found for the AI on this call.');
 });
+
+const COACHING_AUDIO_URL = '/coaching-audio-test.wav';
+
+test.describe('coaching', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.route(`**${COACHING_AUDIO_URL}`, (route) =>
+      route.fulfill({ contentType: 'audio/wav', body: Buffer.alloc(44) }),
+    );
+  });
+
+  test('a coached call shows the coaching and plays it', async ({ page }) => {
+    await page.route(`**/api/calls/${coldBiryani}/coaching-audio`, (route) =>
+      route.fulfill({ json: { url: COACHING_AUDIO_URL } }),
+    );
+    await page.goto(`/calls/${coldBiryani}`);
+    const coaching = page.getByRole('region', { name: 'Coaching' });
+
+    await expect(coaching).toContainText(COLD_BIRYANI_REPORT.coaching.text);
+    await expect(coaching).toContainText(COLD_BIRYANI_REPORT.coaching.english);
+    await coaching.getByRole('button', { name: 'Play coaching' }).click();
+
+    await expect(
+      coaching.locator('audio[aria-label="Coaching audio"]'),
+    ).toHaveAttribute('src', COACHING_AUDIO_URL);
+  });
+
+  test('a failed coaching audio says so, and the next click tries again', async ({
+    page,
+  }) => {
+    let plays = 0;
+    await page.route(`**/api/calls/${coldBiryani}/coaching-audio`, (route) => {
+      plays += 1;
+      if (plays === 1) {
+        return route.fulfill({
+          status: 503,
+          json: {
+            error: {
+              code: 'coaching_audio_failed',
+              message: "Couldn't create the coaching audio. Try again.",
+            },
+          },
+        });
+      }
+      return route.fulfill({ json: { url: COACHING_AUDIO_URL } });
+    });
+    await page.goto(`/calls/${coldBiryani}`);
+    const coaching = page.getByRole('region', { name: 'Coaching' });
+    const play = coaching.getByRole('button', { name: 'Play coaching' });
+
+    await play.click();
+    await expect(coaching.getByRole('alert')).toHaveText(
+      "Couldn't create the coaching audio. Try again.",
+    );
+    await play.click();
+
+    await expect(
+      coaching.locator('audio[aria-label="Coaching audio"]'),
+    ).toHaveAttribute('src', COACHING_AUDIO_URL);
+    await expect(coaching.getByRole('alert')).toHaveCount(0);
+  });
+
+  test('a call without a human agent has no coaching section', async ({
+    page,
+  }) => {
+    await page.goto(`/calls/${calmQuestion}`);
+
+    await expect(page.getByRole('status')).toHaveText('Ready.');
+    await expect(page.getByRole('region', { name: 'Coaching' })).toHaveCount(0);
+  });
+});

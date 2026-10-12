@@ -5,6 +5,10 @@ import { requireEnv } from './env';
 const GNANI_URL = 'https://api.vachana.ai';
 const JOBS = '/stt/v3/batch/jobs';
 
+export const GNANI_REQUEST_MS = 20_000;
+
+type GnaniRequest = { method?: 'GET' | 'POST'; body?: unknown };
+
 export class GnaniError extends Error {
   constructor(
     readonly status: number,
@@ -24,21 +28,18 @@ async function readJson(res: Response, what: string): Promise<unknown> {
   }
 }
 
-async function gnani(
+async function send(
   path: string,
   signal: AbortSignal,
-  init: { method?: 'GET' | 'POST'; body?: unknown } = {},
-): Promise<unknown> {
-  const method = init.method ?? 'GET';
+  { method = 'GET', body }: GnaniRequest = {},
+): Promise<Response> {
   const res = await fetch(`${GNANI_URL}${path}`, {
     method,
     headers: {
       'X-API-Key-ID': requireEnv('GNANI_API_KEY'),
-      ...(init.body === undefined
-        ? {}
-        : { 'Content-Type': 'application/json' }),
+      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
     },
-    body: init.body === undefined ? undefined : JSON.stringify(init.body),
+    body: body === undefined ? undefined : JSON.stringify(body),
     signal,
   });
   if (!res.ok) {
@@ -47,7 +48,15 @@ async function gnani(
       `Gnani ${method} ${path} answered ${res.status}`,
     );
   }
-  return readJson(res, `Gnani ${method} ${path}`);
+  return res;
+}
+
+async function gnani(
+  path: string,
+  signal: AbortSignal,
+  request: GnaniRequest = {},
+): Promise<unknown> {
+  return readJson(await send(path, signal, request), `Gnani ${path}`);
 }
 
 export async function createJob(
@@ -172,4 +181,29 @@ export async function downloadTranscript(url: string, signal: AbortSignal) {
     );
   }
   return parseGnaniTranscript(await readJson(res, 'The transcript'));
+}
+
+export async function synthesizeSpeech(
+  text: string,
+  speaker: { language: string; voice: string },
+  signal: AbortSignal,
+): Promise<ArrayBuffer> {
+  const res = await send('/api/v1/tts/inference', signal, {
+    method: 'POST',
+    body: {
+      text,
+      voice: speaker.voice,
+      model: 'timbre-v2.5',
+      language: speaker.language,
+      speed: 0.9,
+      audio_config: {
+        sample_rate: 16000,
+        num_channels: 1,
+        sample_width: 2,
+        encoding: 'linear_pcm',
+        container: 'wav',
+      },
+    },
+  });
+  return res.arrayBuffer();
 }

@@ -8,9 +8,10 @@ import { createCallSchema } from '@/lib/call-upload';
 import { analyzeCall } from './analysis';
 import type { SignedInEnv } from './auth';
 import type { Checklist } from './checklist';
+import { coachingAudioPath, coachingAudioUrl } from './coaching';
 import { requireEnv } from './env';
 import { ApiError, loggableError } from './errors';
-import { cancelJob, createJob, startJob } from './gnani';
+import { GNANI_REQUEST_MS, cancelJob, createJob, startJob } from './gnani';
 import { DEADLINE_MS } from './pipeline';
 import type { Report } from './report';
 import { createAdminClient } from './supabase';
@@ -33,7 +34,6 @@ type SavedReport = Pick<Report, ReportJsonColumn> & {
 };
 
 const HANDOVER_CHECK_ID = 'smooth_handover';
-const GNANI_REQUEST_MS = 20_000;
 const RECORDING_URL_SECONDS = 2 * 60 * 60;
 
 const alreadyChecked = () =>
@@ -277,6 +277,14 @@ export const calls = new Hono<SignedInEnv>()
       return c.json({ status: 'analyzing' as const }, 202);
     },
   )
+  .post(
+    '/:id/coaching-audio',
+    zValidator('param', callIdParam, rejectInvalid),
+    async (c) => {
+      const url = await coachingAudioUrl(c.req.valid('param').id);
+      return c.json({ url });
+    },
+  )
   .delete(
     '/:id',
     zValidator('param', callIdParam, rejectInvalid),
@@ -294,15 +302,20 @@ export const calls = new Hono<SignedInEnv>()
       const { status, gnani_job_id: jobId, file_path: filePath } = call.data;
       if (status === 'transcribing' && jobId) await cancelOrLog(id, jobId);
 
-      const [recording, coaching] = await Promise.all([
-        supabase.storage.from('calls').remove([filePath]),
-        supabase.storage.from('coaching').remove([`${id}.wav`]),
-      ]);
+      const recording = await supabase.storage.from('calls').remove([filePath]);
       if (recording.error) throw recording.error;
-      if (coaching.error) throw coaching.error;
 
       const deleted = await supabase.from('calls').delete().eq('id', id);
       if (deleted.error) throw deleted.error;
+
+      const coaching = await supabase.storage
+        .from('coaching')
+        .remove([coachingAudioPath(id)]);
+      if (coaching.error) {
+        console.error(
+          `Removing the coaching audio of deleted call ${id} failed: ${loggableError(coaching.error)}`,
+        );
+      }
 
       return c.body(null, 204);
     },

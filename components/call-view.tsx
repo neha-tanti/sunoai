@@ -55,7 +55,7 @@ export function CallView() {
         )}
       </div>
       {status === 'ready' && report && (
-        <CallReport report={report} segments={segments} />
+        <CallReport callId={id} report={report} segments={segments} />
       )}
     </div>
   );
