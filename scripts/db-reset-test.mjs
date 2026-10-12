@@ -8,7 +8,15 @@ if (!dbUrl) {
   process.exit(1);
 }
 
-execFileSync('pnpm', ['supabase', 'db', 'reset', '--db-url', dbUrl, '--yes'], {
-  stdio: 'inherit',
-  shell: process.platform === 'win32',
-});
+execFileSync(
+  process.execPath,
+  [
+    'node_modules/supabase/dist/supabase.js',
+    'db',
+    'reset',
+    '--db-url',
+    dbUrl,
+    '--yes',
+  ],
+  { stdio: 'inherit' },
+);
