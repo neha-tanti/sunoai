@@ -4,7 +4,7 @@ Last updated: 10 October 2026
 
 ## Summary
 
-The SunoAI MVP is a Next.js app on Vercel, with a Hono API inside it and Supabase for data. It sends each call to Gnani's Batch speech-to-text, analyses the transcript with one free open-weight model on OpenRouter, and speaks coaching with Gnani Timbre.
+The SunoAI MVP is a Next.js app on Vercel, with a Hono API inside it and Supabase for data. It sends each call to Gnani's Batch speech-to-text, analyses the transcript with one open-weight model on OpenRouter, and speaks coaching with Gnani Timbre.
 
 The product is described in the [SunoAI Product Document](PRD.md). This document covers how it is built.
 
@@ -15,7 +15,7 @@ The product is described in the [SunoAI Product Document](PRD.md). This document
 | Data | Supabase: Postgres, Auth, Storage and Cron |
 | Speech to text | Gnani Prisma v2.5 through the Batch API, for timestamps and speaker labels |
 | Coaching voice | Gnani Timbre v2.5 text-to-speech |
-| Analysis | A free open-weight model on OpenRouter, called with the OpenRouter TypeScript SDK |
+| Analysis | An open-weight model on OpenRouter, paid per token, called with the OpenRouter TypeScript SDK |
 | Accounts | One team; everyone who signs in is a team leader |
 | Live alerts | Not in the MVP; a design sketch is at the end |
 
@@ -52,7 +52,7 @@ flowchart LR
   hono["Hono API on Vercel<br/>Next.js route /api/*<br/>Runs the call pipeline<br/>Checks quotes, scores"]
   batch["Gnani Batch STT<br/>Words, speakers, times<br/>Reads file by URL<br/>Webhook when done"]
   timbre["Gnani Timbre<br/>Coaching voice"]
-  openrouter["OpenRouter<br/>Free open-weight model"]
+  openrouter["OpenRouter<br/>Open-weight model"]
   subgraph supabase["Supabase"]
     auth["Auth<br/>Team leaders sign in with email and password"]
     storage["Storage<br/>Recordings and coaching audio"]
@@ -140,24 +140,23 @@ Job statuses `COMPLETED`, `PARTIAL_FAILURE`, `FAILED`, `START_FAILED` and `CANCE
 
 ## LLM analysis with OpenRouter
 
-Each call gets exactly one LLM request that returns the whole report as JSON, because free models allow only 50 requests a day (1,000 a day after buying at least 10 credits, per the [OpenRouter FAQ](https://openrouter.ai/docs/faq)).
+Each call gets exactly one LLM request that returns the whole report as JSON. The model is the paid version of the one the spike chose, so there is no daily request limit, only the account's credits.
 
 **Model**
 
-The [Gnani and LLM spike](spikes/gnani-llm-spike.md) chose these free open-weight models on 10 October 2026. Every model in the list must accept a strict JSON schema, because the request sends one `response_format` to all of them.
+The [Gnani and LLM spike](spikes/gnani-llm-spike.md) compared free open-weight models on 10 October 2026 and chose Nemotron. SunoAI uses its paid version, which has no daily limit and no free-tier queue. Dots, the spike's fallback, has no paid version, so the list has one model. Every model in the list must accept a strict JSON schema, because the request sends one `response_format` to all of them.
 
 | Order | Model | Context | Spike result |
 | --- | --- | --- | --- |
-| 1 | `nvidia/nemotron-3-super-120b-a12b:free` | 262K tokens | Matched the expected score 3 runs out of 3 in about 10 seconds |
-| 2 | `dots-studio/dots-3-note-preview:free` | 512K tokens | Valid, but weaker: scores of 4/6 to 6/6, frustration rated too low, and an extra loop flag in 5 of 6 answers |
+| 1 | `nvidia/nemotron-3-super-120b-a12b` | 262K tokens | The free version matched the expected score 3 runs out of 3 in about 10 seconds |
 
-- Requests send a strict `json_schema` `response_format`, `reasoning: { enabled: false }` and `provider: { require_parameters: true }`, so only providers that honour the schema are picked. With reasoning on, Nemotron took up to 70 seconds and its score changed between runs.
+- Requests send a strict `json_schema` `response_format` built from the Zod answer schema with `z.toJSONSchema`, `reasoning: { effort: 'none' }` and `provider: { require_parameters: true }`, so only providers that honour the schema are picked. With reasoning on, Nemotron took up to 70 seconds and its score changed between runs. The spike sent `reasoning: { enabled: false }`; the SDK only passes `effort`, and `'none'` turns reasoning off.
 - OpenRouter's `supported_parameters` is not enough to pick a model: `apodex/apodex-1.1-mini:free` lists `structured_outputs` but rejects `json_schema`, and both Gemma 4 free models offer only JSON mode. Try any new model through the spike before adding it.
-- In the spike, Nemotron was unavailable for 1 of 3 requests sent with this list, so Dots answered. That answer took 26.5 seconds, against about 7 for Nemotron. The model that answered changes the report, which is why it is saved with each report.
+- In the spike, free Nemotron was unavailable for 1 of 3 requests, so Dots answered with a weaker report. The paid version runs on several providers, and OpenRouter falls back between them.
 
-- The model list lives in the `LLM_MODELS` environment variable and is sent as OpenRouter's `models` array, so OpenRouter falls back to the next model on errors or rate limits ([model fallbacks](https://openrouter.ai/docs/guides/routing/model-fallbacks)).
-- Free models come and go, so the model that actually answered (the response's `model` field) is saved with each report.
-- The client is `@openrouter/sdk` (ESM only), created once in `server/llm.ts` with `OPENROUTER_API_KEY`. Its docs show `openRouter.chat.send({ model, messages })`; confirm the names for `models`, the JSON response format and `reasoning` in the SDK reference before building.
+- The model list lives in the `LLM_MODELS` environment variable and is sent as OpenRouter's `models` array, so a second model can be added as a fallback on errors or rate limits ([model fallbacks](https://openrouter.ai/docs/guides/routing/model-fallbacks)).
+- The model that actually answered (the response's `model` field) is saved with each report.
+- The client is `@openrouter/sdk` (ESM only), created per request in `server/llm.ts` with `OPENROUTER_API_KEY`, and called as `openRouter.chat.send({ chatRequest: { models, messages, responseFormat, provider, reasoning, temperature } }, { signal })`. Its default retries a 5xx with backoff for up to an hour, so the client sets `retryConfig: { strategy: 'none' }`: the analysis is never retried, and the deadline holds.
 
 **What goes in**
 
@@ -296,7 +295,7 @@ Anyone can create an account, the browser has no direct access to the database o
 - **Logs:** job ids, statuses and timings only. No transcript text, quotes or audio URLs.
 - **Test data:** synthetic calls made with Gnani Timbre where possible, otherwise our own acted recordings. The challenge rules allow no real customers, phone numbers, addresses, Aadhaar, PAN, payment details or real recorded calls.
 - **Deleting:** deleting a call removes its recording, coaching audio, transcript and report.
-- **OpenRouter:** prompts are not logged by default. Leave the account's data-training setting off; if a free model then becomes unavailable, use the fallback model.
+- **OpenRouter:** prompts are not logged by default. Leave the account's data-training setting off.
 - **Protecting the free limit:** `POST /api/calls/:id/check` and Check again (`POST /api/calls/:id/analyze`) read `free_model_daily_requests.remaining` from OpenRouter's `GET /api/v1/key` and refuse when no requests remain, since each uses exactly one. If that read fails, the check goes ahead, and a limit hit later is caught by the 429 rule in the failure table. OpenRouter's counter follows whatever limit the account has and resets at midnight UTC (5:30 am IST). The spike showed failed requests don't count.
 
 ## Limits and error handling
@@ -310,7 +309,6 @@ The MVP accepts calls up to 50 MB and 30 minutes, and every failure ends in a cl
 | File types | WAV, MP3, MP4, FLAC, OGG, OPUS, M4A, AAC, WEBM, AMR | Gnani Batch |
 | Polling | No more than every 10 seconds | Gnani; our cron runs every minute |
 | Transcript link | Expires after 1 hour | Gnani; saved immediately |
-| LLM requests | 50 a day without credits | OpenRouter free models |
 | Request time | 300 seconds | Vercel Hobby maximum with Fluid compute; our `maxDuration` |
 
 The browser reads the length from the file before upload and blocks files over 30 minutes; the server checks `duration_seconds` again after transcription.
@@ -370,14 +368,14 @@ One Vercel project serves the page and the API; one Supabase project holds the d
 
 ## Risks and things to confirm with Gnani
 
-The biggest unknowns are how well Gnani separates an AI voice from a human one, and how good free models are at Hinglish.
+The biggest unknowns are how well Gnani separates an AI voice from a human one, and how good an open-weight model is at Hinglish.
 
 | Risk | Effect | Plan |
 | --- | --- | --- |
 | Speaker separation with an AI voice, a human and a customer is untested | Wrong roles in the report | The LLM assigns roles, the page labels them a best guess, and the test calls check it |
-| Free models change, disappear or handle Hinglish poorly | Analysis fails or is wrong | Fallback list in `LLM_MODELS`, the quote rule, Zod validation, and testing both models |
-| A free model's upstream is busy | Nemotron was unavailable for 1 of 3 spike requests, so the weaker fallback wrote that report | Dots answers as the fallback, the report saves which model answered, and Check again reruns the analysis |
-| 50 LLM requests a day | Testing or demo day hits the limit | One request per call and the daily guard. 10 OpenRouter credits are bought before demo day, which raises the limit to 1,000 a day |
+| The model handles Hinglish poorly or changes | Analysis is wrong | The quote rule, Zod validation, the saved model name, and the test calls |
+| The model's providers are busy or down | Analysis fails | OpenRouter falls back between providers, and Check again reruns the analysis |
+| Credits run out | Analysis fails | One request per call; the account's credits are checked before demo day |
 | Gnani credits (5,000) and unpublished rate limits | Running out mid-testing | Short test calls, noise removal only when needed, and checking the dashboard |
 | The webhook isn't signed | Someone could post fake results | Secret token, and the handler re-reads the job status from Gnani before trusting it |
 | Vercel's 300-second limit (Hobby maximum) | A slow model or Gnani read keeps the function past it | One 280-second deadline per function covering every outbound request, no LLM retry, cron finishes one call per run and fails calls left in Analysing, and Check again reruns only the analysis |
