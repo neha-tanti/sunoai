@@ -126,7 +126,7 @@ export type GnaniStub = ReturnType<typeof stubGnani>;
 
 export function hinglishTranscript(
   overrides: {
-    duration_seconds?: number | string;
+    duration_seconds?: number;
     language_code?: string;
   } = {},
 ) {

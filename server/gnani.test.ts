@@ -14,14 +14,6 @@ describe('parseGnaniTranscript', () => {
     expect(segments[3].text).toMatch(/insaan se baat/);
   });
 
-  it('reads the duration when the file list gives it as a string', () => {
-    const parsed = parseGnaniTranscript(
-      hinglishTranscript({ duration_seconds: '612.04' }),
-    );
-
-    expect(parsed.durationSeconds).toBe(612.04);
-  });
-
   it('keeps the language Gnani identified', () => {
     const parsed = parseGnaniTranscript(
       hinglishTranscript({ language_code: 'en-IN' }),

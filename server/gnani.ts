@@ -120,7 +120,7 @@ export async function listFiles(jobId: string, signal: AbortSignal) {
 
 const transcriptSchema = z.object({
   language_code: z.string(),
-  duration_seconds: z.coerce.number(),
+  duration_seconds: z.number(),
   segments: z.array(
     z.object({
       start_time: z.number(),

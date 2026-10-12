@@ -207,7 +207,7 @@ Six Postgres tables and two private Storage buckets; each report's detailed resu
 
 | Bucket | Path | Holds |
 | --- | --- | --- |
-| `calls` | `{call_id}/{file name}` | Uploaded recordings; accepts `audio/*`, `video/mp4` and `video/webm` |
+| `calls` | `{call_id}/recording.{ext}` | Uploaded recordings; accepts `audio/*`, `video/mp4` and `video/webm` |
 | `coaching` | `{call_id}.wav` | Generated coaching audio; accepts `audio/wav` |
 
 - Indexes: `calls (created_at desc)` for Recent calls, `calls (status, status_at)` for the cron job, and `transcript_segments (call_id, start_time)`.

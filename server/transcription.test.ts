@@ -380,7 +380,7 @@ describe('each failure in the TRD table', () => {
         files: [],
       });
 
-      expect(await finishByWebhook(call.jobId)).toEqual(['pending']);
+      expect(await finishByWebhook(call.jobId)).toEqual(['gnani_busy']);
 
       expect((await readCall(call.id)).call).toMatchObject({
         status: 'transcribing',
@@ -398,7 +398,7 @@ describe('each failure in the TRD table', () => {
     const fourth = await transcribingCall(job, { gnani_attempts: 3 });
     const fifth = await transcribingCall({ ...job }, { gnani_attempts: 4 });
 
-    expect(await finishByWebhook(fourth.jobId)).toEqual(['pending']);
+    expect(await finishByWebhook(fourth.jobId)).toEqual(['gnani_busy']);
     expect(await finishByWebhook(fifth.jobId)).toEqual(['failed']);
 
     expect((await readCall(fourth.id)).call).toMatchObject({
@@ -488,5 +488,22 @@ describe('POST /api/jobs/poll', () => {
       { callId: oldestDone.id, outcome: 'analyzing' },
     ]);
     expect((await readCall(newerDone.id)).call?.status).toBe('transcribing');
+  });
+
+  it('stops at the first busy answer so the other calls keep their attempts', async () => {
+    const busy = await transcribingCall({
+      status: 'IN_PROGRESS',
+      statusAnswer: 429,
+      files: [],
+    });
+    const done = await transcribingCall(completedJob());
+    await backdate(busy.id, 5);
+    await backdate(done.id, 3);
+
+    expect(await poll()).toEqual([{ callId: busy.id, outcome: 'gnani_busy' }]);
+    expect((await readCall(done.id)).call).toMatchObject({
+      status: 'transcribing',
+      gnani_attempts: 0,
+    });
   });
 });

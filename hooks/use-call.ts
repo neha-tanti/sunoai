@@ -13,6 +13,7 @@ export function useCall(id: string) {
       return res.json();
     },
     refetchInterval: (query) => {
+      if (query.state.status === 'error') return REFETCH_MS;
       const status = query.state.data?.call.status;
       if (!status || status === 'ready' || status === 'failed') return false;
       return REFETCH_MS;

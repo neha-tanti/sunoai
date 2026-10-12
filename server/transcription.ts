@@ -22,7 +22,8 @@ export type TranscribingCall = Pick<
   'id' | 'gnani_job_id' | 'gnani_attempts' | 'checked_at'
 >;
 
-export type FinishOutcome = 'pending' | 'analyzing' | 'failed' | 'lost_race';
+export type FinishOutcome =
+  'pending' | 'gnani_busy' | 'analyzing' | 'failed' | 'lost_race';
 
 type Failure = { code: Enums<'call_error_code'>; reason: string };
 
@@ -114,18 +115,18 @@ function jobFailure(
     };
   }
 
-  const failed = files.find((file) => file.status === 'FAILED');
-  if (/empty transcript/i.test(failed?.error_message ?? '')) {
-    return { code: 'no_speech', reason: failed!.error_message! };
+  const failedMessage = files.find(
+    (file) => file.status === 'FAILED',
+  )?.error_message;
+  if (failedMessage && /empty transcript/i.test(failedMessage)) {
+    return { code: 'no_speech', reason: failedMessage };
   }
   if (job.status === 'COMPLETED') return null;
 
   return {
     code: 'transcription_failed',
     reason:
-      job.cancel_reason ??
-      failed?.error_message ??
-      `Gnani job ended ${job.status}`,
+      job.cancel_reason ?? failedMessage ?? `Gnani job ended ${job.status}`,
   };
 }
 
@@ -154,7 +155,8 @@ async function handleError(
     console.error(`Finishing the transcription of call ${call.id} failed`, err);
     return fail(call.id, {
       code: 'transcription_failed',
-      reason: 'Saving the transcript failed',
+      reason:
+        err instanceof Error ? err.message : 'Saving the transcript failed',
     });
   }
 
@@ -173,5 +175,5 @@ async function handleError(
     .eq('status', 'transcribing')
     .eq('gnani_attempts', call.gnani_attempts);
   if (updated.error) throw updated.error;
-  return 'pending';
+  return 'gnani_busy';
 }

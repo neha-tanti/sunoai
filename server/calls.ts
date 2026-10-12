@@ -3,7 +3,7 @@ import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import { randomUUID } from 'node:crypto';
-import { createCallSchema, mimeTypeFor } from '@/lib/call-upload';
+import { createCallSchema } from '@/lib/call-upload';
 import type { SignedInEnv } from './auth';
 import { requireEnv } from './env';
 import { ApiError } from './errors';
@@ -99,7 +99,10 @@ async function startCheck(id: string) {
     .eq('id', id)
     .eq('status', 'uploaded')
     .select('id');
-  if (updated.error) throw updated.error;
+  if (updated.error) {
+    await cancelOrLog(id, jobId);
+    throw updated.error;
+  }
   if (updated.data.length > 0) return;
 
   await cancelOrLog(id, jobId);
@@ -117,27 +120,26 @@ export const calls = new Hono<SignedInEnv>()
   .post('/', zValidator('json', createCallSchema, rejectInvalid), async (c) => {
     const body = c.req.valid('json');
     const id = randomUUID();
-    const extension = body.file_name.split('.').pop()!.toLowerCase();
-    const filePath = `${id}/recording.${extension}`;
+    const filePath = `${id}/recording.${body.extension}`;
     const supabase = createAdminClient();
+
+    const signed = await supabase.storage
+      .from('calls')
+      .createSignedUploadUrl(filePath, { upsert: true });
+    if (signed.error) throw signed.error;
 
     const inserted = await supabase.from('calls').insert({
       id,
       title: body.title,
       file_path: filePath,
       file_size_bytes: body.file_size,
-      mime_type: mimeTypeFor(body.file_name)!,
+      mime_type: body.mime_type,
       call_langs: body.call_langs,
       coaching_lang: body.coaching_lang,
       denoise: body.denoise,
       created_by: c.get('userId'),
     });
     if (inserted.error) throw inserted.error;
-
-    const signed = await supabase.storage
-      .from('calls')
-      .createSignedUploadUrl(filePath, { upsert: true });
-    if (signed.error) throw signed.error;
 
     return c.json(
       { id, path: signed.data.path, token: signed.data.token },
