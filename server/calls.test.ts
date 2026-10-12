@@ -17,6 +17,7 @@ import { app } from './app';
 import { coachingAudioPath } from './coaching';
 import { createAdminClient } from './supabase';
 import { flushAfter } from './test/after';
+import { keepChecklist } from './test/checklist';
 import {
   deleteCalls,
   insertAnalyzingCall,
@@ -294,6 +295,58 @@ describe('GET /api/calls/:id', () => {
       check_id: 'smooth_handover',
       name: 'Smooth handover',
       result: 'na',
+    });
+  });
+
+  describe('after the checklist is edited', () => {
+    let restoreChecklist: () => Promise<void>;
+
+    beforeAll(async () => {
+      restoreChecklist = await keepChecklist();
+    });
+
+    afterEach(async () => {
+      await restoreChecklist();
+    });
+
+    async function readCheckNames(id: string) {
+      const res = await api.calls[':id'].$get(
+        { param: { id } },
+        { headers: { Cookie: session.cookie } },
+      );
+      const body = await res.json();
+      return body.report?.checks.map((check) => check.name);
+    }
+
+    it('keeps the old checklist on old reports and uses the edit on the next check', async () => {
+      vi.spyOn(console, 'info').mockImplementation(() => {});
+      const earlier = await seedAnalyzingCall();
+      await analyzeCall(earlier.id, AbortSignal.timeout(30_000));
+
+      const checklist = await (
+        await api.checklist.$get(undefined, {
+          headers: { Cookie: session.cookie },
+        })
+      ).json();
+      const [first, ...rest] = checklist.checks;
+      const saved = await api.checklist.$put(
+        {
+          json: {
+            ...checklist,
+            checks: [{ ...first, name: 'Order number read back' }, ...rest],
+          },
+        },
+        { headers: { Cookie: session.cookie } },
+      );
+      expect(saved.status).toBe(204);
+
+      const later = await seedAnalyzingCall();
+      await analyzeCall(later.id, AbortSignal.timeout(30_000));
+
+      expect((await readCheckNames(earlier.id))?.[0]).toBe('Order confirmed');
+      expect((await readCheckNames(later.id))?.[0]).toBe(
+        'Order number read back',
+      );
     });
   });
 

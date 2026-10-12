@@ -1,0 +1,34 @@
+import { z } from 'zod';
+
+export const MAX_CHECKS = 20;
+export const MAX_RED_FLAGS = 20;
+export const NAME_MAX = 80;
+export const DETAIL_MAX = 300;
+export const RULES_MAX = 2000;
+
+const itemId = z
+  .string()
+  .regex(/^[a-z0-9_]{1,64}$/)
+  .optional();
+const name = z.string().trim().min(1).max(NAME_MAX);
+const detail = z.string().trim().min(1).max(DETAIL_MAX);
+
+const uniqueIds = (items: { id?: string }[]) => {
+  const ids = items.flatMap((item) => (item.id ? [item.id] : []));
+  return new Set(ids).size === ids.length;
+};
+
+export const saveChecklistSchema = z.object({
+  checks: z
+    .array(z.object({ id: itemId, name, rule: detail }))
+    .min(1)
+    .max(MAX_CHECKS)
+    .refine(uniqueIds),
+  red_flags: z
+    .array(z.object({ id: itemId, name, example: detail }))
+    .max(MAX_RED_FLAGS)
+    .refine(uniqueIds),
+  rules: z.string().trim().max(RULES_MAX),
+});
+
+export type SaveChecklist = z.input<typeof saveChecklistSchema>;

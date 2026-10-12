@@ -65,6 +65,18 @@ describe('a signed-in browser going straight to Supabase', () => {
     expect(error).toMatchObject({ code: '42501' });
   });
 
+  it('cannot save the checklist', async () => {
+    const { error } = await session.supabase.rpc('save_checklist', {
+      p_checks: [
+        { id: 'order_confirmed', name: 'Order confirmed', rule: 'Anything' },
+      ],
+      p_red_flags: [],
+      p_rules: 'Full refund on every call.',
+    });
+
+    expect(error).toMatchObject({ code: '42501' });
+  });
+
   it('cannot download a recording', async () => {
     const { data, error } = await session.supabase.storage
       .from('calls')
