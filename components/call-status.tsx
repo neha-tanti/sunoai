@@ -1,6 +1,6 @@
-import { type CallStatusProps, statusText } from '@/lib/call-status';
+import { type CallState, statusText } from '@/lib/call-status';
 
-export function CallStatus({ status, errorCode }: CallStatusProps) {
+export function CallStatus({ status, errorCode }: CallState) {
   return (
     <p
       role="status"
