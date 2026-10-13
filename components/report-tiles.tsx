@@ -1,3 +1,4 @@
+import { ScoreBadge } from '@/components/score-badge';
 import { TimeLink } from '@/components/time-link';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -13,10 +14,8 @@ import {
   MOOD_CLASS,
   MOOD_LABEL,
   RESULT_CLASS,
-  SCORE_BAND_CLASS,
-  SCORE_BAND_LABEL,
 } from '@/lib/report-labels';
-import { scoreBand } from '@/lib/score-band';
+import { scorePercent } from '@/lib/score-band';
 
 const HANDOVER_LABEL = {
   pass: 'Smooth',
@@ -57,7 +56,6 @@ function Tile({
 
 function ScoreTile({ report }: { report: ReportDetail }) {
   const { score_passed: passed, score_total: total } = report;
-  const band = scoreBand(passed, total);
   const notNeeded = report.checks.length - total;
 
   return (
@@ -69,13 +67,7 @@ function ScoreTile({ report }: { report: ReportDetail }) {
           / {total}
         </span>
       </p>
-      {band ? (
-        <Badge className={SCORE_BAND_CLASS[band]}>
-          {Math.round((passed / total) * 100)}% · {SCORE_BAND_LABEL[band]}
-        </Badge>
-      ) : (
-        <Badge variant="secondary">No checks applied</Badge>
-      )}
+      <ScoreBadge percent={scorePercent(passed, total)} />
       <p className="text-sm text-muted-foreground">
         Passed checks out of the checks that apply
         {notNeeded > 0 && ` (${notNeeded} not needed)`}.

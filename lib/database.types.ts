@@ -260,6 +260,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      load_checklist: { Args: never; Returns: Json }
+      save_checklist: {
+        Args: { p_checks: Json; p_red_flags: Json; p_rules: string }
+        Returns: undefined
+      }
       save_report: {
         Args: { p_call_id: string; p_report: Json }
         Returns: boolean
