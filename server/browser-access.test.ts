@@ -77,6 +77,12 @@ describe('a signed-in browser going straight to Supabase', () => {
     expect(error).toMatchObject({ code: '42501' });
   });
 
+  it('cannot read the checklist', async () => {
+    const { error } = await session.supabase.rpc('load_checklist');
+
+    expect(error).toMatchObject({ code: '42501' });
+  });
+
   it('cannot download a recording', async () => {
     const { data, error } = await session.supabase.storage
       .from('calls')

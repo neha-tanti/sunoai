@@ -2,7 +2,11 @@ import { Badge } from '@/components/ui/badge';
 import { SCORE_BAND_CLASS, SCORE_BAND_LABEL } from '@/lib/report-labels';
 import { scoreBand } from '@/lib/score-band';
 
-export function ScoreBadge({ percent }: { percent: number }) {
+export function ScoreBadge({ percent }: { percent: number | null }) {
+  if (percent === null) {
+    return <Badge variant="secondary">No checks applied</Badge>;
+  }
+
   const band = scoreBand(percent);
   return (
     <Badge className={SCORE_BAND_CLASS[band]}>

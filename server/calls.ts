@@ -5,6 +5,7 @@ import { HTTPException } from 'hono/http-exception';
 import { after } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import { createCallSchema } from '@/lib/call-upload';
+import { HANDOVER_CHECK_ID } from '@/lib/checklist';
 import { analyzeCall } from './analysis';
 import type { SignedInEnv } from './auth';
 import type { Checklist } from './checklist';
@@ -34,7 +35,6 @@ type SavedReport = Pick<Report, ReportJsonColumn> & {
 };
 
 const RECENT_CALLS = 10;
-const HANDOVER_CHECK_ID = 'smooth_handover';
 const RECORDING_URL_SECONDS = 2 * 60 * 60;
 
 const alreadyChecked = () =>
@@ -126,18 +126,23 @@ async function recentCalls() {
     .limit(RECENT_CALLS);
   if (recent.error) throw recent.error;
 
-  const ratios = recent.data.flatMap(({ report }) =>
+  return { calls: recent.data, average: teamAverage(recent.data) };
+}
+
+type ScoredCall = {
+  report: { score_passed: number; score_total: number } | null;
+};
+
+function teamAverage(calls: ScoredCall[]) {
+  const ratios = calls.flatMap(({ report }) =>
     report && report.score_total > 0
       ? [report.score_passed / report.score_total]
       : [],
   );
-  if (ratios.length === 0) return { calls: recent.data, average: null };
+  if (ratios.length === 0) return null;
 
   const mean = ratios.reduce((sum, ratio) => sum + ratio, 0) / ratios.length;
-  return {
-    calls: recent.data,
-    average: { percent: Math.round(mean * 100), calls: ratios.length },
-  };
+  return { percent: Math.round(mean * 100), calls: ratios.length };
 }
 
 async function startCheck(id: string) {

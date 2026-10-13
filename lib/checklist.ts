@@ -5,6 +5,7 @@ export const MAX_RED_FLAGS = 20;
 export const NAME_MAX = 80;
 export const DETAIL_MAX = 300;
 export const RULES_MAX = 2000;
+export const HANDOVER_CHECK_ID = 'smooth_handover';
 
 const itemId = z
   .string()
@@ -21,9 +22,9 @@ const uniqueIds = (items: { id?: string }[]) => {
 export const saveChecklistSchema = z.object({
   checks: z
     .array(z.object({ id: itemId, name, rule: detail }))
-    .min(1)
     .max(MAX_CHECKS)
-    .refine(uniqueIds),
+    .refine(uniqueIds)
+    .refine((checks) => checks.some((check) => check.id === HANDOVER_CHECK_ID)),
   red_flags: z
     .array(z.object({ id: itemId, name, example: detail }))
     .max(MAX_RED_FLAGS)

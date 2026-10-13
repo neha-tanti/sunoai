@@ -75,3 +75,41 @@ test('a blank name is stopped before saving', async ({ page }) => {
   ).toBe(false);
   await expect(page.getByRole('status')).toHaveCount(0);
 });
+
+test('a rule of only spaces is stopped before saving', async ({ page }) => {
+  await page.goto('/checklist');
+  const rule = page
+    .getByRole('group', { name: 'Check 1' })
+    .getByLabel('Passes when the agent…');
+
+  await rule.fill('   ');
+  await page.getByRole('button', { name: 'Save checklist' }).click();
+
+  expect(
+    await rule.evaluate((input: HTMLTextAreaElement) => input.validity.valid),
+  ).toBe(false);
+  await expect(page.getByRole('status')).toHaveCount(0);
+});
+
+test('the Smooth handover check cannot be removed', async ({ page }) => {
+  await page.goto('/checklist');
+  const handover = page.getByRole('group', { name: 'Check 5' });
+
+  await expect(handover.getByLabel('Name')).toHaveValue('Smooth handover');
+  await expect(
+    handover.getByRole('button', { name: 'Remove check 5' }),
+  ).toBeDisabled();
+});
+
+test('Saved goes away once the checklist is changed again', async ({
+  page,
+}) => {
+  await page.goto('/checklist');
+  const rules = page.getByLabel('Refund and compensation rules');
+
+  await page.getByRole('button', { name: 'Save checklist' }).click();
+  await expect(page.getByRole('status')).toHaveText(SAVED);
+  await rules.fill(`No cash compensation (${run})`);
+
+  await expect(page.getByRole('status')).toHaveCount(0);
+});

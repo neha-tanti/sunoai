@@ -15,6 +15,7 @@ import { Textarea } from '@/components/ui/textarea';
 import type { SavedChecklist } from '@/hooks/use-checklist';
 import {
   DETAIL_MAX,
+  HANDOVER_CHECK_ID,
   MAX_CHECKS,
   MAX_RED_FLAGS,
   NAME_MAX,
@@ -30,6 +31,7 @@ type ChecklistEditorProps = {
   checklist: SavedChecklist;
   saving: boolean;
   onSave: (checklist: SaveChecklist) => void;
+  onEdit: () => void;
 };
 
 const newItem = (): Item => ({
@@ -42,6 +44,7 @@ export function ChecklistEditor({
   checklist,
   saving,
   onSave,
+  onEdit,
 }: ChecklistEditorProps) {
   const [checks, setChecks] = useState<Item[]>(() =>
     checklist.checks.map((check) => ({
@@ -60,6 +63,21 @@ export function ChecklistEditor({
     })),
   );
   const [rules, setRules] = useState(checklist.rules);
+
+  function updateChecks(next: Item[]) {
+    setChecks(next);
+    onEdit();
+  }
+
+  function updateRedFlags(next: Item[]) {
+    setRedFlags(next);
+    onEdit();
+  }
+
+  function updateRules(next: string) {
+    setRules(next);
+    onEdit();
+  }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -95,9 +113,9 @@ export function ChecklistEditor({
               legend={`Check ${index + 1}`}
               detailLabel="Passes when the agent…"
               item={check}
-              removable={checks.length > 1}
-              onChange={(changed) => setChecks(checks.with(index, changed))}
-              onRemove={() => setChecks(checks.toSpliced(index, 1))}
+              removable={check.id !== HANDOVER_CHECK_ID}
+              onChange={(changed) => updateChecks(checks.with(index, changed))}
+              onRemove={() => updateChecks(checks.toSpliced(index, 1))}
             />
           ))}
           <Button
@@ -105,7 +123,7 @@ export function ChecklistEditor({
             variant="outline"
             className="self-start"
             disabled={checks.length >= MAX_CHECKS}
-            onClick={() => setChecks([...checks, newItem()])}
+            onClick={() => updateChecks([...checks, newItem()])}
           >
             Add a check
           </Button>
@@ -130,8 +148,10 @@ export function ChecklistEditor({
               detailLabel="Example"
               item={flag}
               removable
-              onChange={(changed) => setRedFlags(redFlags.with(index, changed))}
-              onRemove={() => setRedFlags(redFlags.toSpliced(index, 1))}
+              onChange={(changed) =>
+                updateRedFlags(redFlags.with(index, changed))
+              }
+              onRemove={() => updateRedFlags(redFlags.toSpliced(index, 1))}
             />
           ))}
           <Button
@@ -139,7 +159,7 @@ export function ChecklistEditor({
             variant="outline"
             className="self-start"
             disabled={redFlags.length >= MAX_RED_FLAGS}
-            onClick={() => setRedFlags([...redFlags, newItem()])}
+            onClick={() => updateRedFlags([...redFlags, newItem()])}
           >
             Add a red flag
           </Button>
@@ -162,7 +182,7 @@ export function ChecklistEditor({
             id="company-rules"
             value={rules}
             maxLength={RULES_MAX}
-            onChange={(event) => setRules(event.target.value)}
+            onChange={(event) => updateRules(event.target.value)}
           />
         </CardContent>
       </Card>
@@ -194,6 +214,12 @@ function ItemFields({
   const nameId = `${item.key}-name`;
   const detailId = `${item.key}-detail`;
 
+  function handleDetailChange(event: React.ChangeEvent<HTMLTextAreaElement>) {
+    const detail = event.target.value;
+    event.target.setCustomValidity(detail.trim() ? '' : 'Fill in this field.');
+    onChange({ ...item, detail });
+  }
+
   return (
     <fieldset className="flex flex-col gap-3 rounded-lg border p-3">
       <legend className="px-1 text-sm font-medium">{legend}</legend>
@@ -215,9 +241,7 @@ function ItemFields({
           value={item.detail}
           required
           maxLength={DETAIL_MAX}
-          onChange={(event) =>
-            onChange({ ...item, detail: event.target.value })
-          }
+          onChange={handleDetailChange}
         />
       </div>
       <Button

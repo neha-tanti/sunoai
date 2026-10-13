@@ -1,6 +1,6 @@
 import { testClient } from 'hono/testing';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
-import type { SaveChecklist } from '@/lib/checklist';
+import { HANDOVER_CHECK_ID, type SaveChecklist } from '@/lib/checklist';
 import { app } from './app';
 import { createAdminClient } from './supabase';
 import { keepChecklist } from './test/checklist';
@@ -226,6 +226,21 @@ describe('PUT /api/checklist', () => {
     });
   });
 
+  it('drops accents from the id of a new check', async () => {
+    const before = await readChecklist();
+
+    await saveChecklist({
+      ...before,
+      checks: [
+        ...before.checks,
+        { name: 'Café order confirmed', rule: 'Reads back the café’s name' },
+      ],
+    });
+
+    const after = await readChecklist();
+    expect(after.checks.at(-1)).toMatchObject({ id: 'cafe_order_confirmed' });
+  });
+
   it('gives checks named without English letters distinct ids', async () => {
     const before = await readChecklist();
 
@@ -247,35 +262,44 @@ describe('PUT /api/checklist', () => {
 
   it('brings back a removed check that is added again by name', async () => {
     const before = await readChecklist();
-    const withoutHandover = before.checks.filter(
-      (check) => check.id !== 'smooth_handover',
+    const withoutClosing = before.checks.filter(
+      (check) => check.id !== 'closing',
     );
-    await saveChecklist({ ...before, checks: withoutHandover });
+    await saveChecklist({ ...before, checks: withoutClosing });
 
     await saveChecklist({
       ...before,
       checks: [
-        ...withoutHandover,
+        ...withoutClosing,
         {
-          name: 'Smooth handover',
-          rule: 'The human agent already knows the order and the problem',
+          name: 'Closing',
+          rule: 'Asks if there is anything else before ending the call',
         },
       ],
     });
 
     const after = await readChecklist();
     expect(after.checks.at(-1)).toMatchObject({
-      id: 'smooth_handover',
-      rule: 'The human agent already knows the order and the problem',
+      id: 'closing',
+      rule: 'Asks if there is anything else before ending the call',
     });
   });
 
+  const handover = {
+    id: HANDOVER_CHECK_ID,
+    name: 'Smooth handover',
+    rule: 'Passes the call to a human who already knows the problem',
+  };
+
   it('accepts 20 checks with names of 80 characters', async () => {
     const before = await readChecklist();
-    const checks = Array.from({ length: 20 }, (_, n) => ({
-      name: `Check ${String(n).padStart(2, '0')} `.padEnd(80, 'x'),
-      rule: 'Confirms the delivery address',
-    }));
+    const checks = [
+      handover,
+      ...Array.from({ length: 19 }, (_, n) => ({
+        name: `Check ${String(n).padStart(2, '0')} `.padEnd(80, 'x'),
+        rule: 'Confirms the delivery address',
+      })),
+    ];
 
     const res = await saveChecklist({ ...before, checks });
 
@@ -285,14 +309,21 @@ describe('PUT /api/checklist', () => {
 
   const order = { name: 'Order confirmed', rule: 'Confirms the order' };
   it.each([
-    ['no checks', { checks: [] }],
-    ['21 checks', { checks: Array.from({ length: 21 }, () => order) }],
-    ['a blank name', { checks: [{ ...order, name: '   ' }] }],
-    ['an 81-character name', { checks: [{ ...order, name: 'x'.repeat(81) }] }],
+    ['no Smooth handover check', { checks: [order] }],
+    [
+      '21 checks',
+      { checks: [handover, ...Array.from({ length: 20 }, () => order)] },
+    ],
+    ['a blank name', { checks: [handover, { ...order, name: '   ' }] }],
+    [
+      'an 81-character name',
+      { checks: [handover, { ...order, name: 'x'.repeat(81) }] },
+    ],
     [
       'the same id twice',
       {
         checks: [
+          handover,
           { ...order, id: 'order_confirmed' },
           { ...order, id: 'order_confirmed' },
         ],

@@ -56,7 +56,6 @@ function Tile({
 
 function ScoreTile({ report }: { report: ReportDetail }) {
   const { score_passed: passed, score_total: total } = report;
-  const percent = scorePercent(passed, total);
   const notNeeded = report.checks.length - total;
 
   return (
@@ -68,11 +67,7 @@ function ScoreTile({ report }: { report: ReportDetail }) {
           / {total}
         </span>
       </p>
-      {percent !== null ? (
-        <ScoreBadge percent={percent} />
-      ) : (
-        <Badge variant="secondary">No checks applied</Badge>
-      )}
+      <ScoreBadge percent={scorePercent(passed, total)} />
       <p className="text-sm text-muted-foreground">
         Passed checks out of the checks that apply
         {notNeeded > 0 && ` (${notNeeded} not needed)`}.

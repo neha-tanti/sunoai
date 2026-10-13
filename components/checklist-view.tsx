@@ -25,6 +25,7 @@ export function ChecklistView() {
         checklist={checklist.data}
         saving={save.isPending}
         onSave={save.mutate}
+        onEdit={save.reset}
       />
       {save.isSuccess && (
         <p role="status" className="text-sm text-muted-foreground">

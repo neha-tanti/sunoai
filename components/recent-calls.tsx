@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { STATUS_TEXT } from '@/components/call-status';
+import { statusText } from '@/components/call-status';
 import { ScoreBadge } from '@/components/score-badge';
 import {
   AlertDialog,
@@ -33,7 +33,6 @@ import {
 } from '@/components/ui/table';
 import { type RecentCall, type RecentCalls, useCalls } from '@/hooks/use-calls';
 import { useDeleteCall } from '@/hooks/use-delete-call';
-import { CALL_ERROR_MESSAGES } from '@/lib/call-errors';
 import { MOOD_CLASS, MOOD_LABEL } from '@/lib/report-labels';
 import { scorePercent } from '@/lib/score-band';
 
@@ -142,14 +141,18 @@ function CallRow({ call }: { call: RecentCall }) {
                 : 'text-sm text-muted-foreground'
             }
           >
-            {call.error_code
-              ? CALL_ERROR_MESSAGES[call.error_code]
-              : STATUS_TEXT[call.status]}
+            {statusText({ status: call.status, errorCode: call.error_code })}
           </p>
         )}
       </TableCell>
       <TableCell className="text-muted-foreground">{uploaded}</TableCell>
-      <TableCell>{report && <ReportScore report={report} />}</TableCell>
+      <TableCell>
+        {report && (
+          <ScoreBadge
+            percent={scorePercent(report.score_passed, report.score_total)}
+          />
+        )}
+      </TableCell>
       <TableCell>
         {report && (
           <Badge className={MOOD_CLASS[report.frustration_peak]}>
@@ -170,18 +173,6 @@ function CallRow({ call }: { call: RecentCall }) {
       </TableCell>
     </TableRow>
   );
-}
-
-function ReportScore({
-  report,
-}: {
-  report: NonNullable<RecentCall['report']>;
-}) {
-  const percent = scorePercent(report.score_passed, report.score_total);
-  if (percent === null) {
-    return <Badge variant="secondary">No checks applied</Badge>;
-  }
-  return <ScoreBadge percent={percent} />;
 }
 
 function DeleteCallButton({ id, title }: { id: string; title: string }) {
