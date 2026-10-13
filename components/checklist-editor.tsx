@@ -98,94 +98,98 @@ export function ChecklistEditor({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      <Card role="region" aria-label="Checks">
-        <CardHeader>
-          <CardTitle>Checks</CardTitle>
-          <CardDescription>
-            Each one is marked Passed, Missed or Not needed, with a quote from
-            the call as proof.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          {checks.map((check, index) => (
-            <ItemFields
-              key={check.key}
-              legend={`Check ${index + 1}`}
-              detailLabel="Passes when the agent…"
-              item={check}
-              removable={check.id !== HANDOVER_CHECK_ID}
-              onChange={(changed) => updateChecks(checks.with(index, changed))}
-              onRemove={() => updateChecks(checks.toSpliced(index, 1))}
-            />
-          ))}
-          <Button
-            type="button"
-            variant="outline"
-            className="self-start"
-            disabled={checks.length >= MAX_CHECKS}
-            onClick={() => updateChecks([...checks, newItem()])}
-          >
-            Add a check
-          </Button>
-        </CardContent>
-      </Card>
+      <fieldset disabled={saving} className="flex flex-col gap-4">
+        <Card role="region" aria-label="Checks">
+          <CardHeader>
+            <CardTitle>Checks</CardTitle>
+            <CardDescription>
+              Each one is marked Passed, Missed or Not needed, with a quote from
+              the call as proof.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            {checks.map((check, index) => (
+              <ItemFields
+                key={check.key}
+                legend={`Check ${index + 1}`}
+                detailLabel="Passes when the agent…"
+                item={check}
+                removable={check.id !== HANDOVER_CHECK_ID}
+                onChange={(changed) =>
+                  updateChecks(checks.with(index, changed))
+                }
+                onRemove={() => updateChecks(checks.toSpliced(index, 1))}
+              />
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              className="self-start"
+              disabled={checks.length >= MAX_CHECKS}
+              onClick={() => updateChecks([...checks, newItem()])}
+            >
+              Add a check
+            </Button>
+          </CardContent>
+        </Card>
 
-      <Card role="region" aria-label="Red flags">
-        <CardHeader>
-          <CardTitle>Red flags</CardTitle>
-          <CardDescription>
-            Any one of these marks the call Needs review, whatever its score.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          {redFlags.length === 0 && (
-            <p className="text-sm text-muted-foreground">No red flags.</p>
-          )}
-          {redFlags.map((flag, index) => (
-            <ItemFields
-              key={flag.key}
-              legend={`Red flag ${index + 1}`}
-              detailLabel="Example"
-              item={flag}
-              removable
-              onChange={(changed) =>
-                updateRedFlags(redFlags.with(index, changed))
-              }
-              onRemove={() => updateRedFlags(redFlags.toSpliced(index, 1))}
-            />
-          ))}
-          <Button
-            type="button"
-            variant="outline"
-            className="self-start"
-            disabled={redFlags.length >= MAX_RED_FLAGS}
-            onClick={() => updateRedFlags([...redFlags, newItem()])}
-          >
-            Add a red flag
-          </Button>
-        </CardContent>
-      </Card>
+        <Card role="region" aria-label="Red flags">
+          <CardHeader>
+            <CardTitle>Red flags</CardTitle>
+            <CardDescription>
+              Any one of these marks the call Needs review, whatever its score.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            {redFlags.length === 0 && (
+              <p className="text-sm text-muted-foreground">No red flags.</p>
+            )}
+            {redFlags.map((flag, index) => (
+              <ItemFields
+                key={flag.key}
+                legend={`Red flag ${index + 1}`}
+                detailLabel="Example"
+                item={flag}
+                removable
+                onChange={(changed) =>
+                  updateRedFlags(redFlags.with(index, changed))
+                }
+                onRemove={() => updateRedFlags(redFlags.toSpliced(index, 1))}
+              />
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              className="self-start"
+              disabled={redFlags.length >= MAX_RED_FLAGS}
+              onClick={() => updateRedFlags([...redFlags, newItem()])}
+            >
+              Add a red flag
+            </Button>
+          </CardContent>
+        </Card>
 
-      <Card role="region" aria-label="Refund and compensation rules">
-        <CardHeader>
-          <CardTitle>
-            <Label htmlFor="company-rules" className="text-base">
-              Refund and compensation rules
-            </Label>
-          </CardTitle>
-          <CardDescription>
-            SunoAI flags a promise that breaks these as a wrong promise.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Textarea
-            id="company-rules"
-            value={rules}
-            maxLength={RULES_MAX}
-            onChange={(event) => updateRules(event.target.value)}
-          />
-        </CardContent>
-      </Card>
+        <Card role="region" aria-label="Refund and compensation rules">
+          <CardHeader>
+            <CardTitle>
+              <Label htmlFor="company-rules" className="text-base">
+                Refund and compensation rules
+              </Label>
+            </CardTitle>
+            <CardDescription>
+              SunoAI flags a promise that breaks these as a wrong promise.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Textarea
+              id="company-rules"
+              value={rules}
+              maxLength={RULES_MAX}
+              onChange={(event) => updateRules(event.target.value)}
+            />
+          </CardContent>
+        </Card>
+      </fieldset>
 
       <Button type="submit" className="self-start" disabled={saving}>
         {saving ? 'Saving…' : 'Save checklist'}

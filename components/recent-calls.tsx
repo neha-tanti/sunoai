@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { statusText } from '@/components/call-status';
+import { statusText } from '@/lib/call-status';
 import { ScoreBadge } from '@/components/score-badge';
 import {
   AlertDialog,
