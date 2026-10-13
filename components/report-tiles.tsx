@@ -1,3 +1,4 @@
+import { ScoreBadge } from '@/components/score-badge';
 import { TimeLink } from '@/components/time-link';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -13,10 +14,8 @@ import {
   MOOD_CLASS,
   MOOD_LABEL,
   RESULT_CLASS,
-  SCORE_BAND_CLASS,
-  SCORE_BAND_LABEL,
 } from '@/lib/report-labels';
-import { scoreBand, scorePercent } from '@/lib/score-band';
+import { scorePercent } from '@/lib/score-band';
 
 const HANDOVER_LABEL = {
   pass: 'Smooth',
@@ -70,9 +69,7 @@ function ScoreTile({ report }: { report: ReportDetail }) {
         </span>
       </p>
       {percent !== null ? (
-        <Badge className={SCORE_BAND_CLASS[scoreBand(percent)]}>
-          {percent}% · {SCORE_BAND_LABEL[scoreBand(percent)]}
-        </Badge>
+        <ScoreBadge percent={percent} />
       ) : (
         <Badge variant="secondary">No checks applied</Badge>
       )}

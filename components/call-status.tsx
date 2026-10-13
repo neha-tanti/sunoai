@@ -1,7 +1,7 @@
 import { CALL_ERROR_MESSAGES } from '@/lib/call-errors';
 import type { Enums } from '@/lib/database.types';
 
-const STATUS_TEXT: Record<Enums<'call_status'>, string> = {
+export const STATUS_TEXT: Record<Enums<'call_status'>, string> = {
   uploaded: 'Uploaded. The check hasn’t started yet.',
   transcribing: 'Transcribing the call…',
   analyzing: 'Analysing the transcript…',

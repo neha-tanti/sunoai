@@ -254,7 +254,9 @@ Six Next.js routes built from shadcn/ui parts, with all server data going throug
 | `/calls/[id]` | The call report |
 | `/checklist` | Checklist editor |
 
-**shadcn/ui parts:** Button, Card, Badge, Select, Switch, Table, Input, Textarea, Alert (for Needs review), Progress, Skeleton, Tooltip, ScrollArea and Sonner for toasts.
+**shadcn/ui parts:** Button, Card, Badge, Select, Switch, Table, Input, Textarea, Alert (for Needs review), AlertDialog (to confirm deleting a call), Progress, Skeleton, Tooltip, ScrollArea and Sonner for toasts.
+
+The signed-in pages sit in the `app/(app)` route group, whose layout adds `SiteNav`: Check a call, Recent calls and Checklist.
 
 **Custom components**
 
@@ -266,6 +268,9 @@ Six Next.js routes built from shadcn/ui parts, with all server data going throug
 | `TranscriptView` | Agent, human and customer lines with times; a quote click scrolls to and highlights its line |
 | `ChecklistResults`, `RedFlagsList`, `FixNotesList` | The report sections, each quote linked to its line |
 | `CoachingPlayer` | Plays the coaching audio from its signed URL |
+| `RecentCalls` | The team average and the recent calls table, each row deletable after a confirmation |
+| `ScoreBadge` | A score percent with its band in words (Good, Needs work, Poor), on the report and in Recent calls |
+| `ChecklistEditor` | Checks, red flags and the refund and compensation rules, saved together |
 
 **TanStack Query**
 

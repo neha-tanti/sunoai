@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
+import { deleteCall } from '@/hooks/use-delete-call';
 import { api } from '@/lib/api-client';
 import { apiError } from '@/lib/api-errors';
 import {
@@ -58,15 +59,13 @@ function canReuse(input: CheckCallInput, call: UnfinishedCall) {
 }
 
 async function discardCall(id: string) {
-  const callRoute = api.api.calls[':id'];
-  const read = await callRoute.$get({ param: { id } });
+  const read = await api.api.calls[':id'].$get({ param: { id } });
   if (read.status === 404) return;
   if (!read.ok) throw new Error((await apiError(read)).message);
   const { call } = await read.json();
   if (call.status !== 'uploaded') return;
 
-  const deleted = await callRoute.$delete({ param: { id } });
-  if (!deleted.ok) throw new Error((await apiError(deleted)).message);
+  await deleteCall(id);
 }
 
 async function callToCheck(
