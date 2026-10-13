@@ -302,7 +302,7 @@ describe('GET /api/calls/:id', () => {
     let restoreChecklist: () => Promise<void>;
 
     beforeAll(async () => {
-      restoreChecklist = await keepChecklist();
+      restoreChecklist = await keepChecklist(createAdminClient());
     });
 
     afterEach(async () => {

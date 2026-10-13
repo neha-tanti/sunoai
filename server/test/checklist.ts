@@ -1,7 +1,7 @@
-import { createAdminClient } from '../supabase';
+import type { SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/lib/database.types';
 
-export async function keepChecklist() {
-  const supabase = createAdminClient();
+export async function keepChecklist(supabase: SupabaseClient<Database>) {
   const [checks, redFlags, rules] = await Promise.all([
     supabase.from('checklist_checks').select(),
     supabase.from('checklist_red_flags').select(),

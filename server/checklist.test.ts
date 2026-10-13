@@ -111,7 +111,7 @@ describe('PUT /api/checklist', () => {
 
   beforeAll(async () => {
     session = await signInTeamLeader();
-    restoreChecklist = await keepChecklist();
+    restoreChecklist = await keepChecklist(createAdminClient());
   });
 
   afterEach(async () => {
