@@ -162,7 +162,7 @@ The [Gnani and LLM spike](spikes/gnani-llm-spike.md) compared free open-weight m
 
 - Every segment as one line: segment id, start time, speaker id and text.
 - The checklist (check ids, names and rules), the red flags (ids, names and examples) and the refund and compensation rules.
-- The coaching language.
+- The coaching language, after the transcript, with the Roman-letters instruction when it is Hinglish.
 
 **What comes back**
 
@@ -174,7 +174,7 @@ The [Gnani and LLM spike](spikes/gnani-llm-spike.md) compared free open-weight m
 | `red_flags` | Flag id, segment id, exact quote and a note |
 | `summary` | 2 or 3 sentences in English |
 | `fix_notes` | Segment id, title, what the AI said and what it should have done |
-| `coaching` | Text in the coaching language plus English, or null when there is no human agent |
+| `coaching` | Text in the coaching language plus English, or null when there is no human agent. It speaks to the human agent by name and respectfully, in simple spoken words rather than a literal translation, and covers only what they did after the handover, never the transfer. For Hinglish, the line after the transcript asks for Roman letters only, with everyday English words kept in English, which Timbre's `hi-en` voice reads naturally. Placed among the system rules, the Hinglish instruction was ignored and the model wrote Devanagari Hindi; given an example sentence, it copied the example |
 
 **Rules enforced in code, not trusted to the model**
 
