@@ -1,5 +1,5 @@
 // Sends call.wav to Gnani Batch with diarization, waits for it, and scores the speaker labels against timeline.json.
-// Usage: node --env-file=.env.local scripts/spike/transcribe.mjs [--denoise] [--file other.wav]
+// Usage: node --env-file=.env.local scripts/spike/transcribe.mjs [--denoise] [--file other.wav] [--job existing-job-id]
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
@@ -7,7 +7,11 @@ import { parseArgs } from 'node:util';
 import { gnani, OUT_DIR } from './lib.mjs';
 
 const { values: args } = parseArgs({
-  options: { denoise: { type: 'boolean', default: false }, file: { type: 'string', default: 'call.wav' } },
+  options: {
+    denoise: { type: 'boolean', default: false },
+    file: { type: 'string', default: 'call.wav' },
+    job: { type: 'string' },
+  },
 });
 const label = `${basename(args.file, '.wav')}-${args.denoise ? 'denoise' : 'raw'}`;
 const FINAL = ['COMPLETED', 'PARTIAL_FAILURE', 'FAILED', 'START_FAILED', 'CANCELLED'];
@@ -23,14 +27,18 @@ const config = {
   with_denoise: args.denoise,
 };
 
-const form = new FormData();
-form.append('config', JSON.stringify(config));
-form.append('files', new Blob([readFileSync(join(OUT_DIR, args.file))], { type: 'audio/wav' }), args.file);
+async function startJob() {
+  const form = new FormData();
+  form.append('config', JSON.stringify(config));
+  form.append('files', new Blob([readFileSync(join(OUT_DIR, args.file))], { type: 'audio/wav' }), args.file);
+  const { job_id: jobId } = await (await gnani('/stt/v3/batch/jobs', { method: 'POST', body: form })).json();
+  await gnani(`/stt/v3/batch/jobs/${jobId}/start`, { method: 'POST' });
+  console.log(`Job ${jobId} started (${label})`);
+  return jobId;
+}
 
 const startedAt = Date.now();
-const { job_id: jobId } = await (await gnani('/stt/v3/batch/jobs', { method: 'POST', body: form })).json();
-await gnani(`/stt/v3/batch/jobs/${jobId}/start`, { method: 'POST' });
-console.log(`Job ${jobId} started (${label})`);
+const jobId = args.job ?? (await startJob());
 
 let job;
 do {

@@ -25,7 +25,7 @@ const SETUPS = {
   nemotron: [NEMOTRON],
   apodex: [APODEX],
   dots: [DOTS],
-  'llm-models': [NEMOTRON, DOTS],
+  'llm-models': requireEnv('LLM_MODELS').split(','),
 };
 const REQUEST = {
   provider: { require_parameters: true },

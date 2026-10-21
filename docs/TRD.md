@@ -117,7 +117,7 @@ We use Batch rather than the REST endpoint because REST returns only plain text,
 | `language_code` | Up to 3 codes, comma-separated | Gnani picks one per file; the first is the fallback |
 | `with_diarization` | `true` | Speaker labels |
 | `num_speakers` | `3` | AI agent, human agent and customer (an upper limit) |
-| `with_denoise` | A toggle on the upload screen, default on | Noisy phone audio; adds about a quarter of the call's length to processing |
+| `with_denoise` | A toggle on the upload screen, default on | Noisy phone audio; on the spike's 65-second call it added 3.6 seconds to processing |
 | `is_multi_channel` | `false` | Turn on only for true stereo call recordings |
 | `source` | `{"type":"cloud_storage","auth":{"mode":"public"},"paths":["<signed URL>"]}` | Gnani reads the file from Supabase, so there is no 10 MB upload limit |
 | `callback_url` | `https://<app>/api/webhooks/gnani?token=<secret>` | Webhook for terminal job events |
