@@ -1,23 +1,33 @@
 import 'server-only';
 import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
-import { saveChecklistSchema } from '@/lib/checklist';
-import type { Tables } from '@/lib/database.types';
+import { z } from 'zod';
+import { ID_MAX, saveChecklistSchema } from '@/lib/checklist';
 import type { SignedInEnv } from './auth';
+import { ApiError } from './errors';
 import { createAdminClient } from './supabase';
 import { rejectInvalid } from './validate';
 
-export type Checklist = {
-  checks: Pick<Tables<'checklist_checks'>, 'id' | 'name' | 'rule'>[];
-  red_flags: Pick<Tables<'checklist_red_flags'>, 'id' | 'name' | 'example'>[];
-  rules: string;
-};
+const checklistSchema = z.object({
+  checks: z.array(
+    z.object({ id: z.string(), name: z.string(), rule: z.string() }),
+  ),
+  red_flags: z.array(
+    z.object({ id: z.string(), name: z.string(), example: z.string() }),
+  ),
+  rules: z.string(),
+});
+
+const loadedChecklistSchema = checklistSchema.extend({ version: z.string() });
+
+export type Checklist = z.infer<typeof checklistSchema>;
 
 export async function loadChecklist() {
   const loaded = await createAdminClient().rpc('load_checklist');
   if (loaded.error) throw loaded.error;
 
-  return loaded.data as Checklist;
+  const { version, ...checklist } = loadedChecklistSchema.parse(loaded.data);
+  return { version, checklist };
 }
 
 function slugify(name: string) {
@@ -26,7 +36,7 @@ function slugify(name: string) {
     .replace(/\p{M}/gu, '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '_')
-    .slice(0, 48)
+    .slice(0, ID_MAX - '_NN'.length)
     .replace(/^_+|_+$/g, '');
 }
 
@@ -47,7 +57,10 @@ function withIds<T extends { id?: string; name: string }>(
 }
 
 export const checklist = new Hono<SignedInEnv>()
-  .get('/', async (c) => c.json(await loadChecklist()))
+  .get('/', async (c) => {
+    const { version, checklist } = await loadChecklist();
+    return c.json({ ...checklist, version });
+  })
   .put(
     '/',
     zValidator('json', saveChecklistSchema, rejectInvalid),
@@ -57,8 +70,16 @@ export const checklist = new Hono<SignedInEnv>()
         p_checks: withIds(body.checks, 'check'),
         p_red_flags: withIds(body.red_flags, 'red_flag'),
         p_rules: body.rules,
+        p_version: body.version,
       });
       if (saved.error) throw saved.error;
+      if (!saved.data) {
+        throw new ApiError(
+          409,
+          'checklist_changed',
+          'Someone else saved the checklist while you were editing. Reload the page to see their changes, then make yours again.',
+        );
+      }
 
       return c.body(null, 204);
     },

@@ -227,8 +227,8 @@ Eleven Hono routes under `/api`: nine for the page, one for Gnani's webhook and 
 | `GET /api/calls/:id` | Page | The call, its report and its transcript segments |
 | `POST /api/calls/:id/coaching-audio` | Page | Returns a signed URL for the coaching audio, generating it the first time |
 | `DELETE /api/calls/:id` | Page | Cancels a running Gnani job, then deletes the files and rows |
-| `GET /api/checklist` | Page | Active checks, red flags and rules, read in one statement by the `load_checklist` Postgres function so a report snapshot matches one save |
-| `PUT /api/checklist` | Page | Saves checks, red flags and rules in one transaction, through the `save_checklist` Postgres function called with `.rpc()`; it locks the checklist tables so two saves run one after another |
+| `GET /api/checklist` | Page | Active checks, red flags and rules, plus a `version` (the rules' `updated_at`), read in one statement by the `load_checklist` Postgres function so a report snapshot matches one save |
+| `PUT /api/checklist` | Page | Saves checks, red flags and rules in one transaction, through the `save_checklist` Postgres function called with `.rpc()`; it locks the checklist tables so two saves run one after another, and answers 409 `checklist_changed` when the `version` sent is no longer the latest, so a save from an out-of-date page never overwrites a newer one |
 | `POST /api/webhooks/gnani` | Gnani | Checks the token, then finishes the call (save transcript, analyse) |
 | `POST /api/jobs/poll` | Supabase Cron | Checks `CRON_SECRET` and sets calls in Analysing for over 5 minutes to Failed ("Analysis failed."), since their function was stopped. Then it asks Gnani about calls in Transcribing for over a minute, oldest first, and finishes the first one that is done; the rest wait for the next run. It also stops at the first 429 or 5xx from Gnani, so the calls after it don't use up their attempts |
 

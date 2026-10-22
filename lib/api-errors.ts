@@ -9,6 +9,7 @@ export type ErrorCode =
   | 'gnani_unavailable'
   | 'not_retryable'
   | 'not_ready'
+  | 'checklist_changed'
   | 'no_coaching'
   | 'coaching_audio_failed'
   | 'internal_error';

@@ -44,7 +44,7 @@ export async function analyzeCall(
 
 async function analyze(callId: string, signal: AbortSignal): Promise<Analysis> {
   const supabase = createAdminClient();
-  const [call, segments, checklist] = await Promise.all([
+  const [call, segments, { checklist }] = await Promise.all([
     supabase
       .from('calls')
       .select('coaching_lang, duration_seconds')

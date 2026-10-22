@@ -93,6 +93,7 @@ export function ChecklistEditor({
         example: detail,
       })),
       rules,
+      version: checklist.version,
     });
   }
 

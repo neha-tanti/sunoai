@@ -1,15 +1,20 @@
-create or replace function public.save_checklist(
+create function public.save_checklist(
   p_checks jsonb,
   p_red_flags jsonb,
-  p_rules text
+  p_rules text,
+  p_version timestamptz
 )
-returns void
+returns boolean
 language plpgsql
 set search_path = ''
 as $$
 begin
   lock table public.checklist_checks, public.checklist_red_flags, public.company_rules
   in share row exclusive mode;
+
+  if p_version is distinct from (select updated_at from public.company_rules where id = 1) then
+    return false;
+  end if;
 
   update public.checklist_checks
   set active = false
@@ -41,10 +46,12 @@ begin
   values (1, p_rules, now())
   on conflict (id) do update
   set text = excluded.text, updated_at = excluded.updated_at;
+
+  return true;
 end;
 $$;
 
-grant execute on function public.save_checklist(jsonb, jsonb, text) to service_role;
+grant execute on function public.save_checklist(jsonb, jsonb, text, timestamptz) to service_role;
 
 create function public.load_checklist()
 returns jsonb
@@ -65,7 +72,8 @@ as $$
        where active),
       '[]'::jsonb
     ),
-    'rules', coalesce((select text from public.company_rules where id = 1), '')
+    'rules', coalesce((select text from public.company_rules where id = 1), ''),
+    'version', (select updated_at from public.company_rules where id = 1)
   );
 $$;
 

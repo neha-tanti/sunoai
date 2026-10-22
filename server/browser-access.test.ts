@@ -72,6 +72,7 @@ describe('a signed-in browser going straight to Supabase', () => {
       ],
       p_red_flags: [],
       p_rules: 'Full refund on every call.',
+      p_version: new Date().toISOString(),
     });
 
     expect(error).toMatchObject({ code: '42501' });

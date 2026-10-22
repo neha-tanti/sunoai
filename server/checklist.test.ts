@@ -268,7 +268,7 @@ describe('PUT /api/checklist', () => {
     await saveChecklist({ ...before, checks: withoutClosing });
 
     await saveChecklist({
-      ...before,
+      ...(await readChecklist()),
       checks: [
         ...withoutClosing,
         {
@@ -341,9 +341,34 @@ describe('PUT /api/checklist', () => {
     expect(await readChecklist()).toEqual(before);
   });
 
+  it('refuses a save made from an out-of-date checklist and keeps the newer one', async () => {
+    const opened = await readChecklist();
+    await saveChecklist({
+      ...opened,
+      rules: 'Late delivery over 30 minutes: a coupon of up to ₹75.',
+    });
+    const newer = await readChecklist();
+
+    const res = await saveChecklist({
+      ...opened,
+      checks: opened.checks.filter((check) => check.id !== 'closing'),
+    });
+
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({
+      error: { code: 'checklist_changed' },
+    });
+    expect(await readChecklist()).toEqual(newer);
+  });
+
   it('answers 401 without a session cookie', async () => {
     const res = await api.checklist.$put({
-      json: { checks: [order], red_flags: [], rules: '' },
+      json: {
+        checks: [order],
+        red_flags: [],
+        rules: '',
+        version: new Date().toISOString(),
+      },
     });
 
     expect(res.status).toBe(401);
@@ -360,6 +385,7 @@ describe('PUT /api/checklist', () => {
       ],
       p_red_flags: [],
       p_rules: 'No refunds at all.',
+      p_version: before.version,
     });
 
     expect(saved.error).not.toBeNull();

@@ -5,11 +5,13 @@ export const MAX_RED_FLAGS = 20;
 export const NAME_MAX = 80;
 export const DETAIL_MAX = 300;
 export const RULES_MAX = 2000;
+export const ID_MAX = 64;
 export const HANDOVER_CHECK_ID = 'smooth_handover';
 
 const itemId = z
   .string()
-  .regex(/^[a-z0-9_]{1,64}$/)
+  .max(ID_MAX)
+  .regex(/^[a-z0-9_]+$/)
   .optional();
 const name = z.string().trim().min(1).max(NAME_MAX);
 const detail = z.string().trim().min(1).max(DETAIL_MAX);
@@ -30,6 +32,7 @@ export const saveChecklistSchema = z.object({
     .max(MAX_RED_FLAGS)
     .refine(uniqueIds),
   rules: z.string().trim().max(RULES_MAX),
+  version: z.iso.datetime({ offset: true }),
 });
 
 export type SaveChecklist = z.input<typeof saveChecklistSchema>;
