@@ -32,6 +32,7 @@ type CoachingSource = {
   coaching_lang: string;
   reports: {
     coaching: Report['coaching'];
+    handover_segment_id: number | null;
     coaching_audio_path: string | null;
   } | null;
 };
@@ -40,7 +41,9 @@ export async function coachingAudioUrl(id: string) {
   const supabase = createAdminClient();
   const call = await supabase
     .from('calls')
-    .select('coaching_lang, reports(coaching, coaching_audio_path)')
+    .select(
+      'coaching_lang, reports(coaching, handover_segment_id, coaching_audio_path)',
+    )
     .eq('id', id)
     .maybeSingle()
     .overrideTypes<CoachingSource>();
@@ -59,7 +62,9 @@ export async function coachingAudioUrl(id: string) {
     throw new ApiError(
       409,
       'no_coaching',
-      'This call has no coaching because no human agent took part.',
+      report.handover_segment_id === null
+        ? 'This call has no coaching because no human agent took part.'
+        : "Coaching couldn't be written for this call.",
     );
   }
 

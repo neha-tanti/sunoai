@@ -56,6 +56,8 @@ type LanguageCode<T extends readonly { code: string }[]> = T[number]['code'];
 
 export type CoachingLanguageCode = LanguageCode<typeof COACHING_LANGUAGES>;
 
+export const HINGLISH = 'hi-en' satisfies CoachingLanguageCode;
+
 const codes = <T extends readonly { code: string }[]>(languages: T) =>
   languages.map((language) => language.code) as [
     LanguageCode<T>,

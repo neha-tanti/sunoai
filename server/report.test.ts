@@ -120,8 +120,7 @@ function answer(overrides: Partial<LlmAnswer> = {}): LlmAnswer {
 
 const build = (
   overrides: Partial<LlmAnswer> = {},
-  durationSeconds = 35,
-  coachingLang = 'hi-en',
+  { durationSeconds = 35, coachingLang = 'hi-en' } = {},
 ) =>
   buildReport({
     answer: answer(overrides),
@@ -386,7 +385,10 @@ describe('buildReport', () => {
         english: 'You listened to the customer well.',
       };
 
-      const { report, rejected } = build({ coaching: devanagari });
+      const { report, rejected } = build(
+        { coaching: devanagari },
+        { coachingLang: 'hi-en' },
+      );
 
       expect(report.coaching).toBeNull();
       expect(rejected.coaching).toBe(true);
@@ -398,7 +400,10 @@ describe('buildReport', () => {
         english: 'You listened to the customer well.',
       };
 
-      const { report } = build({ coaching: devanagari }, 35, 'hi-IN');
+      const { report } = build(
+        { coaching: devanagari },
+        { coachingLang: 'hi-IN' },
+      );
 
       expect(report.coaching).toEqual(devanagari);
     });
@@ -419,8 +424,11 @@ describe('buildReport', () => {
     });
 
     it('runs to the later of the call length and the last segment', () => {
-      expect(build({}, 60).report.frustration.ranges.at(-1)?.end).toBe(60);
-      expect(build({}, 10).report.frustration.ranges.at(-1)?.end).toBe(34.5);
+      const lastRangeEnd = (durationSeconds: number) =>
+        build({}, { durationSeconds }).report.frustration.ranges.at(-1)?.end;
+
+      expect(lastRangeEnd(60)).toBe(60);
+      expect(lastRangeEnd(10)).toBe(34.5);
     });
 
     it('carries the previous mood into a customer segment without one', () => {

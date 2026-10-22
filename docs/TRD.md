@@ -174,7 +174,7 @@ The [Gnani and LLM spike](spikes/gnani-llm-spike.md) compared free open-weight m
 | `red_flags` | Flag id, segment id, exact quote and a note |
 | `summary` | 2 or 3 sentences in English |
 | `fix_notes` | Segment id, title, what the AI said and what it should have done |
-| `coaching` | Text in the coaching language plus English, or null when there is no human agent. It speaks to the human agent by name and respectfully, in simple spoken words rather than a literal translation, and covers only what they did after the handover, never the transfer. For Hinglish, the line after the transcript asks for Roman letters only, with everyday English words kept in English, which Timbre's `hi-en` voice reads naturally. |
+| `coaching` | Text in the coaching language plus English, or null when there is no human agent. Code also sets it to null when Hinglish coaching comes back in Devanagari (rule 9 below). It speaks to the human agent by name and respectfully, in simple spoken words rather than a literal translation, and covers only what they did after the handover, never the transfer. For Hinglish, the line after the transcript asks for Roman letters only, with everyday English words kept in English, which Timbre's `hi-en` voice reads naturally. |
 
 **Rules enforced in code, not trusted to the model**
 

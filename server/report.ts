@@ -1,12 +1,8 @@
 import 'server-only';
+import { HINGLISH } from '@/lib/call-upload';
 import type { Checklist } from './checklist';
 import type { TranscriptSegment } from './gnani';
-import {
-  HINGLISH,
-  type LlmAnswer,
-  type Mood,
-  moodSchema,
-} from './prompts/analyze';
+import { type LlmAnswer, type Mood, moodSchema } from './prompts/analyze';
 
 type AnswerCheck = LlmAnswer['checks'][number];
 type Evidence = { segment_id: number; time: number; quote: string };
@@ -93,6 +89,7 @@ export function buildReport(input: {
   });
 
   const devanagariHinglish =
+    handover !== null &&
     input.coachingLang === HINGLISH &&
     /\p{Script=Devanagari}/u.test(answer.coaching?.text ?? '');
 
