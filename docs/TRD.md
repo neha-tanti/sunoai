@@ -211,6 +211,7 @@ Six Postgres tables and two private Storage buckets; each report's detailed resu
 
 - Indexes: `calls (created_at desc)` for Recent calls, `calls (status, status_at)` for the cron job, and `transcript_segments (call_id, start_time)`.
 - Removed checks and red flags are set to `active = false` rather than deleted, so old snapshots still read correctly.
+- A check or red flag keeps its id when it is edited. A new one gets a slug of its name (`check` or `red_flag` when the name has no English letters), with `_2`, `_3` added if another item in the same save has it; a removed item added again under the same name gets its old row back. Smooth handover (`smooth_handover`) can be edited but not removed, because the Handover tile reads it: the editor turns off its Remove button and `PUT /api/checklist` rejects a save without it.
 - Schema changes are Supabase CLI migrations in `supabase/migrations`, and the default checklist is a seed file.
 
 ## API
@@ -222,12 +223,12 @@ Eleven Hono routes under `/api`: nine for the page, one for Gnani's webhook and 
 | `POST /api/calls` | Page | Checks title, file name, size, type and languages; creates the call; returns its id and a signed upload URL |
 | `POST /api/calls/:id/check` | Page | Confirms the file is in Storage, creates and starts the Gnani job, sets Transcribing |
 | `POST /api/calls/:id/analyze` | Page | Check again: sets Analysing only for a Failed call whose `error_code` is `analysis_failed`, clearing the error, and reruns only the analysis. Any other call gets a 409 with code `not_retryable` |
-| `GET /api/calls` | Page | Recent calls, newest first, with score, Needs review, peak frustration and status, plus the team average |
+| `GET /api/calls` | Page | The 10 newest checked calls (a check was started), newest first, with score, Needs review, peak frustration and status, plus the team average: the mean of their score percentages, leaving out calls with no checks applied |
 | `GET /api/calls/:id` | Page | The call, its report and its transcript segments |
 | `POST /api/calls/:id/coaching-audio` | Page | Returns a signed URL for the coaching audio, generating it the first time |
 | `DELETE /api/calls/:id` | Page | Cancels a running Gnani job, then deletes the files and rows |
-| `GET /api/checklist` | Page | Active checks, red flags and rules |
-| `PUT /api/checklist` | Page | Saves checks, red flags and rules in one transaction, through the `save_checklist` Postgres function called with `.rpc()` |
+| `GET /api/checklist` | Page | Active checks, red flags and rules, plus a `version` (the rules' `updated_at`), read in one statement by the `load_checklist` Postgres function so a report snapshot matches one save |
+| `PUT /api/checklist` | Page | Saves checks, red flags and rules in one transaction, through the `save_checklist` Postgres function called with `.rpc()`; it locks the checklist tables so two saves run one after another, and answers 409 `checklist_changed` when the `version` sent is no longer the latest, so a save from an out-of-date page never overwrites a newer one |
 | `POST /api/webhooks/gnani` | Gnani | Checks the token, then finishes the call (save transcript, analyse) |
 | `POST /api/jobs/poll` | Supabase Cron | Checks `CRON_SECRET` and sets calls in Analysing for over 5 minutes to Failed ("Analysis failed."), since their function was stopped. Then it asks Gnani about calls in Transcribing for over a minute, oldest first, and finishes the first one that is done; the rest wait for the next run. It also stops at the first 429 or 5xx from Gnani, so the calls after it don't use up their attempts |
 
@@ -253,7 +254,9 @@ Six Next.js routes built from shadcn/ui parts, with all server data going throug
 | `/calls/[id]` | The call report |
 | `/checklist` | Checklist editor |
 
-**shadcn/ui parts:** Button, Card, Badge, Select, Switch, Table, Input, Textarea, Alert (for Needs review), Progress, Skeleton, Tooltip, ScrollArea and Sonner for toasts.
+**shadcn/ui parts:** Button, Card, Badge, Select, Switch, Table, Input, Textarea, Alert (for Needs review), AlertDialog (to confirm deleting a call), Progress, Skeleton, Tooltip, ScrollArea and Sonner for toasts.
+
+The signed-in pages sit in the `app/(app)` route group, whose layout adds `SiteNav`: Check a call, Recent calls and Checklist.
 
 **Custom components**
 
@@ -265,6 +268,9 @@ Six Next.js routes built from shadcn/ui parts, with all server data going throug
 | `TranscriptView` | Agent, human and customer lines with times; a quote click scrolls to and highlights its line |
 | `ChecklistResults`, `RedFlagsList`, `FixNotesList` | The report sections, each quote linked to its line |
 | `CoachingPlayer` | Plays the coaching audio from its signed URL |
+| `RecentCalls` | The team average and the recent calls table, each row deletable after a confirmation |
+| `ScoreBadge` | A score percent with its band in words (Good, Needs work, Poor), or No checks applied, on the report and in Recent calls |
+| `ChecklistEditor` | Checks, red flags and the refund and compensation rules, saved together |
 
 **TanStack Query**
 

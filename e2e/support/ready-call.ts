@@ -327,6 +327,7 @@ export async function seedReadyCall(
     call_langs: ['hi-IN', 'en-IN'],
     coaching_lang: 'hi-IN',
     status: 'analyzing',
+    checked_at: new Date().toISOString(),
     detected_lang: 'hi-IN',
     duration_seconds: segments.at(-1)?.end_time ?? 0,
   });

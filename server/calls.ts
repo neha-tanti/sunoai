@@ -5,6 +5,7 @@ import { HTTPException } from 'hono/http-exception';
 import { after } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import { createCallSchema } from '@/lib/call-upload';
+import { HANDOVER_CHECK_ID } from '@/lib/checklist';
 import { analyzeCall } from './analysis';
 import type { SignedInEnv } from './auth';
 import type { Checklist } from './checklist';
@@ -33,7 +34,7 @@ type SavedReport = Pick<Report, ReportJsonColumn> & {
   checklist_snapshot: Checklist;
 };
 
-const HANDOVER_CHECK_ID = 'smooth_handover';
+const RECENT_CALLS = 10;
 const RECORDING_URL_SECONDS = 2 * 60 * 60;
 
 const alreadyChecked = () =>
@@ -112,6 +113,36 @@ async function readReport(
     handover_check:
       checks.find((check) => check.check_id === HANDOVER_CHECK_ID) ?? null,
   };
+}
+
+async function recentCalls() {
+  const recent = await createAdminClient()
+    .from('calls')
+    .select(
+      'id, title, status, error_code, created_at, report:reports(score_passed, score_total, needs_review, frustration_peak)',
+    )
+    .not('checked_at', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(RECENT_CALLS);
+  if (recent.error) throw recent.error;
+
+  return { calls: recent.data, average: teamAverage(recent.data) };
+}
+
+type ScoredCall = {
+  report: { score_passed: number; score_total: number } | null;
+};
+
+function teamAverage(calls: ScoredCall[]) {
+  const ratios = calls.flatMap(({ report }) =>
+    report && report.score_total > 0
+      ? [report.score_passed / report.score_total]
+      : [],
+  );
+  if (ratios.length === 0) return null;
+
+  const mean = ratios.reduce((sum, ratio) => sum + ratio, 0) / ratios.length;
+  return { percent: Math.round(mean * 100), calls: ratios.length };
 }
 
 async function startCheck(id: string) {
@@ -230,6 +261,7 @@ export const calls = new Hono<SignedInEnv>()
       201,
     );
   })
+  .get('/', async (c) => c.json(await recentCalls()))
   .get('/:id', zValidator('param', callIdParam, rejectInvalid), async (c) => {
     const { id } = c.req.valid('param');
     const supabase = createAdminClient();

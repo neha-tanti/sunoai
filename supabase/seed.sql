@@ -12,5 +12,6 @@ insert into public.checklist_red_flags (id, name, example, position) values
   ('wrong_promise', 'Wrong or made-up promise', '"You''ll get a full refund and ₹500 extra", when the rules don''t allow it', 3),
   ('safety_not_escalated', 'Safety issue not escalated', '"There was an insect in my food", and the call isn''t passed to a person', 4);
 
-insert into public.company_rules (id, text) values
-  (1, 'Late delivery over 45 minutes: a coupon of up to ₹50. Refunds only for missing, wrong or damaged items, after the customer sends a photo. No cash compensation.');
+update public.company_rules
+set text = 'Late delivery over 45 minutes: a coupon of up to ₹50. Refunds only for missing, wrong or damaged items, after the customer sends a photo. No cash compensation.'
+where id = 1;

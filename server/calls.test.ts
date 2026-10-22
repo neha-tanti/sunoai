@@ -17,6 +17,7 @@ import { app } from './app';
 import { coachingAudioPath } from './coaching';
 import { createAdminClient } from './supabase';
 import { flushAfter } from './test/after';
+import { keepChecklist } from './test/checklist';
 import {
   deleteCalls,
   insertAnalyzingCall,
@@ -297,6 +298,58 @@ describe('GET /api/calls/:id', () => {
     });
   });
 
+  describe('after the checklist is edited', () => {
+    let restoreChecklist: () => Promise<void>;
+
+    beforeAll(async () => {
+      restoreChecklist = await keepChecklist(createAdminClient());
+    });
+
+    afterEach(async () => {
+      await restoreChecklist();
+    });
+
+    async function readCheckNames(id: string) {
+      const res = await api.calls[':id'].$get(
+        { param: { id } },
+        { headers: { Cookie: session.cookie } },
+      );
+      const body = await res.json();
+      return body.report?.checks.map((check) => check.name);
+    }
+
+    it('keeps the old checklist on old reports and uses the edit on the next check', async () => {
+      vi.spyOn(console, 'info').mockImplementation(() => {});
+      const earlier = await seedAnalyzingCall();
+      await analyzeCall(earlier.id, AbortSignal.timeout(30_000));
+
+      const checklist = await (
+        await api.checklist.$get(undefined, {
+          headers: { Cookie: session.cookie },
+        })
+      ).json();
+      const [first, ...rest] = checklist.checks;
+      const saved = await api.checklist.$put(
+        {
+          json: {
+            ...checklist,
+            checks: [{ ...first, name: 'Order number read back' }, ...rest],
+          },
+        },
+        { headers: { Cookie: session.cookie } },
+      );
+      expect(saved.status).toBe(204);
+
+      const later = await seedAnalyzingCall();
+      await analyzeCall(later.id, AbortSignal.timeout(30_000));
+
+      expect((await readCheckNames(earlier.id))?.[0]).toBe('Order confirmed');
+      expect((await readCheckNames(later.id))?.[0]).toBe(
+        'Order number read back',
+      );
+    });
+  });
+
   it('fails a report whose check is missing from its checklist snapshot', async () => {
     vi.spyOn(console, 'info').mockImplementation(() => {});
     const logError = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -337,6 +390,145 @@ describe('GET /api/calls/:id', () => {
 
     expect(res.status).toBe(404);
     expect(await res.json()).toMatchObject({ error: { code: 'not_found' } });
+  });
+});
+
+describe('GET /api/calls', () => {
+  beforeEach(async () => {
+    const all = await createAdminClient().from('calls').select('id');
+    if (all.error) throw all.error;
+    await deleteCalls(all.data.map((call) => call.id));
+  });
+
+  async function seedCheckedCall(
+    minutesAgo: number,
+    overrides: Parameters<typeof insertCall>[0] = {},
+  ) {
+    const at = new Date(Date.now() - minutesAgo * 60_000).toISOString();
+    return seedCall({
+      status: 'transcribing',
+      created_at: at,
+      checked_at: at,
+      ...overrides,
+    });
+  }
+
+  async function seedReadyCall(
+    minutesAgo: number,
+    report: { score_passed: number; score_total: number },
+  ) {
+    const call = await seedCheckedCall(minutesAgo, { status: 'ready' });
+    const inserted = await createAdminClient()
+      .from('reports')
+      .insert({
+        call_id: call.id,
+        ...report,
+        needs_review: report.score_passed < report.score_total,
+        frustration_peak: 'annoyed',
+        frustration: { ranges: [], turn: null },
+        speakers: [],
+        checks: [],
+        red_flags: [],
+        fix_notes: [],
+        summary: 'The customer asked where the paneer order was.',
+        llm_model: ANSWERING_MODEL,
+        prompt_version: 'analyze-v1',
+        checklist_snapshot: { checks: [], red_flags: [], rules: '' },
+      });
+    if (inserted.error) throw inserted.error;
+    return call;
+  }
+
+  async function readRecentCalls() {
+    const res = await api.calls.$get(undefined, {
+      headers: { Cookie: session.cookie },
+    });
+    expect(res.status).toBe(200);
+    return res.json();
+  }
+
+  it('has no average before any call is checked', async () => {
+    expect(await readRecentCalls()).toEqual({ calls: [], average: null });
+  });
+
+  it('lists a Ready call with its score, Needs review and peak', async () => {
+    const call = await seedReadyCall(1, { score_passed: 5, score_total: 6 });
+
+    const body = await readRecentCalls();
+
+    expect(body.calls).toEqual([
+      expect.objectContaining({
+        id: call.id,
+        title: call.title,
+        status: 'ready',
+        report: {
+          score_passed: 5,
+          score_total: 6,
+          needs_review: true,
+          frustration_peak: 'annoyed',
+        },
+      }),
+    ]);
+  });
+
+  it('averages the percent of each scored call, leaving out calls with no checks applied', async () => {
+    await seedReadyCall(3, { score_passed: 5, score_total: 6 });
+    await seedReadyCall(2, { score_passed: 1, score_total: 3 });
+    await seedReadyCall(1, { score_passed: 0, score_total: 0 });
+
+    const body = await readRecentCalls();
+
+    expect(body.average).toEqual({ percent: 58, calls: 2 });
+  });
+
+  it('lists the 10 newest checked calls, newest first', async () => {
+    const seeded = [];
+    for (let minutesAgo = 11; minutesAgo >= 1; minutesAgo--) {
+      seeded.push(await seedCheckedCall(minutesAgo));
+    }
+
+    const body = await readRecentCalls();
+
+    expect(body.calls.map((call) => call.id)).toEqual(
+      seeded
+        .slice(1)
+        .toReversed()
+        .map((call) => call.id),
+    );
+  });
+
+  it('leaves out a call whose check never started', async () => {
+    await seedCall({ title: 'Upload abandoned halfway' });
+
+    expect((await readRecentCalls()).calls).toEqual([]);
+  });
+
+  it('lists a Failed call with its error code and no report', async () => {
+    const call = await seedCheckedCall(1, {
+      status: 'failed',
+      error_code: 'no_speech',
+    });
+
+    const body = await readRecentCalls();
+
+    expect(body.calls).toEqual([
+      expect.objectContaining({
+        id: call.id,
+        status: 'failed',
+        error_code: 'no_speech',
+        report: null,
+      }),
+    ]);
+    expect(body.average).toBeNull();
+  });
+
+  it('answers 401 without a session cookie', async () => {
+    const res = await api.calls.$get();
+
+    expect(res.status).toBe(401);
+    expect(await res.json()).toMatchObject({
+      error: { code: 'unauthorized' },
+    });
   });
 });
 

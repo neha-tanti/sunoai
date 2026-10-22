@@ -1,31 +1,14 @@
-import { CALL_ERROR_MESSAGES } from '@/lib/call-errors';
-import type { Enums } from '@/lib/database.types';
+import { type CallState, statusText } from '@/lib/call-status';
 
-const STATUS_TEXT: Record<Enums<'call_status'>, string> = {
-  uploaded: 'Uploaded. The check hasn’t started yet.',
-  transcribing: 'Transcribing the call…',
-  analyzing: 'Analysing the transcript…',
-  ready: 'Ready.',
-  failed: 'Failed.',
-};
-
-type CallStatusProps = {
-  status: Enums<'call_status'>;
-  errorCode: Enums<'call_error_code'> | null;
-};
-
-export function CallStatus({ status, errorCode }: CallStatusProps) {
-  if (status === 'failed' && errorCode) {
-    return (
-      <p role="status" className="text-destructive">
-        {CALL_ERROR_MESSAGES[errorCode]}
-      </p>
-    );
-  }
-
+export function CallStatus({ status, errorCode }: CallState) {
   return (
-    <p role="status" className="text-muted-foreground">
-      {STATUS_TEXT[status]}
+    <p
+      role="status"
+      className={
+        status === 'failed' ? 'text-destructive' : 'text-muted-foreground'
+      }
+    >
+      {statusText({ status, errorCode })}
     </p>
   );
 }
