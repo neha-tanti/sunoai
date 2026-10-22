@@ -316,7 +316,7 @@ The browser reads the length from the file before upload and blocks files over 3
 | --- | --- | --- |
 | Upload fails | "Upload failed. Check your connection and try again." | Call stays Uploaded and can be retried |
 | Gnani rejects the file | "Gnani couldn't read this file. Try an MP3 or WAV." | Status Failed (`file_rejected`); Gnani's reason is saved in `error` for us, never shown |
-| Gnani busy (429) or down (5xx) | Still Transcribing | `gnani_attempts` goes up by 1 and the next cron run retries; at 30 the call is Failed (`transcription_failed`). The job files endpoint can answer 429, with no `Retry-After`, for several minutes after jobs finish together while the job status endpoint still answers, so the limit covers about half an hour of cron runs |
+| Gnani busy (429) or down (5xx) | Still Transcribing | `gnani_attempts` goes up by 1 and the next cron run retries; at 30 the call is Failed (`transcription_failed`). The job files endpoint can answer 429, with no `Retry-After`, for several minutes after jobs finish together while the job status endpoint still answers. A lone call is Failed after about 30 minutes of busy answers; during a Gnani outage the queued calls take turns, so each of N calls takes about 30×N minutes |
 | Saving the transcript fails for any other reason | "Transcription failed." | Status Failed (`transcription_failed`), so the call doesn't hold up the cron job's queue |
 | Job ends in `FAILED`, `START_FAILED`, `PARTIAL_FAILURE` or `CANCELLED` | "Transcription failed." | Status Failed (`transcription_failed`); Gnani's reason is saved in `error` for us, never shown |
 | Gnani job still running 2 hours after the check | "Transcription failed." | Status Failed (`transcription_failed`); the signed link Gnani reads has expired |
