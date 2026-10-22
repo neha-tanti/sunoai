@@ -105,7 +105,9 @@ test('Saved goes away once the checklist is changed again', async ({
   page,
 }) => {
   await page.goto('/checklist');
-  const rules = page.getByLabel('Refund and compensation rules');
+  const rules = page.getByRole('textbox', {
+    name: 'Refund and compensation rules',
+  });
 
   await page.getByRole('button', { name: 'Save checklist' }).click();
   await expect(page.getByRole('status')).toHaveText(SAVED);
