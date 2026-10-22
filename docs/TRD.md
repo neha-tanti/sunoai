@@ -174,7 +174,7 @@ The [Gnani and LLM spike](spikes/gnani-llm-spike.md) compared free open-weight m
 | `red_flags` | Flag id, segment id, exact quote and a note |
 | `summary` | 2 or 3 sentences in English |
 | `fix_notes` | Segment id, title, what the AI said and what it should have done |
-| `coaching` | Text in the coaching language plus English, or null when there is no human agent. It speaks to the human agent by name and respectfully, in simple spoken words rather than a literal translation, and covers only what they did after the handover, never the transfer. For Hinglish, the line after the transcript asks for Roman letters only, with everyday English words kept in English, which Timbre's `hi-en` voice reads naturally. Placed among the system rules, the Hinglish instruction was ignored and the model wrote Devanagari Hindi; given an example sentence, it copied the example |
+| `coaching` | Text in the coaching language plus English, or null when there is no human agent. It speaks to the human agent by name and respectfully, in simple spoken words rather than a literal translation, and covers only what they did after the handover, never the transfer. For Hinglish, the line after the transcript asks for Roman letters only, with everyday English words kept in English, which Timbre's `hi-en` voice reads naturally. |
 
 **Rules enforced in code, not trusted to the model**
 
@@ -186,6 +186,7 @@ The [Gnani and LLM spike](spikes/gnani-llm-spike.md) compared free open-weight m
 6. Unknown check or flag ids are dropped.
 7. The handover is the first segment from the speaker labelled `human_agent`, or null. The spike showed the model points a handover field at the AI's "connecting you" line.
 8. Frustration is built from `customer_mood`, not asked of the model. Moods on segments not spoken by the `customer` speaker are dropped. A customer segment the model gives no mood keeps the previous one, or calm when there is none. Each mood holds from its segment until the customer's next segment, which gives the ranges. The peak is the highest level, and the turn is the first segment at the peak, or null when the peak is calm. The ranges and the turn are stored in `reports.frustration`, and the peak in `frustration_peak`.
+9. Coaching for a Hinglish call that contains Devanagari is dropped and logged, because Timbre's `hi-en` voice reads Roman letters.
 
 The prompt also states the rules that changed the spike's results: a check passes when either agent does it; `human_not_transferred` applies even when a transfer comes later; a quote is the shortest phrase that proves the point, copied character for character and never transliterated; and only red flags that happened are listed.
 

@@ -1,7 +1,12 @@
 import 'server-only';
 import type { Checklist } from './checklist';
 import type { TranscriptSegment } from './gnani';
-import { type LlmAnswer, type Mood, moodSchema } from './prompts/analyze';
+import {
+  HINGLISH,
+  type LlmAnswer,
+  type Mood,
+  moodSchema,
+} from './prompts/analyze';
 
 type AnswerCheck = LlmAnswer['checks'][number];
 type Evidence = { segment_id: number; time: number; quote: string };
@@ -36,6 +41,7 @@ export function buildReport(input: {
   segments: TranscriptSegment[];
   checklist: Checklist;
   durationSeconds: number;
+  coachingLang: string;
 }) {
   const { answer, segments, checklist } = input;
   const segmentById = new Map(segments.map((s) => [s.segment_id, s]));
@@ -86,6 +92,10 @@ export function buildReport(input: {
     return [{ ...note, time: segment.start_time }];
   });
 
+  const devanagariHinglish =
+    input.coachingLang === HINGLISH &&
+    /\p{Script=Devanagari}/u.test(answer.coaching?.text ?? '');
+
   return {
     report: {
       score_passed: checks.filter((c) => c.result === 'pass').length,
@@ -99,7 +109,7 @@ export function buildReport(input: {
       red_flags: redFlags,
       fix_notes: fixNotes,
       summary: answer.summary,
-      coaching: handover ? answer.coaching : null,
+      coaching: handover && !devanagariHinglish ? answer.coaching : null,
     },
     rejected: {
       passes: checks.filter(
@@ -107,6 +117,7 @@ export function buildReport(input: {
           c.result === 'miss' && answers.get(c.check_id)?.result === 'pass',
       ).length,
       red_flags: knownFlags.length - redFlags.length,
+      coaching: devanagariHinglish,
     },
   };
 }

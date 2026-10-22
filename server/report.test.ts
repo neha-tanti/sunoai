@@ -118,12 +118,17 @@ function answer(overrides: Partial<LlmAnswer> = {}): LlmAnswer {
   };
 }
 
-const build = (overrides: Partial<LlmAnswer> = {}, durationSeconds = 35) =>
+const build = (
+  overrides: Partial<LlmAnswer> = {},
+  durationSeconds = 35,
+  coachingLang = 'hi-en',
+) =>
   buildReport({
     answer: answer(overrides),
     segments,
     checklist,
     durationSeconds,
+    coachingLang,
   });
 
 const checkOf = (report: ReturnType<typeof build>['report'], id: string) =>
@@ -373,6 +378,29 @@ describe('buildReport', () => {
 
       expect(report.handover_segment_id).toBeNull();
       expect(report.speakers.map((s) => s.speaker_id)).not.toContain(7);
+    });
+
+    it('drops Hinglish coaching written in Devanagari, which the hi-en voice would misread', () => {
+      const devanagari = {
+        text: 'आपने customer को अच्छे से सुना।',
+        english: 'You listened to the customer well.',
+      };
+
+      const { report, rejected } = build({ coaching: devanagari });
+
+      expect(report.coaching).toBeNull();
+      expect(rejected.coaching).toBe(true);
+    });
+
+    it('keeps Devanagari coaching when the coaching language is Hindi', () => {
+      const devanagari = {
+        text: 'आपने ग्राहक को अच्छे से सुना।',
+        english: 'You listened to the customer well.',
+      };
+
+      const { report } = build({ coaching: devanagari }, 35, 'hi-IN');
+
+      expect(report.coaching).toEqual(devanagari);
     });
   });
 
