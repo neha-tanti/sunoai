@@ -117,7 +117,7 @@ We use Batch rather than the REST endpoint because REST returns only plain text,
 | `language_code` | Up to 3 codes, comma-separated | Gnani picks one per file; the first is the fallback |
 | `with_diarization` | `true` | Speaker labels |
 | `num_speakers` | `3` | AI agent, human agent and customer (an upper limit) |
-| `with_denoise` | A toggle on the upload screen, default on | Noisy phone audio; on the spike's 65-second call it added 3.6 seconds to processing |
+| `with_denoise` | A toggle on the upload screen, default on | Noisy phone audio; on the spike's 65-second call it added 3.6 seconds, about 6% of the call's length, to processing |
 | `is_multi_channel` | `false` | Turn on only for true stereo call recordings |
 | `source` | `{"type":"cloud_storage","auth":{"mode":"public"},"paths":["<signed URL>"]}` | Gnani reads the file from Supabase, so there is no 10 MB upload limit |
 | `callback_url` | `https://<app>/api/webhooks/gnani?token=<secret>` | Webhook for terminal job events |
@@ -316,7 +316,7 @@ The browser reads the length from the file before upload and blocks files over 3
 | --- | --- | --- |
 | Upload fails | "Upload failed. Check your connection and try again." | Call stays Uploaded and can be retried |
 | Gnani rejects the file | "Gnani couldn't read this file. Try an MP3 or WAV." | Status Failed (`file_rejected`); Gnani's reason is saved in `error` for us, never shown |
-| Gnani busy (429) or down (5xx) | Still Transcribing | `gnani_attempts` goes up by 1 and the next cron run retries; at 5 the call is Failed (`transcription_failed`) |
+| Gnani busy (429) or down (5xx) | Still Transcribing | `gnani_attempts` goes up by 1 and the next cron run retries; at 30 the call is Failed (`transcription_failed`). The job files endpoint can answer 429, with no `Retry-After`, for several minutes after jobs finish together while the job status endpoint still answers, so the limit covers about half an hour of cron runs |
 | Saving the transcript fails for any other reason | "Transcription failed." | Status Failed (`transcription_failed`), so the call doesn't hold up the cron job's queue |
 | Job ends in `FAILED`, `START_FAILED`, `PARTIAL_FAILURE` or `CANCELLED` | "Transcription failed." | Status Failed (`transcription_failed`); Gnani's reason is saved in `error` for us, never shown |
 | Gnani job still running 2 hours after the check | "Transcription failed." | Status Failed (`transcription_failed`); the signed link Gnani reads has expired |
@@ -375,7 +375,7 @@ The biggest unknowns are how well Gnani separates an AI voice from a human one, 
 | The model handles Hinglish poorly or changes | Analysis is wrong | The quote rule, Zod validation, the saved model name, and the test calls |
 | The model's providers are busy or down | Analysis fails | OpenRouter falls back between providers, and Check again reruns the analysis |
 | Credits run out | Analysis fails | One request per call; the account's credits are checked before demo day |
-| Gnani credits (5,000) and unpublished rate limits | Running out mid-testing | Short test calls, noise removal only when needed, and checking the dashboard |
+| Gnani credits (5,000) and unpublished rate limits | Running out mid-testing | Short test calls and checking the dashboard; noise removal stays on by default, since it adds only about 6% to processing |
 | The webhook isn't signed | Someone could post fake results | Secret token, and the handler re-reads the job status from Gnani before trusting it |
 | Vercel's 300-second limit (Hobby maximum) | A slow model or Gnani read keeps the function past it | One 280-second deadline per function covering every outbound request, no LLM retry, cron finishes one call per run and fails calls left in Analysing, and Check again reruns only the analysis |
 
@@ -384,8 +384,8 @@ The biggest unknowns are how well Gnani separates an AI voice from a human one, 
 - [ ] Does Batch support Gujarati and Punjabi? The docs say both yes and no.
 - [ ] Does Batch support word boosting (`bias_list`)? The docs conflict.
 - [ ] Will the `sentiment` and `emotion` segment fields be filled in?
-- [ ] How many credits does a minute of Batch audio use, with and without noise removal?
-- [ ] What are the rate limits for Batch jobs and Timbre?
+- [ ] How many credits does a minute of Batch audio use, with and without noise removal? The #13 spike didn't record credits per job.
+- [ ] What are the rate limits for Batch jobs and Timbre? The #13 spike saw the job files endpoint answer 429 for a few minutes after two jobs finished together.
 - [ ] Can webhook calls be signed?
 
 ## Later: live alerts

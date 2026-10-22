@@ -1,10 +1,10 @@
-// Sends a Gnani transcript to each free model setup, applies the TRD's code-side checks and compares with EXPECTED.
+// Sends a Gnani transcript to each model setup (the free models and the LLM_MODELS list), applies the TRD's code-side checks and compares with EXPECTED.
 // Usage: node --env-file=.env.local scripts/spike/analyze.mjs --transcript transcript-call-denoise.json [--runs 3] [--only nemotron]
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { parseArgs } from 'node:util';
-import { EXPECTED } from './call-script.mjs';
+import { EXPECTED, LINES } from './call-script.mjs';
 import { OUT_DIR, requireEnv } from './lib.mjs';
 import { buildMessages, CHECKS, RED_FLAGS, REPORT_SCHEMA } from './prompt.mjs';
 
@@ -25,8 +25,10 @@ const SETUPS = {
   nemotron: [NEMOTRON],
   apodex: [APODEX],
   dots: [DOTS],
-  'llm-models': requireEnv('LLM_MODELS').split(','),
 };
+if ('llm-models'.includes(args.only)) {
+  SETUPS['llm-models'] = requireEnv('LLM_MODELS').split(',').map((model) => model.trim()).filter(Boolean);
+}
 const REQUEST = {
   provider: { require_parameters: true },
   response_format: { type: 'json_schema', json_schema: { name: 'call_report', strict: true, schema: REPORT_SCHEMA } },
@@ -113,7 +115,7 @@ function check(report) {
   };
 }
 
-// Segment ids only line up with EXPECTED on the script transcript; Gnani splits lines differently.
+// Segment ids only line up with EXPECTED when the transcript has one segment per script line.
 function missesAgainstExpected(result) {
   const pairs = [
     ['score', result.score, EXPECTED.score],
@@ -121,7 +123,7 @@ function missesAgainstExpected(result) {
     ['frustration_peak', result.frustration_peak, EXPECTED.frustration_peak],
     ...Object.entries(EXPECTED.checks).map(([id, expected]) => [id, result.checks[id], expected]),
   ];
-  if (transcript.model === 'call-script') {
+  if (segments.length === LINES.length) {
     pairs.push(
       ['red_flags', result.red_flags.join(','), EXPECTED.segments.red_flags.join(',')],
       ['handover', result.handover_segment_id, EXPECTED.segments.handover],

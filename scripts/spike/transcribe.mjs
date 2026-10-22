@@ -13,21 +13,20 @@ const { values: args } = parseArgs({
     job: { type: 'string' },
   },
 });
-const label = `${basename(args.file, '.wav')}-${args.denoise ? 'denoise' : 'raw'}`;
+const label = `${basename(args.file, '.wav')}-${args.job ?? (args.denoise ? 'denoise' : 'raw')}`;
 const FINAL = ['COMPLETED', 'PARTIAL_FAILURE', 'FAILED', 'START_FAILED', 'CANCELLED'];
 const MAX_WAIT_MS = 15 * 60_000;
 
-const config = {
-  model: 'gnani-prisma-v2.5',
-  language_code: 'hi-IN,en-IN',
-  mode: 'transcribe',
-  with_diarization: true,
-  num_speakers: 3,
-  is_multi_channel: false,
-  with_denoise: args.denoise,
-};
-
 async function startJob() {
+  const config = {
+    model: 'gnani-prisma-v2.5',
+    language_code: 'hi-IN,en-IN',
+    mode: 'transcribe',
+    with_diarization: true,
+    num_speakers: 3,
+    is_multi_channel: false,
+    with_denoise: args.denoise,
+  };
   const form = new FormData();
   form.append('config', JSON.stringify(config));
   form.append('files', new Blob([readFileSync(join(OUT_DIR, args.file))], { type: 'audio/wav' }), args.file);
@@ -48,7 +47,6 @@ do {
   console.log(`  ${job.status}`);
 } while (!FINAL.includes(job.status));
 
-const seconds = (Date.now() - startedAt) / 1000;
 if (job.status !== 'COMPLETED') throw new Error(`Job ended ${job.status}: ${JSON.stringify(job)}`);
 
 const { data: files } = await (await gnani(`/stt/v3/batch/jobs/${jobId}/files?status=COMPLETED`)).json();
@@ -84,7 +82,7 @@ console.log(
     {
       label,
       job_id: jobId,
-      wall_seconds: seconds,
+      wall_seconds: (Date.parse(job.completed_at) - Date.parse(job.created_at)) / 1000,
       duration_seconds: transcript.duration_seconds,
       language_code: transcript.language_code,
       segments: transcript.segments.length,

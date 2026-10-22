@@ -18,6 +18,7 @@ export type FakeJob = {
   status: string;
   cancel_reason?: string;
   statusAnswer?: number;
+  filesAnswer?: number;
   files: FakeFile[];
 };
 
@@ -52,6 +53,12 @@ export function stubGnani() {
       return response;
     }
     if (rest === '/files') {
+      if (job.filesAnswer) {
+        return Response.json(
+          { error: 'STUBBED' },
+          { status: job.filesAnswer },
+        );
+      }
       return Response.json({
         job_id: jobId,
         data: job.files.map((file, index) => ({

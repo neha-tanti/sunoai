@@ -12,17 +12,19 @@ export function requireEnv(name) {
   return value;
 }
 
+const GNANI_ATTEMPTS = 5;
+
 export async function gnani(path, init = {}) {
-  let res;
-  for (let attempt = 1; attempt <= 5; attempt++) {
-    res = await fetch(`${GNANI_URL}${path}`, {
+  for (let attempt = 1; ; attempt++) {
+    const res = await fetch(`${GNANI_URL}${path}`, {
       ...init,
       headers: { 'X-API-Key-ID': requireEnv('GNANI_API_KEY'), ...init.headers },
     });
-    if (res.status !== 429) break;
-    await res.text();
+    if (res.ok) return res;
+    const body = await res.text();
+    if (res.status !== 429 || attempt === GNANI_ATTEMPTS) {
+      throw new Error(`Gnani ${init.method ?? 'GET'} ${path} failed: ${res.status} ${body}`);
+    }
     await new Promise((resolve) => setTimeout(resolve, attempt * 10_000));
   }
-  if (!res.ok) throw new Error(`Gnani ${init.method ?? 'GET'} ${path} failed: ${res.status} ${await res.text()}`);
-  return res;
 }
