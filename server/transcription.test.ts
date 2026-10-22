@@ -428,23 +428,40 @@ describe('each failure in the TRD table', () => {
     },
   );
 
-  it('fails the call on the fifth busy answer from Gnani, not the fourth', async () => {
+  it('keeps a finished call Transcribing when Gnani rate-limits its files', async () => {
+    const call = await transcribingCall({
+      ...completedJob(),
+      filesAnswer: 429,
+    });
+
+    expect(await finishByWebhook(call.jobId)).toEqual(['gnani_busy']);
+
+    expect((await readCall(call.id)).call).toMatchObject({
+      status: 'transcribing',
+      gnani_attempts: 1,
+    });
+  });
+
+  it('fails the call on the 30th busy answer from Gnani, not the 29th', async () => {
     const job: FakeJob = {
       status: 'IN_PROGRESS',
       statusAnswer: 503,
       files: [],
     };
-    const fourth = await transcribingCall(job, { gnani_attempts: 3 });
-    const fifth = await transcribingCall({ ...job }, { gnani_attempts: 4 });
+    const twentyNinth = await transcribingCall(job, { gnani_attempts: 28 });
+    const thirtieth = await transcribingCall(
+      { ...job },
+      { gnani_attempts: 29 },
+    );
 
-    expect(await finishByWebhook(fourth.jobId)).toEqual(['gnani_busy']);
-    expect(await finishByWebhook(fifth.jobId)).toEqual(['failed']);
+    expect(await finishByWebhook(twentyNinth.jobId)).toEqual(['gnani_busy']);
+    expect(await finishByWebhook(thirtieth.jobId)).toEqual(['failed']);
 
-    expect((await readCall(fourth.id)).call).toMatchObject({
+    expect((await readCall(twentyNinth.id)).call).toMatchObject({
       status: 'transcribing',
-      gnani_attempts: 4,
+      gnani_attempts: 29,
     });
-    expect((await readCall(fifth.id)).call).toMatchObject({
+    expect((await readCall(thirtieth.id)).call).toMatchObject({
       status: 'failed',
       error_code: 'transcription_failed',
     });
@@ -544,6 +561,18 @@ describe('POST /api/jobs/poll', () => {
       status: 'transcribing',
       gnani_attempts: 0,
     });
+  });
+
+  it('tries a call with fewer busy answers before an older one with more', async () => {
+    const busy = await transcribingCall(
+      { status: 'IN_PROGRESS', statusAnswer: 503, files: [] },
+      { gnani_attempts: 1 },
+    );
+    const done = await transcribingCall(completedJob());
+    await backdate(busy.id, 5);
+    await backdate(done.id, 3);
+
+    expect(await poll()).toEqual([{ callId: done.id, outcome: 'ready' }]);
   });
 
   it('fails calls left in Analysing for over 5 minutes, and only those', async () => {

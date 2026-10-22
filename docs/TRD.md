@@ -117,7 +117,7 @@ We use Batch rather than the REST endpoint because REST returns only plain text,
 | `language_code` | Up to 3 codes, comma-separated | Gnani picks one per file; the first is the fallback |
 | `with_diarization` | `true` | Speaker labels |
 | `num_speakers` | `3` | AI agent, human agent and customer (an upper limit) |
-| `with_denoise` | A toggle on the upload screen, default on | Noisy phone audio; adds about a quarter of the call's length to processing |
+| `with_denoise` | A toggle on the upload screen, default on | Noisy phone audio; on the spike's 65-second call it added 3.6 seconds, about 6% of the call's length, to processing |
 | `is_multi_channel` | `false` | Turn on only for true stereo call recordings |
 | `source` | `{"type":"cloud_storage","auth":{"mode":"public"},"paths":["<signed URL>"]}` | Gnani reads the file from Supabase, so there is no 10 MB upload limit |
 | `callback_url` | `https://<app>/api/webhooks/gnani?token=<secret>` | Webhook for terminal job events |
@@ -230,7 +230,7 @@ Eleven Hono routes under `/api`: nine for the page, one for Gnani's webhook and 
 | `GET /api/checklist` | Page | Active checks, red flags and rules, plus a `version` (the rules' `updated_at`), read in one statement by the `load_checklist` Postgres function so a report snapshot matches one save |
 | `PUT /api/checklist` | Page | Saves checks, red flags and rules in one transaction, through the `save_checklist` Postgres function called with `.rpc()`; it locks the checklist tables so two saves run one after another, and answers 409 `checklist_changed` when the `version` sent is no longer the latest, so a save from an out-of-date page never overwrites a newer one |
 | `POST /api/webhooks/gnani` | Gnani | Checks the token, then finishes the call (save transcript, analyse) |
-| `POST /api/jobs/poll` | Supabase Cron | Checks `CRON_SECRET` and sets calls in Analysing for over 5 minutes to Failed ("Analysis failed."), since their function was stopped. Then it asks Gnani about calls in Transcribing for over a minute, oldest first, and finishes the first one that is done; the rest wait for the next run. It also stops at the first 429 or 5xx from Gnani, so the calls after it don't use up their attempts |
+| `POST /api/jobs/poll` | Supabase Cron | Checks `CRON_SECRET` and sets calls in Analysing for over 5 minutes to Failed ("Analysis failed."), since their function was stopped. Then it asks Gnani about calls in Transcribing for over a minute, fewest busy answers first and then oldest, and finishes the first one that is done; the rest wait for the next run. It also stops at the first 429 or 5xx from Gnani, so the calls after it don't use up their attempts, and the busy call moves behind them for the next run |
 
 - **Server-only code:** everything under `server/` (the Hono app, the Gnani and LLM wrappers, the prompt) starts with `import 'server-only'`, so a client component that imports it fails the build; Vitest resolves the `react-server` condition so tests can load it. `lib/` holds only code the browser may import.
 - **Mounting:** the Hono app lives in `server/app.ts` with `basePath('/api')`, and `app/api/[[...route]]/route.ts` exports `GET`, `POST`, `PUT` and `DELETE` from `handle(app)` in `@hono/vercel`. It runs on the Node.js runtime (the only runtime Cache Components allows, so the route sets no `runtime`) with `maxDuration` set to 300 seconds, the Hobby plan's maximum with Fluid compute, so the analysis step has time.
@@ -322,7 +322,7 @@ The browser reads the length from the file before upload and blocks files over 3
 | --- | --- | --- |
 | Upload fails | "Upload failed. Check your connection and try again." | Call stays Uploaded and can be retried |
 | Gnani rejects the file | "Gnani couldn't read this file. Try an MP3 or WAV." | Status Failed (`file_rejected`); Gnani's reason is saved in `error` for us, never shown |
-| Gnani busy (429) or down (5xx) | Still Transcribing | `gnani_attempts` goes up by 1 and the next cron run retries; at 5 the call is Failed (`transcription_failed`) |
+| Gnani busy (429) or down (5xx) | Still Transcribing | `gnani_attempts` goes up by 1 and the next cron run retries; at 30 the call is Failed (`transcription_failed`). The job files endpoint can answer 429, with no `Retry-After`, for several minutes after jobs finish together while the job status endpoint still answers. A lone call is Failed after about 30 minutes of busy answers; during a Gnani outage the queued calls take turns, so each of N calls takes about 30×N minutes |
 | Saving the transcript fails for any other reason | "Transcription failed." | Status Failed (`transcription_failed`), so the call doesn't hold up the cron job's queue |
 | Job ends in `FAILED`, `START_FAILED`, `PARTIAL_FAILURE` or `CANCELLED` | "Transcription failed." | Status Failed (`transcription_failed`); Gnani's reason is saved in `error` for us, never shown |
 | Gnani job still running 2 hours after the check | "Transcription failed." | Status Failed (`transcription_failed`); the signed link Gnani reads has expired |
@@ -381,7 +381,7 @@ The biggest unknowns are how well Gnani separates an AI voice from a human one, 
 | The model handles Hinglish poorly or changes | Analysis is wrong | The quote rule, Zod validation, the saved model name, and the test calls |
 | The model's providers are busy or down | Analysis fails | OpenRouter falls back between providers, and Check again reruns the analysis |
 | Credits run out | Analysis fails | One request per call; the account's credits are checked before demo day |
-| Gnani credits (5,000) and unpublished rate limits | Running out mid-testing | Short test calls, noise removal only when needed, and checking the dashboard |
+| Gnani credits (5,000) and unpublished rate limits | Running out mid-testing | Short test calls and checking the dashboard; noise removal stays on by default. On the spike's 65-second call it added 3.6 seconds of processing (6% of the call's length); its credit cost isn't known yet |
 | The webhook isn't signed | Someone could post fake results | Secret token, and the handler re-reads the job status from Gnani before trusting it |
 | Vercel's 300-second limit (Hobby maximum) | A slow model or Gnani read keeps the function past it | One 280-second deadline per function covering every outbound request, no LLM retry, cron finishes one call per run and fails calls left in Analysing, and Check again reruns only the analysis |
 
@@ -390,8 +390,8 @@ The biggest unknowns are how well Gnani separates an AI voice from a human one, 
 - [ ] Does Batch support Gujarati and Punjabi? The docs say both yes and no.
 - [ ] Does Batch support word boosting (`bias_list`)? The docs conflict.
 - [ ] Will the `sentiment` and `emotion` segment fields be filled in?
-- [ ] How many credits does a minute of Batch audio use, with and without noise removal?
-- [ ] What are the rate limits for Batch jobs and Timbre?
+- [ ] How many credits does a minute of Batch audio use, with and without noise removal? The #13 spike didn't record credits per job.
+- [ ] What are the rate limits for Batch jobs and Timbre? The #13 spike saw the job files endpoint answer 429 for a few minutes after two jobs finished together.
 - [ ] Can webhook calls be signed?
 
 ## Later: live alerts

@@ -1,13 +1,14 @@
 # Spike: Gnani speaker labels and free LLMs
 
-Issue: [#1](https://github.com/neha-tanti/sunoai/issues/1). Run 10 October 2026.
+Issues: [#1](https://github.com/neha-tanti/sunoai/issues/1), run 10 October 2026 (LLM half), and [#13](https://github.com/neha-tanti/sunoai/issues/13), run 21 October 2026 (Gnani half).
 
-The LLM half is done: `nvidia/nemotron-3-super-120b-a12b:free` with reasoning turned off gave the same valid report three times out of three in about 10 seconds, after four prompt drafts, and `dots-studio/dots-3-note-preview:free` is a working but weaker fallback. The Gnani half (speaker labels and transcript accuracy) is waiting for a Gnani API key and is tracked in [#13](https://github.com/neha-tanti/sunoai/issues/13).
+`nvidia/nemotron-3-super-120b-a12b:free` with reasoning turned off gave the same valid report three times out of three in about 10 seconds, after four prompt drafts, and `dots-studio/dots-3-note-preview:free` is a working but weaker fallback. Gnani Batch then labelled every segment of the voiced call with the right speaker, and the paid Nemotron that SunoAI uses gave the same report on Gnani's transcripts as on the perfect one.
 
-| Question | Answer so far |
+| Question | Answer |
 | --- | --- |
-| Can Gnani Batch tell an AI voice, a human agent and a customer apart? | Not run yet: there is no Gnani API key |
+| Can Gnani Batch tell an AI voice, a human agent and a customer apart? | Yes: 3 speaker ids, 15 of 15 segments right, with and without denoise |
 | Can a free OpenRouter model handle Hinglish and return valid JSON with exact quotes? | Yes: Nemotron with reasoning off and prompt v4. Dots also works, less accurately |
+| Do Gnani's transcription errors change the report? | No: same score, flags, handover and peak as on the perfect transcript |
 
 ## The test call
 
@@ -67,26 +68,54 @@ All setups used a strict `json_schema`, except Gemma, which supports only JSON m
 
 ### Requests used
 
-OpenRouter, 10 October: 24 successful free requests (15 Nemotron, 3 Dots and 6 through the two lists), all at $0, plus 10 failed requests that didn't count. Gnani: none yet.
+OpenRouter, 10 October: 24 successful free requests (15 Nemotron, 3 Dots and 6 through the two lists), all at $0, plus 10 failed requests that didn't count. Gnani: none until the 21 October runs (see Spend below).
 
 ## Gnani results
 
-Waiting for the Gnani API key ([#13](https://github.com/neha-tanti/sunoai/issues/13)). To be filled in for each run (with and without `with_denoise`):
+`make-call.mjs` voiced the script with Timbre into a 65.1-second WAV, and Gnani Batch (`gnani-prisma-v2.5`, `hi-IN,en-IN`, `num_speakers: 3`) transcribed it once without and once with `with_denoise`. Wall time is from the job's `created_at` to `completed_at`.
 
 | Run | Speaker ids found | Speaker accuracy | Transcript accuracy | Language detected | Wall time | Credits |
 | --- | --- | --- | --- | --- | --- | --- |
-| Without denoise | | | | | | |
-| With denoise | | | | | | |
+| Without denoise | 3 | 15/15 | 15 segments, one per script line; 3 errors (below) | `hi-IN` | 5.7 s | Not recorded |
+| With denoise | 3 | 15/15 | 15 segments, one per script line; 2 errors (below) | `hi-IN` | 9.3 s | Not recorded |
 
-After the Gnani runs, both real transcripts go through `analyze.mjs` with prompt v4. That shows how transcription errors and speaker mix-ups change the report, and whether the handover rule holds on real speaker ids.
+The credit balance wasn't noted before and after each job, so credits per minute, with and without denoise, are still open in the TRD.
+
+Transcription errors:
+
+- Both runs heard "FD 4572, ek ghante" as "एफ डी 45721 घंटे": the order id swallowed the "one".
+- Both runs heard the closing "bye" as "बाएं" ("left").
+- Without denoise, "FreshDabba" came out as "freshdubba"; with denoise it was right.
+
+Both transcripts then went through `analyze.mjs` with prompt v4 and the `LLM_MODELS` SunoAI runs with, the paid `nvidia/nemotron-3-super-120b-a12b`, 3 runs each:
+
+| Transcript | Answered by | Score per run | Flags per run | Handover per run | Peak per run | Turn per run | Quotes rejected | Time per run |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Without denoise | Nemotron, 3 of 3 | 6/6, 6/6, 6/6 | segments 5 and 7, in all 3 | 9, 9, 9 | angry, angry, angry | 5, 5, 5 | 0 | 8–10 s |
+| With denoise | Nemotron, 3 of 3 | 6/6, 6/6, 6/6 | segments 5 and 7, in all 3 | 9, 9, 9 | angry, angry, angry | 5, 5, 5 | 0 | 54–69 s |
+
+Gnani's segments line up one to one with the script's lines, so segment ids compare directly with `EXPECTED`.
+
+### Findings
+
+- **Speaker labels are reliable on this call.** Gnani gave the AI agent, the customer and the human agent one id each, with no merged voices, so the TRD's handover rule (the first segment from the speaker labelled `human_agent`) found segment 9 in all 6 runs. No TRD change is needed for it.
+- **Transcription errors didn't change the report.** Both transcripts gave exactly the chosen setup's result on the perfect transcript, including its two known misses: the extra `human_not_transferred` flag at segment 7 and the turn at 5 instead of 7. No quote was rejected, so the mixed-script errors didn't break the exact-quote rule.
+- **Denoise is cheap in time.** On this clean audio it fixed one word and added 3.6 seconds, about 6% of the call's length. It stays on by default for noisy phone audio; its credit cost wasn't recorded.
+- **Gnani's job files endpoint sometimes answers 429.** `GET /stt/v3/batch/jobs/{id}/files` returned `RATE_LIMITED` with no `Retry-After` for a few minutes after two jobs finished together, even for single requests, while the job status endpoint kept answering. It cleared on its own. SunoAI treats a Gnani 429 as busy and lets the next cron run retry, but it failed a call after 5 busy answers, which a few minutes of this would use up. The limit is now 30, about half an hour of cron runs (see the TRD's failure table), and the spike's `gnani()` helper retries a 429 too.
+- **The free Nemotron was down.** On 21 October its only provider answered 404 for every request, with 0% uptime on OpenRouter. 6 runs of the old free list (`LLM_MODELS=nvidia/nemotron-3-super-120b-a12b:free,dots-studio/dots-3-note-preview:free`) were all answered by Dots; their reports weren't kept, since that list is no longer SunoAI's. SunoAI uses the paid version, which three providers served at 100% uptime.
+- **The denoise transcript's runs were slow on OpenRouter's side**, 54–69 seconds against 8–10 for the other, with the same model and a near-identical prompt. That is still inside the 280-second deadline.
+
+### Spend
+
+Gnani, 21 October: about 3 minutes of audio, credits not recorded. That was one 65-second Timbre call, one test sentence, and two 65-second Batch jobs. OpenRouter: the 6 paid Nemotron runs cost $0.011, plus 12 free requests (6 to Dots, 6 failed on the free Nemotron).
 
 ## Decision: `LLM_MODELS`
 
 ```
-LLM_MODELS=nvidia/nemotron-3-super-120b-a12b:free,dots-studio/dots-3-note-preview:free
+LLM_MODELS=nvidia/nemotron-3-super-120b-a12b
 ```
 
-Nemotron first and Dots second, both with a strict schema and reasoning turned off. No third free model passed: Apodex rejects the strict schema, Gemma supports only JSON mode, and the remaining candidate (`liquid/lfm-2.5-2.6b:free`) is a 2.6B model that can't turn reasoning off.
+The spike first chose the free Nemotron with Dots as a fallback. No third free model passed: Apodex rejects the strict schema, Gemma supports only JSON mode, and the remaining candidate (`liquid/lfm-2.5-2.6b:free`) is a 2.6B model that can't turn reasoning off. SunoAI then moved to the paid Nemotron, which has no daily limit and no free-tier queue. Dots has no paid version, so the list has one model (see the TRD's LLM analysis). The Gnani runs confirmed the choice: the free Nemotron was down, and the paid one answered every request.
 
 ## Changes made to the TRD
 
@@ -97,10 +126,13 @@ Nemotron first and Dots second, both with a strict schema and reasoning turned o
 5. **LLM analysis, rule 1, API and limits:** no LLM retry, since all 24 strict-schema answers were valid. Functions run up to 300 seconds, the Hobby maximum, and every function that runs the analysis cancels its Gnani and LLM requests at a 280-second deadline. Check again gets its own route, `POST /api/calls/:id/analyze`, which accepts only analysis failures. The webhook, cron and Check again routes respond at once and run the work in Next.js `after()`. The cron route fails calls left in Analysing and finishes at most one call per run, oldest first. An OpenRouter 429 shows the limit message only when `remaining` is 0.
 6. **Auth, security and privacy:** the daily guard refuses a check when OpenRouter's `free_model_daily_requests.remaining` is 0, instead of counting requests itself. `LLM_DAILY_LIMIT` is gone, and the limit message says checking resumes at 5:30 am (midnight UTC).
 7. **Risks:** a busy primary model means the weaker fallback writes some reports; the report saves which model answered, and Check again reruns the analysis. 10 OpenRouter credits are bought before demo day, raising the daily limit to 1,000.
+8. **#13, Gnani:** the denoise row gives its measured cost, about 6% of the call's length; the Risks row keeps denoise on by default; the failure table raises the Gnani busy limit from 5 to 30 answers and notes the job files endpoint's 429s; the poll route tries calls with the fewest busy answers first, then the oldest; the credits and rate-limit questions record what the spike saw.
+
+Items 1, 6 and 7 describe the free models chosen in #1. SunoAI has since moved to the paid Nemotron alone (see [Decision](#decision-llm_models)).
 
 ## Running the spike
 
-Put `GNANI_API_KEY` and `OPENROUTER_API_KEY` in `.env.local`. Output goes to `test-calls/spike/`, which git ignores.
+Put `GNANI_API_KEY`, `OPENROUTER_API_KEY` and `LLM_MODELS` in `.env.local`. Output goes to `test-calls/spike/`, which git ignores.
 
 ```bash
 node --env-file=.env.local scripts/spike/make-call.mjs              # Timbre: call.wav and timeline.json
@@ -110,4 +142,4 @@ node --env-file=.env.local scripts/spike/analyze.mjs --transcript transcript-cal
 node scripts/spike/script-transcript.mjs                            # the script as a perfect transcript, no Gnani needed
 ```
 
-`analyze.mjs` takes `--runs` (default 3) and `--only` to run one setup: `nemotron`, `apodex`, `dots` or `llm-models`.
+`analyze.mjs` takes `--runs` (default 3) and `--only` to run one setup: `nemotron`, `apodex`, `dots` (the free models) or `llm-models` (the list in `LLM_MODELS`). `transcribe.mjs --job <id>` fetches and scores a job that already ran, without sending the audio again, and names its transcript after the job id.
