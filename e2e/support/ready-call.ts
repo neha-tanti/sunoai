@@ -343,7 +343,7 @@ export async function seedReadyCall(
     p_report: {
       ...report,
       llm_model: 'nvidia/nemotron-3-super-120b-a12b',
-      prompt_version: 'analyze-v1',
+      prompt_version: 'analyze-v2',
       checklist_snapshot: CHECKLIST_SNAPSHOT,
     },
   });

@@ -10,6 +10,7 @@ import {
 
 let coldBiryani: string;
 let calmQuestion: string;
+let uncoached: string;
 
 test.beforeAll(async () => {
   coldBiryani = await seedReadyCall(
@@ -22,10 +23,15 @@ test.beforeAll(async () => {
     CALM_QUESTION_SEGMENTS,
     CALM_QUESTION_REPORT,
   );
+  uncoached = await seedReadyCall(
+    'Cold biryani, coaching not written',
+    COLD_BIRYANI_SEGMENTS,
+    { ...COLD_BIRYANI_REPORT, coaching: null },
+  );
 });
 
 test.afterAll(async () => {
-  await deleteCalls([coldBiryani, calmQuestion]);
+  await deleteCalls([coldBiryani, calmQuestion, uncoached]);
 });
 
 test('a Ready report shows the verdict and the tiles in words', async ({
@@ -213,6 +219,20 @@ test.describe('coaching', () => {
       coaching.locator('audio[aria-label="Coaching audio"]'),
     ).toHaveAttribute('src', COACHING_AUDIO_URL);
     await expect(coaching.getByRole('alert')).toHaveCount(0);
+  });
+
+  test('a call with a human agent but no coaching says it could not be written', async ({
+    page,
+  }) => {
+    await page.goto(`/calls/${uncoached}`);
+    const coaching = page.getByRole('region', { name: 'Coaching' });
+
+    await expect(coaching).toContainText(
+      "Coaching couldn't be written for this call.",
+    );
+    await expect(
+      coaching.getByRole('button', { name: 'Play coaching' }),
+    ).toHaveCount(0);
   });
 
   test('a call without a human agent has no coaching section', async ({

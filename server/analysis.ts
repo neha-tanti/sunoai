@@ -71,6 +71,7 @@ async function analyze(callId: string, signal: AbortSignal): Promise<Analysis> {
     segments: segments.data,
     checklist,
     durationSeconds: call.data.duration_seconds ?? 0,
+    coachingLang: call.data.coaching_lang,
   });
 
   const saved = await supabase.rpc('save_report', {
@@ -88,7 +89,7 @@ async function analyze(callId: string, signal: AbortSignal): Promise<Analysis> {
   if (saved.error) throw saved.error;
   return {
     outcome: saved.data ? 'ready' : 'lost_race',
-    detail: `${llm.model}, ${rejected.passes} passes and ${rejected.red_flags} red flags without a quote`,
+    detail: `${llm.model}, ${rejected.passes} passes and ${rejected.red_flags} red flags without a quote${rejected.coaching ? ', Hinglish coaching in Devanagari dropped' : ''}`,
   };
 }
 

@@ -635,7 +635,7 @@ const COACHING = {
     'Ravi, you answered the customer straight away, well done. Next time, confirm the order ID first.',
 };
 
-async function seedCoachedCall(coachingLang = 'hi-en') {
+async function seedCoachedCall(coachingLang = 'hi-en', coaching = COACHING) {
   vi.spyOn(console, 'info').mockImplementation(() => {});
   openRouter.reply(() =>
     chatCompletion(
@@ -645,7 +645,7 @@ async function seedCoachedCall(coachingLang = 'hi-en') {
           { speaker_id: 1, role: 'human_agent', name: 'Ravi' },
           { speaker_id: 2, role: 'customer', name: null },
         ],
-        coaching: COACHING,
+        coaching,
       }),
     ),
   );
@@ -750,7 +750,30 @@ describe('POST /api/calls/:id/coaching-audio', () => {
     const res = await playCoaching(call.id);
 
     expect(res.status).toBe(409);
-    expect(await res.json()).toMatchObject({ error: { code: 'no_coaching' } });
+    expect(await res.json()).toMatchObject({
+      error: {
+        code: 'no_coaching',
+        message: expect.stringMatching(/no human agent/),
+      },
+    });
+    expect(gnani.requestsTo('/tts/inference')).toHaveLength(0);
+  });
+
+  it('refuses a call with a human agent whose Hinglish coaching came back in Devanagari', async () => {
+    const call = await seedCoachedCall('hi-en', {
+      text: 'रवि, आपने customer को तुरंत जवाब दिया, बहुत अच्छा।',
+      english: 'Ravi, you answered the customer straight away, well done.',
+    });
+
+    const res = await playCoaching(call.id);
+
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({
+      error: {
+        code: 'no_coaching',
+        message: expect.stringMatching(/couldn't be written/),
+      },
+    });
     expect(gnani.requestsTo('/tts/inference')).toHaveLength(0);
   });
 

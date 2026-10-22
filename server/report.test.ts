@@ -118,12 +118,16 @@ function answer(overrides: Partial<LlmAnswer> = {}): LlmAnswer {
   };
 }
 
-const build = (overrides: Partial<LlmAnswer> = {}, durationSeconds = 35) =>
+const build = (
+  overrides: Partial<LlmAnswer> = {},
+  { durationSeconds = 35, coachingLang = 'hi-en' } = {},
+) =>
   buildReport({
     answer: answer(overrides),
     segments,
     checklist,
     durationSeconds,
+    coachingLang,
   });
 
 const checkOf = (report: ReturnType<typeof build>['report'], id: string) =>
@@ -374,6 +378,53 @@ describe('buildReport', () => {
       expect(report.handover_segment_id).toBeNull();
       expect(report.speakers.map((s) => s.speaker_id)).not.toContain(7);
     });
+
+    it('drops Hinglish coaching written in Devanagari, which the hi-en voice would misread', () => {
+      const devanagari = {
+        text: 'आपने customer को अच्छे से सुना।',
+        english: 'You listened to the customer well.',
+      };
+
+      const { report, rejected } = build(
+        { coaching: devanagari },
+        { coachingLang: 'hi-en' },
+      );
+
+      expect(report.coaching).toBeNull();
+      expect(rejected.coaching).toBe(true);
+    });
+
+    it('does not count Devanagari Hinglish coaching as dropped when there is no human agent', () => {
+      const { report, rejected } = build(
+        {
+          speakers: speakers.map((s) =>
+            s.speaker_id === HUMAN ? { ...s, role: 'ai_agent' } : s,
+          ),
+          coaching: {
+            text: 'आपने customer को अच्छे से सुना।',
+            english: 'You listened to the customer well.',
+          },
+        },
+        { coachingLang: 'hi-en' },
+      );
+
+      expect(report.coaching).toBeNull();
+      expect(rejected.coaching).toBe(false);
+    });
+
+    it('keeps Devanagari coaching when the coaching language is Hindi', () => {
+      const devanagari = {
+        text: 'आपने ग्राहक को अच्छे से सुना।',
+        english: 'You listened to the customer well.',
+      };
+
+      const { report } = build(
+        { coaching: devanagari },
+        { coachingLang: 'hi-IN' },
+      );
+
+      expect(report.coaching).toEqual(devanagari);
+    });
   });
 
   describe('frustration', () => {
@@ -391,8 +442,11 @@ describe('buildReport', () => {
     });
 
     it('runs to the later of the call length and the last segment', () => {
-      expect(build({}, 60).report.frustration.ranges.at(-1)?.end).toBe(60);
-      expect(build({}, 10).report.frustration.ranges.at(-1)?.end).toBe(34.5);
+      const lastRangeEnd = (durationSeconds: number) =>
+        build({}, { durationSeconds }).report.frustration.ranges.at(-1)?.end;
+
+      expect(lastRangeEnd(60)).toBe(60);
+      expect(lastRangeEnd(10)).toBe(34.5);
     });
 
     it('carries the previous mood into a customer segment without one', () => {

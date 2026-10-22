@@ -1,10 +1,10 @@
 import 'server-only';
 import { z } from 'zod';
-import { COACHING_LANGUAGES } from '@/lib/call-upload';
+import { COACHING_LANGUAGES, HINGLISH } from '@/lib/call-upload';
 import type { Checklist } from '../checklist';
 import type { TranscriptSegment } from '../gnani';
 
-export const PROMPT_VERSION = 'analyze-v1';
+export const PROMPT_VERSION = 'analyze-v2';
 
 const MOODS = ['calm', 'annoyed', 'angry'] as const;
 export const moodSchema = z.enum(MOODS);
@@ -79,11 +79,18 @@ Rules:
 - "customer_mood" has one entry for every segment spoken by the customer, judged from that segment's own words.
 - "summary" is 2 or 3 sentences in English: why the customer called, what happened and how it ended.
 - "fix_notes" are for the AI team: one per thing the AI agent got wrong.
-- "coaching" is for the human agent: one thing done well and one to improve, 2 or 3 friendly sentences in the coaching language, plus an English version. Use null when there is no human agent.`;
+- "coaching" is for the human agent: one thing done well and one to improve, 2 or 3 friendly sentences in the coaching language, plus an English version. Use null when there is no human agent.
+- Coaching is only about what the human agent said and did after the handover. Never mention the transfer or anything before it in coaching: the human agent did not choose when the call reached them, and the AI agent's mistakes belong in "fix_notes". When the human agent made no mistake, the thing to improve is a small tip for their next call.
+- Coaching speaks to the human agent directly and respectfully ("aap" in Hindi and Hinglish), by name when the call gives it and otherwise without a name, in simple words a colleague would say out loud, not a word-for-word translation of the English version.`;
 
-function languageName(code: string) {
+const HINGLISH_COACHING =
+  'Write the coaching text in Roman letters (a to z) only, never Devanagari, even when the transcript is in Devanagari: Hindi sentences with everyday English words such as customer, order, refund, coupon and delivery kept in English.';
+
+function coachingLanguageLine(code: string) {
   const label = COACHING_LANGUAGES.find((lang) => lang.code === code)?.label;
-  return label ? `${code} (${label})` : code;
+  const line = `Coaching language: ${label ? `${code} (${label})` : code}`;
+  if (code !== HINGLISH) return line;
+  return `${line}\n${HINGLISH_COACHING}`;
 }
 
 export function buildMessages(
@@ -106,10 +113,10 @@ ${checklist.red_flags.map((f) => `- ${f.id} (${f.name}): ${f.example}`).join('\n
 Company refund and compensation rules:
 ${checklist.rules}
 
-Coaching language: ${languageName(coachingLang)}
-
 Transcript:
-${lines}`;
+${lines}
+
+${coachingLanguageLine(coachingLang)}`;
 
   return [
     { role: 'system' as const, content: SYSTEM },

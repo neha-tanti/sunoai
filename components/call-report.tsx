@@ -41,9 +41,7 @@ export function CallReport({ callId, report, segments }: CallReportProps) {
           <RedFlagsList report={report} segments={segments} />
           <ChecklistResults checks={report.checks} />
           <FixNotesList notes={report.fix_notes} />
-          {report.coaching && (
-            <CoachingCard callId={callId} coaching={report.coaching} />
-          )}
+          <CoachingSection callId={callId} report={report} />
         </div>
         <TranscriptView report={report} segments={segments} />
       </div>
@@ -81,25 +79,43 @@ function ReviewBanner({ redFlags }: { redFlags: number }) {
   );
 }
 
-type CoachingCardProps = {
+type CoachingSectionProps = {
   callId: string;
-  coaching: NonNullable<ReportDetail['coaching']>;
+  report: ReportDetail;
 };
 
-function CoachingCard({ callId, coaching }: CoachingCardProps) {
+function CoachingSection({ callId, report }: CoachingSectionProps) {
+  const { coaching } = report;
+  if (!coaching && report.handover_segment_id === null) return null;
+  if (!coaching) {
+    return (
+      <CoachingFrame>
+        <p className="text-muted-foreground">
+          Coaching couldn&apos;t be written for this call.
+        </p>
+      </CoachingFrame>
+    );
+  }
+
+  return (
+    <CoachingFrame>
+      <p>{coaching.text}</p>
+      {coaching.english !== coaching.text && (
+        <p className="text-sm text-muted-foreground">{coaching.english}</p>
+      )}
+      <CoachingPlayer callId={callId} />
+    </CoachingFrame>
+  );
+}
+
+function CoachingFrame({ children }: { children: React.ReactNode }) {
   return (
     <Card role="region" aria-label="Coaching">
       <CardHeader>
         <CardTitle>Coaching</CardTitle>
         <CardDescription>For the human agent</CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        <p>{coaching.text}</p>
-        {coaching.english !== coaching.text && (
-          <p className="text-sm text-muted-foreground">{coaching.english}</p>
-        )}
-        <CoachingPlayer callId={callId} />
-      </CardContent>
+      <CardContent className="flex flex-col gap-3">{children}</CardContent>
     </Card>
   );
 }
