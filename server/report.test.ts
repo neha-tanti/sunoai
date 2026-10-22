@@ -394,6 +394,24 @@ describe('buildReport', () => {
       expect(rejected.coaching).toBe(true);
     });
 
+    it('does not count Devanagari Hinglish coaching as dropped when there is no human agent', () => {
+      const { report, rejected } = build(
+        {
+          speakers: speakers.map((s) =>
+            s.speaker_id === HUMAN ? { ...s, role: 'ai_agent' } : s,
+          ),
+          coaching: {
+            text: 'आपने customer को अच्छे से सुना।',
+            english: 'You listened to the customer well.',
+          },
+        },
+        { coachingLang: 'hi-en' },
+      );
+
+      expect(report.coaching).toBeNull();
+      expect(rejected.coaching).toBe(false);
+    });
+
     it('keeps Devanagari coaching when the coaching language is Hindi', () => {
       const devanagari = {
         text: 'आपने ग्राहक को अच्छे से सुना।',

@@ -41,8 +41,10 @@ export function CallReport({ callId, report, segments }: CallReportProps) {
           <RedFlagsList report={report} segments={segments} />
           <ChecklistResults checks={report.checks} />
           <FixNotesList notes={report.fix_notes} />
-          {report.coaching && (
+          {report.coaching ? (
             <CoachingCard callId={callId} coaching={report.coaching} />
+          ) : (
+            report.handover_segment_id !== null && <CoachingUnavailableCard />
           )}
         </div>
         <TranscriptView report={report} segments={segments} />
@@ -99,6 +101,22 @@ function CoachingCard({ callId, coaching }: CoachingCardProps) {
           <p className="text-sm text-muted-foreground">{coaching.english}</p>
         )}
         <CoachingPlayer callId={callId} />
+      </CardContent>
+    </Card>
+  );
+}
+
+function CoachingUnavailableCard() {
+  return (
+    <Card role="region" aria-label="Coaching">
+      <CardHeader>
+        <CardTitle>Coaching</CardTitle>
+        <CardDescription>For the human agent</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <p className="text-muted-foreground">
+          Coaching couldn&apos;t be written for this call.
+        </p>
       </CardContent>
     </Card>
   );
