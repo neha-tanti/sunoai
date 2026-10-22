@@ -21,6 +21,8 @@ const uniqueIds = (items: { id?: string }[]) => {
   return new Set(ids).size === ids.length;
 };
 
+export const checklistVersion = z.iso.datetime({ offset: true });
+
 export const saveChecklistSchema = z.object({
   checks: z
     .array(z.object({ id: itemId, name, rule: detail }))
@@ -32,7 +34,7 @@ export const saveChecklistSchema = z.object({
     .max(MAX_RED_FLAGS)
     .refine(uniqueIds),
   rules: z.string().trim().max(RULES_MAX),
-  version: z.iso.datetime({ offset: true }),
+  version: checklistVersion,
 });
 
 export type SaveChecklist = z.input<typeof saveChecklistSchema>;

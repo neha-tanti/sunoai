@@ -2,7 +2,7 @@ import 'server-only';
 import { zValidator } from '@hono/zod-validator';
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { ID_MAX, saveChecklistSchema } from '@/lib/checklist';
+import { checklistVersion, ID_MAX, saveChecklistSchema } from '@/lib/checklist';
 import type { SignedInEnv } from './auth';
 import { ApiError } from './errors';
 import { createAdminClient } from './supabase';
@@ -18,7 +18,9 @@ const checklistSchema = z.object({
   rules: z.string(),
 });
 
-const loadedChecklistSchema = checklistSchema.extend({ version: z.string() });
+const loadedChecklistSchema = checklistSchema.extend({
+  version: checklistVersion,
+});
 
 export type Checklist = z.infer<typeof checklistSchema>;
 

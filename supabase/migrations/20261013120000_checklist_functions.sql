@@ -1,3 +1,6 @@
+insert into public.company_rules (id) values (1)
+on conflict (id) do nothing;
+
 create function public.save_checklist(
   p_checks jsonb,
   p_red_flags jsonb,
@@ -42,10 +45,9 @@ begin
     position = excluded.position,
     active = true;
 
-  insert into public.company_rules (id, text, updated_at)
-  values (1, p_rules, now())
-  on conflict (id) do update
-  set text = excluded.text, updated_at = excluded.updated_at;
+  update public.company_rules
+  set text = p_rules, updated_at = now()
+  where id = 1;
 
   return true;
 end;
@@ -72,7 +74,7 @@ as $$
        where active),
       '[]'::jsonb
     ),
-    'rules', coalesce((select text from public.company_rules where id = 1), ''),
+    'rules', (select text from public.company_rules where id = 1),
     'version', (select updated_at from public.company_rules where id = 1)
   );
 $$;
