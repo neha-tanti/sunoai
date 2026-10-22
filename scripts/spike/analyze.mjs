@@ -26,7 +26,7 @@ const SETUPS = {
   apodex: [APODEX],
   dots: [DOTS],
 };
-if ('llm-models'.includes(args.only)) {
+if (!args.only || args.only === 'llm-models') {
   SETUPS['llm-models'] = requireEnv('LLM_MODELS').split(',').map((model) => model.trim()).filter(Boolean);
 }
 const REQUEST = {
@@ -135,7 +135,7 @@ function missesAgainstExpected(result) {
 
 const results = [];
 for (const [setup, models] of Object.entries(SETUPS)) {
-  if (!setup.includes(args.only)) continue;
+  if (args.only && setup !== args.only) continue;
   for (let run = 1; run <= Number(args.runs); run++) {
     const tag = `${basename(args.transcript, '.json')}-${setup}-run${run}`;
     try {

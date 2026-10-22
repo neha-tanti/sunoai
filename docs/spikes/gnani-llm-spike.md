@@ -129,6 +129,7 @@ The spike first chose the free Nemotron with Dots as a fallback. No third free m
 8. **#13, Gnani:** the denoise row gives its measured cost, about 6% of the call's length; the Risks row keeps denoise on by default; the failure table raises the Gnani busy limit from 5 to 30 answers and notes the job files endpoint's 429s; the credits and rate-limit questions record what the spike saw.
 
 Items 1, 6 and 7 describe the free models chosen in #1. SunoAI has since moved to the paid Nemotron alone (see [Decision](#decision-llm_models)).
+
 ## Running the spike
 
 Put `GNANI_API_KEY`, `OPENROUTER_API_KEY` and `LLM_MODELS` in `.env.local`. Output goes to `test-calls/spike/`, which git ignores.

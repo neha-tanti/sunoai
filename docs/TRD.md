@@ -229,7 +229,7 @@ Eleven Hono routes under `/api`: nine for the page, one for Gnani's webhook and 
 | `GET /api/checklist` | Page | Active checks, red flags and rules |
 | `PUT /api/checklist` | Page | Saves checks, red flags and rules in one transaction, through the `save_checklist` Postgres function called with `.rpc()` |
 | `POST /api/webhooks/gnani` | Gnani | Checks the token, then finishes the call (save transcript, analyse) |
-| `POST /api/jobs/poll` | Supabase Cron | Checks `CRON_SECRET` and sets calls in Analysing for over 5 minutes to Failed ("Analysis failed."), since their function was stopped. Then it asks Gnani about calls in Transcribing for over a minute, oldest first, and finishes the first one that is done; the rest wait for the next run. It also stops at the first 429 or 5xx from Gnani, so the calls after it don't use up their attempts |
+| `POST /api/jobs/poll` | Supabase Cron | Checks `CRON_SECRET` and sets calls in Analysing for over 5 minutes to Failed ("Analysis failed."), since their function was stopped. Then it asks Gnani about calls in Transcribing for over a minute, fewest busy answers first and then oldest, and finishes the first one that is done; the rest wait for the next run. It also stops at the first 429 or 5xx from Gnani, so the calls after it don't use up their attempts, and the busy call moves behind them for the next run |
 
 - **Server-only code:** everything under `server/` (the Hono app, the Gnani and LLM wrappers, the prompt) starts with `import 'server-only'`, so a client component that imports it fails the build; Vitest resolves the `react-server` condition so tests can load it. `lib/` holds only code the browser may import.
 - **Mounting:** the Hono app lives in `server/app.ts` with `basePath('/api')`, and `app/api/[[...route]]/route.ts` exports `GET`, `POST`, `PUT` and `DELETE` from `handle(app)` in `@hono/vercel`. It runs on the Node.js runtime (the only runtime Cache Components allows, so the route sets no `runtime`) with `maxDuration` set to 300 seconds, the Hobby plan's maximum with Fluid compute, so the analysis step has time.
@@ -375,7 +375,7 @@ The biggest unknowns are how well Gnani separates an AI voice from a human one, 
 | The model handles Hinglish poorly or changes | Analysis is wrong | The quote rule, Zod validation, the saved model name, and the test calls |
 | The model's providers are busy or down | Analysis fails | OpenRouter falls back between providers, and Check again reruns the analysis |
 | Credits run out | Analysis fails | One request per call; the account's credits are checked before demo day |
-| Gnani credits (5,000) and unpublished rate limits | Running out mid-testing | Short test calls and checking the dashboard; noise removal stays on by default, since it adds only about 6% to processing |
+| Gnani credits (5,000) and unpublished rate limits | Running out mid-testing | Short test calls and checking the dashboard; noise removal stays on by default. On the spike's 65-second call it added 3.6 seconds of processing (6% of the call's length); its credit cost isn't known yet |
 | The webhook isn't signed | Someone could post fake results | Secret token, and the handler re-reads the job status from Gnani before trusting it |
 | Vercel's 300-second limit (Hobby maximum) | A slow model or Gnani read keeps the function past it | One 280-second deadline per function covering every outbound request, no LLM retry, cron finishes one call per run and fails calls left in Analysing, and Check again reruns only the analysis |
 

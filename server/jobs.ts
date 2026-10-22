@@ -35,6 +35,7 @@ async function pollTranscribingCalls(signal: AbortSignal) {
     .eq('status', 'transcribing')
     .not('gnani_job_id', 'is', null)
     .lt('status_at', new Date(Date.now() - STUCK_AFTER_MS).toISOString())
+    .order('gnani_attempts')
     .order('status_at');
   if (due.error) throw due.error;
 

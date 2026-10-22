@@ -563,6 +563,18 @@ describe('POST /api/jobs/poll', () => {
     });
   });
 
+  it('tries a call with fewer busy answers before an older one with more', async () => {
+    const busy = await transcribingCall(
+      { status: 'IN_PROGRESS', statusAnswer: 503, files: [] },
+      { gnani_attempts: 1 },
+    );
+    const done = await transcribingCall(completedJob());
+    await backdate(busy.id, 5);
+    await backdate(done.id, 3);
+
+    expect(await poll()).toEqual([{ callId: done.id, outcome: 'ready' }]);
+  });
+
   it('fails calls left in Analysing for over 5 minutes, and only those', async () => {
     const stopped = await insertAnalyzingCall();
     const running = await insertAnalyzingCall();
