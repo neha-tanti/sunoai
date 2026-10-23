@@ -177,9 +177,9 @@ test.describe('uploading', () => {
   test('trying again after the upload link expires replaces the call', async ({
     page,
   }) => {
-    let uploads = 0;
+    const uploadUrls: string[] = [];
     await page.route('**/storage/v1/object/upload/sign/**', (route) => {
-      uploads += 1;
+      uploadUrls.push(route.request().url());
       return route.abort('connectionfailed');
     });
     await page.clock.install();
@@ -192,9 +192,11 @@ test.describe('uploading', () => {
     });
     await page.getByLabel('Call title').fill(title);
     const checkThisCall = page.getByRole('button', { name: 'Check this call' });
+    const alert = page.getByRole('main').getByRole('alert');
     await checkThisCall.click();
-    await expect(page.getByRole('main').getByRole('alert')).toBeVisible();
-    const first = await createDevAdminClient()
+    await expect(alert).toBeVisible();
+    const db = createDevAdminClient();
+    const first = await db
       .from('calls')
       .select('id')
       .eq('title', title)
@@ -202,16 +204,22 @@ test.describe('uploading', () => {
     if (first.error) throw first.error;
 
     await page.clock.fastForward(UPLOAD_TOKEN_REUSE_MS + 60_000);
+    const created = page.waitForResponse(
+      (response) =>
+        response.request().method() === 'POST' &&
+        new URL(response.url()).pathname === '/api/calls',
+    );
     await checkThisCall.click();
-    await expect.poll(() => uploads).toBe(2);
+    await created;
+    await expect(alert).toHaveText(
+      'Upload failed. Check your connection and try again.',
+    );
 
-    const calls = await createDevAdminClient()
-      .from('calls')
-      .select('id')
-      .eq('title', title);
+    const calls = await db.from('calls').select('id').eq('title', title);
     if (calls.error) throw calls.error;
     expect(calls.data).toHaveLength(1);
     expect(calls.data[0].id).not.toBe(first.data.id);
+    expect(uploadUrls.at(-1)).toContain(calls.data[0].id);
   });
 });
 
