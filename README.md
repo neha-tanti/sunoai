@@ -68,7 +68,7 @@ The home page shows the answer from `GET /api/health`, fetched through the typed
 | `pnpm lint` | ESLint |
 | `pnpm typecheck` | Generates Next.js route types, then runs `tsc --noEmit` |
 | `pnpm test` | Vitest unit and API tests (`*.test.ts`) |
-| `pnpm test:e2e` | Playwright end-to-end tests (`e2e/*.spec.ts`); starts `pnpm dev` if it isn't running |
+| `pnpm test:e2e` | Playwright end-to-end tests (`e2e/*.spec.ts`); builds and starts the app unless one is already running on port 3000 |
 | `pnpm check:calls` | Runs the six test calls in `scripts/calls/` through the real LLM and lists every difference from their expected results (see the TRD's [Testing](docs/TRD.md#testing)) |
 | `pnpm format` | Prettier |
 
@@ -76,7 +76,7 @@ The home page shows the answer from `GET /api/health`, fetched through the typed
 
 **Test project.** API tests run against a second Supabase project, never the dev one. Create it, then put its URL and keys in `.env.test.local` under the same three names as above, plus `SUPABASE_TEST_DB_URL`: the **Session pooler** connection string from the project's **Connect** dialog, with the password filled in and percent-encoded. Apply the auth settings once with `pnpm supabase config push --project-ref <test ref>`, and run `pnpm db:reset:test` after every new migration. `pnpm test` reads only `.env.test.local`, and stops with a clear message if the file is missing or points at the dev project.
 
-**End-to-end tests.** `pnpm test:e2e` runs against `pnpm dev`, so it uses the dev project from `.env.local`. The tests under `e2e/signed-in/` create a team leader for the run, sign in, and delete the account and any calls they seeded when they finish. They never reach Gnani.
+**End-to-end tests.** `pnpm test:e2e` runs against a production build (`pnpm build && pnpm start`), so it uses the dev project from `.env.local`. Stop `pnpm dev` first, or the tests reuse it. The tests under `e2e/signed-in/` create a team leader for the run, sign in, and delete the account and any calls they seeded when they finish. They never reach Gnani.
 
 **Webhook locally.** Gnani can't reach `localhost`, so its webhook doesn't fire in development. To finish a call stuck in Transcribing, call the poll route by hand: `curl -X POST http://localhost:3000/api/jobs/poll -H "x-cron-secret: $CRON_SECRET"`.
 
