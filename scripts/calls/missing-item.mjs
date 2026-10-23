@@ -40,7 +40,7 @@ export const LINES = toLines([
 export const EXPECTED = {
   score: '6/6',
   needs_review: false,
-  frustration_peak: 'annoyed',
+  frustration_peak: 'calm',
   checks: {
     order_confirmed: 'pass',
     problem_understood: 'pass',

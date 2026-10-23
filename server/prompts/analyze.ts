@@ -83,7 +83,10 @@ Rules:
 - Give one entry in "checks" for every check id, and use only the check and red flag ids listed.
 - "red_flags" lists only red flags that happened, each citing the words that raised it. Leave out any flag that did not happen; never add an entry to say a flag does not apply. Judge promises against the company rules.
 - "human_not_transferred" applies whenever the AI agent answers a request for a person with anything other than a transfer, even if it transfers later.
-- "customer_mood" has one entry for every segment spoken by the customer, judged from that segment's own words.
+- "customer_mood" has one entry for every segment spoken by the customer, judged from that segment's own words:
+  - "calm": gives details, answers a question, states the problem plainly or asks when the order will come, with no complaint about it ("pizza thanda aaya hai", "rider kahan hai?").
+  - "annoyed": complains about the problem or the service without shouting or demands: says it is too late or too much, says they were already told or already said it, or asks for a person politely ("ye theek nahi hai", "kitni baar bolun").
+  - "angry": exclaims in shock or outrage, demands a person or manager right now, mocks or accuses the agent, or calls it a safety issue ("Ye bilkul bakwas hai!", "Aap log kya kar rahe ho?", "senior ko bulao, abhi!").
 - "summary" is 2 or 3 sentences in English: why the customer called, what happened and how it ended.
 - "fix_notes" are for the AI team: one per thing the AI agent got wrong.
 - "coaching" is feedback for the human agent from a senior colleague who listened to the call. Use null when there is no human agent.
