@@ -1,19 +1,19 @@
-// Sends call.wav to Gnani Batch with diarization, waits for it, and scores the speaker labels against timeline.json.
-// Usage: node --env-file=.env.local scripts/spike/transcribe.mjs [--denoise] [--file other.wav] [--job existing-job-id]
+// Sends a call from make-call.mjs to Gnani Batch with diarization, waits for it, and scores the speaker labels against its timeline.
+// Usage: node --env-file=.env.local scripts/spike/transcribe.mjs [--call late-order] [--denoise] [--job existing-job-id]
 
 import { readFileSync, writeFileSync } from 'node:fs';
-import { basename, join } from 'node:path';
+import { join } from 'node:path';
 import { parseArgs } from 'node:util';
-import { gnani, OUT_DIR } from './lib.mjs';
+import { CALLS_DIR, gnani, OUT_DIR } from './lib.mjs';
 
 const { values: args } = parseArgs({
   options: {
     denoise: { type: 'boolean', default: false },
-    file: { type: 'string', default: 'call.wav' },
+    call: { type: 'string', default: 'late-order' },
     job: { type: 'string' },
   },
 });
-const label = `${basename(args.file, '.wav')}-${args.job ?? (args.denoise ? 'denoise' : 'raw')}`;
+const label = `${args.call}-${args.job ?? (args.denoise ? 'denoise' : 'raw')}`;
 const FINAL = ['COMPLETED', 'PARTIAL_FAILURE', 'FAILED', 'START_FAILED', 'CANCELLED'];
 const MAX_WAIT_MS = 15 * 60_000;
 
@@ -29,7 +29,7 @@ async function startJob() {
   };
   const form = new FormData();
   form.append('config', JSON.stringify(config));
-  form.append('files', new Blob([readFileSync(join(OUT_DIR, args.file))], { type: 'audio/wav' }), args.file);
+  form.append('files', new Blob([readFileSync(join(CALLS_DIR, `${args.call}.wav`))], { type: 'audio/wav' }), `${args.call}.wav`);
   const { job_id: jobId } = await (await gnani('/stt/v3/batch/jobs', { method: 'POST', body: form })).json();
   await gnani(`/stt/v3/batch/jobs/${jobId}/start`, { method: 'POST' });
   console.log(`Job ${jobId} started (${label})`);
@@ -56,7 +56,7 @@ if (!transcriptRes.ok) throw new Error(`Transcript download for job ${jobId} fai
 const transcript = await transcriptRes.json();
 writeFileSync(join(OUT_DIR, `transcript-${label}.json`), JSON.stringify(transcript, null, 2));
 
-const timeline = JSON.parse(readFileSync(join(OUT_DIR, 'timeline.json'), 'utf8'));
+const timeline = JSON.parse(readFileSync(join(CALLS_DIR, `${args.call}.timeline.json`), 'utf8'));
 const expectedRole = (segment) => {
   const middle = (segment.start_time + segment.end_time) / 2;
   const nearest = (line) => Math.max(line.start - middle, middle - line.end, 0);

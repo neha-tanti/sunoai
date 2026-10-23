@@ -1,5 +1,5 @@
 import 'server-only';
-import type { CoachingLanguageCode } from '@/lib/call-upload';
+import { COACHING_LANGUAGES } from '@/lib/call-upload';
 import { HANDOVER_CHECK_ID } from '@/lib/checklist';
 import type { Checklist } from './checklist';
 import type { TranscriptSegment } from './gnani';
@@ -122,23 +122,12 @@ export function buildReport(input: {
   };
 }
 
-const SCRIPT_BY_LANGUAGE: Record<CoachingLanguageCode, string> = {
-  'hi-IN': 'Devanagari',
-  'hi-en': 'Latin',
-  'en-IN': 'Latin',
-  'bn-IN': 'Bengali',
-  'mr-IN': 'Devanagari',
-  'ta-IN': 'Tamil',
-  'te-IN': 'Telugu',
-  'kn-IN': 'Kannada',
-  'ml-IN': 'Malayalam',
-  'gu-IN': 'Gujarati',
-  'pa-IN': 'Gurmukhi',
-};
-
 function inCoachingScript(text: string, coachingLang: string) {
-  const script =
-    SCRIPT_BY_LANGUAGE[coachingLang as CoachingLanguageCode] ?? 'Latin';
+  const script = COACHING_LANGUAGES.find(
+    (lang) => lang.code === coachingLang,
+  )?.script;
+  if (!script)
+    throw new Error(`No script for coaching language ${coachingLang}`);
   const allowed = new RegExp(`[\\p{Script=Latin}\\p{Script=${script}}]`, 'u');
   return (text.match(/\p{L}/gu) ?? []).every((letter) => allowed.test(letter));
 }
@@ -164,7 +153,13 @@ function checkCoaching(
   }
 
   return {
-    kept: { text: coaching.text, english: coaching.english },
+    kept: {
+      text: coaching.text,
+      english: coaching.english,
+      segment_id: segment.segment_id,
+      time: segment.start_time,
+      quote: coaching.quote,
+    },
     dropped: null,
   };
 }

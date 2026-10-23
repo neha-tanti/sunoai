@@ -1,16 +1,16 @@
 // Sends a Gnani transcript to each model setup (the free models and the LLM_MODELS list), applies the TRD's code-side checks and compares with EXPECTED.
-// Usage: node --env-file=.env.local scripts/spike/analyze.mjs --transcript transcript-call-denoise.json [--runs 3] [--only nemotron]
+// Usage: node --env-file=.env.local scripts/spike/analyze.mjs --transcript transcript-late-order-denoise.json [--runs 3] [--only nemotron]
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { parseArgs } from 'node:util';
-import { EXPECTED, LINES } from './call-script.mjs';
+import { EXPECTED, LINES } from '../calls/late-order.mjs';
 import { OUT_DIR, requireEnv } from './lib.mjs';
 import { buildMessages, CHECKS, RED_FLAGS, REPORT_SCHEMA } from './prompt.mjs';
 
 const { values: args } = parseArgs({
   options: {
-    transcript: { type: 'string', default: 'transcript-call-denoise.json' },
+    transcript: { type: 'string', default: 'transcript-late-order-denoise.json' },
     runs: { type: 'string', default: '3' },
     only: { type: 'string', default: '' },
   },

@@ -48,6 +48,7 @@ async function send(
   let res = await request();
   // Gnani answers 429 to a request sent within about a second of the previous one.
   if (res.status === 429) {
+    await res.body?.cancel();
     await sleep(BURST_RETRY_MS, undefined, { signal });
     res = await request();
   }

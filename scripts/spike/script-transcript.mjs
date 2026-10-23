@@ -3,7 +3,7 @@
 
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { LINES } from './call-script.mjs';
+import { LINES } from '../calls/late-order.mjs';
 import { OUT_DIR } from './lib.mjs';
 
 const SPEAKER_IDS = { ai_agent: 1, customer: 2, human_agent: 3 };

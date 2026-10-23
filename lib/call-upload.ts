@@ -39,17 +39,17 @@ export const CALL_LANGUAGES = [
 ] as const;
 
 export const COACHING_LANGUAGES = [
-  { code: 'hi-IN', label: 'Hindi' },
-  { code: 'hi-en', label: 'Hinglish' },
-  { code: 'en-IN', label: 'English' },
-  { code: 'bn-IN', label: 'Bengali' },
-  { code: 'mr-IN', label: 'Marathi' },
-  { code: 'ta-IN', label: 'Tamil' },
-  { code: 'te-IN', label: 'Telugu' },
-  { code: 'kn-IN', label: 'Kannada' },
-  { code: 'ml-IN', label: 'Malayalam' },
-  { code: 'gu-IN', label: 'Gujarati' },
-  { code: 'pa-IN', label: 'Punjabi' },
+  { code: 'hi-IN', label: 'Hindi', script: 'Devanagari' },
+  { code: 'hi-en', label: 'Hinglish', script: 'Latin' },
+  { code: 'en-IN', label: 'English', script: 'Latin' },
+  { code: 'bn-IN', label: 'Bengali', script: 'Bengali' },
+  { code: 'mr-IN', label: 'Marathi', script: 'Devanagari' },
+  { code: 'ta-IN', label: 'Tamil', script: 'Tamil' },
+  { code: 'te-IN', label: 'Telugu', script: 'Telugu' },
+  { code: 'kn-IN', label: 'Kannada', script: 'Kannada' },
+  { code: 'ml-IN', label: 'Malayalam', script: 'Malayalam' },
+  { code: 'gu-IN', label: 'Gujarati', script: 'Gujarati' },
+  { code: 'pa-IN', label: 'Punjabi', script: 'Gurmukhi' },
 ] as const;
 
 type LanguageCode<T extends readonly { code: string }[]> = T[number]['code'];

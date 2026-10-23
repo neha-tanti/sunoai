@@ -5,6 +5,7 @@ import { FixNotesList } from '@/components/fix-notes-list';
 import { FrustrationTimeline } from '@/components/frustration-timeline';
 import { RedFlagsList } from '@/components/red-flags-list';
 import { ReportTiles } from '@/components/report-tiles';
+import { QuoteLink, TimeLink } from '@/components/time-link';
 import { TranscriptView } from '@/components/transcript-view';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
@@ -99,6 +100,10 @@ function CoachingSection({ callId, report }: CoachingSectionProps) {
 
   return (
     <CoachingFrame>
+      <p className="flex flex-wrap items-baseline gap-2">
+        <TimeLink segmentId={coaching.segment_id} time={coaching.time} />
+        <QuoteLink segmentId={coaching.segment_id} quote={coaching.quote} />
+      </p>
       <p>{coaching.text}</p>
       {coaching.english !== coaching.text && (
         <p className="text-sm text-muted-foreground">{coaching.english}</p>

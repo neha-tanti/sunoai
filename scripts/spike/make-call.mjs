@@ -1,19 +1,17 @@
 // Voices each line of the call script with Gnani Timbre and joins them into one WAV.
-// Usage: node --env-file=.env.local scripts/spike/make-call.mjs [--call missing-item]
-// Without --call it voices the spike's call-script.mjs; with it, scripts/calls/<name>.mjs into test-calls/calls/.
+// Usage: node --env-file=.env.local scripts/spike/make-call.mjs --call missing-item
+// Voices scripts/calls/<name>.mjs into test-calls/calls/<name>.wav and <name>.timeline.json.
 
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { gnani, OUT_DIR } from './lib.mjs';
+import { CALLS_DIR, gnani } from './lib.mjs';
 
 const { values: args } = parseArgs({ options: { call: { type: 'string' } } });
-const { LINES } = await import(args.call ? `../calls/${args.call}.mjs` : './call-script.mjs');
-const outDir = args.call ? fileURLToPath(new URL('../../test-calls/calls/', import.meta.url)) : OUT_DIR;
-const name = args.call ?? 'call';
-const timelineName = args.call ? `${args.call}.timeline.json` : 'timeline.json';
-mkdirSync(outDir, { recursive: true });
+if (!args.call) throw new Error('Pass --call <name>, one of the files in scripts/calls/.');
+const name = args.call;
+const { LINES } = await import(`../calls/${name}.mjs`);
+mkdirSync(CALLS_DIR, { recursive: true });
 
 const SAMPLE_RATE = 16000;
 const BYTES_PER_SECOND = SAMPLE_RATE * 2;
@@ -88,6 +86,6 @@ for (const [index, line] of LINES.entries()) {
 }
 
 const audio = Buffer.concat(parts);
-writeFileSync(join(outDir, `${name}.wav`), Buffer.concat([wavHeader(audio.length), audio]));
-writeFileSync(join(outDir, timelineName), JSON.stringify(timeline, null, 2));
-console.log(`Wrote ${name}.wav (${(bytes / BYTES_PER_SECOND).toFixed(1)}s, ${(audio.length / 1e6).toFixed(1)} MB) to ${outDir}`);
+writeFileSync(join(CALLS_DIR, `${name}.wav`), Buffer.concat([wavHeader(audio.length), audio]));
+writeFileSync(join(CALLS_DIR, `${name}.timeline.json`), JSON.stringify(timeline, null, 2));
+console.log(`Wrote ${name}.wav (${(bytes / BYTES_PER_SECOND).toFixed(1)}s, ${(audio.length / 1e6).toFixed(1)} MB) to ${CALLS_DIR}`);

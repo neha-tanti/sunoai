@@ -251,6 +251,9 @@ export const COLD_BIRYANI_REPORT = {
   coaching: {
     text: 'Kavya, aapne refund turant start kiya, bahut badhiya.',
     english: 'Kavya, you started the refund straight away. Well done.',
+    segment_id: 8,
+    time: 43,
+    quote: 'Biryani ka refund abhi start kar rahi hoon',
   },
 } satisfies Report;
 

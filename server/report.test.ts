@@ -412,12 +412,14 @@ describe('buildReport', () => {
       english: 'You listened to the customer well.',
     };
 
-    it('keeps coaching that quotes the human agent, without the quote itself', () => {
+    it('keeps coaching that quotes the human agent, linked to their line', () => {
       const { report, rejected } = build();
 
-      expect(report.coaching).toEqual({
+      expect(report.coaching).toMatchObject({
         text: 'Arjun, aapne customer ki pareshani maani, yeh achha tha.',
-        english: 'Arjun, you recognised the customer was upset, that was good.',
+        segment_id: 5,
+        time: 25,
+        quote: 'aap pareshaan hain',
       });
       expect(rejected.coaching).toBeNull();
     });
@@ -490,10 +492,7 @@ describe('buildReport', () => {
         { coachingLang: 'hi-IN' },
       );
 
-      expect(report.coaching).toEqual({
-        text: devanagari.text,
-        english: devanagari.english,
-      });
+      expect(report.coaching).toMatchObject({ text: devanagari.text });
     });
   });
 

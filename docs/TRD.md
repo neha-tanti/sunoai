@@ -189,7 +189,7 @@ Models that were tried and not used:
 | `red_flags` | Flag id, segment id, exact quote and a note |
 | `summary` | 2 or 3 sentences in English |
 | `fix_notes` | Segment id, title, what the AI said and what it should have done |
-| `coaching` | Text in the coaching language plus English, or null when there is no human agent. Code also sets it to null when Hinglish coaching comes back in Devanagari (rule 9 below). It speaks to the human agent by name and respectfully, in simple spoken words rather than a literal translation, and covers only what they did after the handover, never the transfer. For Hinglish, the line after the transcript asks for Roman letters only, with everyday English words kept in English, which Timbre's `hi-en` voice reads naturally. |
+| `coaching` | Text in the coaching language plus English, the segment id of the human agent's line it points at and an exact quote from it, or null when there is no human agent. Code also sets it to null when its quote or its script fails rule 9 below. It speaks to the human agent by name and respectfully, in simple spoken words rather than a literal translation, and covers only what they did after the handover, never the transfer. For Hinglish, the line after the transcript asks for Roman letters only, with everyday English words kept in English, which Timbre's `hi-en` voice reads naturally. |
 
 **Rules enforced in code, not trusted to the model**
 
@@ -201,7 +201,7 @@ Models that were tried and not used:
 6. Unknown check or flag ids are dropped.
 7. The handover is the first segment from the speaker labelled `human_agent`, or null. The spike showed the model points a handover field at the AI's "connecting you" line. Without a handover, the Smooth handover check is `na` whatever the model answered: in the model tests every model marked it missed on a call the AI agent handled alone.
 8. Frustration is built from `customer_mood`, not asked of the model. Moods on segments not spoken by the `customer` speaker are dropped. A customer segment the model gives no mood keeps the previous one, or calm when there is none. Each mood holds from its segment until the customer's next segment, which gives the ranges. The peak is the highest level, and the turn is the first segment at the peak, or null when the peak is calm. The ranges and the turn are stored in `reports.frustration`, and the peak in `frustration_peak`.
-9. Coaching for a Hinglish call that contains Devanagari is dropped and logged, because Timbre's `hi-en` voice reads Roman letters.
+9. Coaching is dropped and logged when its text has letters outside the coaching language's script and Latin (each entry in `COACHING_LANGUAGES` names its script; Hinglish's is Latin, because Timbre's `hi-en` voice reads Roman letters), or when its quote isn't found in a segment spoken by the human agent. Kept coaching stores that segment id, its start time and the quote, so the report links it to the line.
 
 The prompt also states the rules that changed the spike's results: a check passes when either agent does it; `human_not_transferred` applies even when a transfer comes later; a quote is the shortest phrase that proves the point, copied character for character and never transliterated; and only red flags that happened are listed.
 
@@ -358,11 +358,12 @@ The rules that make the report trustworthy are tested in code; Gnani and the LLM
 | Unit | Vitest | Score bands, quote matching, segment id to time, building frustration ranges from per-segment moods, the handover from speaker roles, the LLM output schema, parsing Gnani's transcript JSON |
 | API | Vitest with Hono's `app.request()` against the Supabase test project, Gnani and OpenRouter mocked, and `after` from `next/server` replaced with one that runs the work and lets the test await it | Every route, status changes, the webhook and cron arriving together (only one finishes the call and sends one LLM request), the cron job failing a call in Analysing for over 5 minutes but not a newer one, and Check again refusing a call that isn't Failed or failed before analysis |
 | End to end | Playwright, external services mocked | Sign in, upload, see the report, play coaching, edit the checklist, delete a call |
-| Real services | A script run by hand | The 6 test calls through real Gnani and both LLMs, compared with their expected results |
+| Real services | A script run by hand | The 6 test calls through real Gnani and the LLMs in `LLM_MODELS`, compared with their expected results |
 
 - Expected results per test call are written down first: score, Needs review, red flags, peak frustration and the line where it turned.
 - The analysis runs at temperature 0, and the same call is checked 3 times to confirm the score doesn't change.
 - Test recordings stay in a private folder and are never committed; fixtures use made-up transcripts.
+- The six calls are written in `scripts/calls/`, each with its `EXPECTED` results. `node --env-file=.env.local scripts/spike/make-call.mjs --call <name>` voices one with Timbre into `test-calls/calls/`; after it is uploaded in the app with the call name as its title ("missing item"), `pnpm check:calls` sends each call's transcript through the LLM and the report checks 3 times and lists every difference from `EXPECTED`. `--call <name>` runs one call and `--coaching-lang bn-IN` checks the coaching in another language.
 
 **Making the test calls.** We will try to make them fully synthetic with Gnani Timbre: each line spoken in its own voice (AI agent, human agent and customer) and joined into one audio file. For noisy telephonic audio, the synthetic call is played over a real phone call and re-recorded. If that isn't possible, we will record our own acted calls instead.
 

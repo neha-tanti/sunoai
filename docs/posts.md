@@ -29,7 +29,7 @@ This is the post that decides shortlisting. Progress posts build an audience for
 
 ## Plan
 
-One post a day on both platforms, each covering one piece of work. Days 1–4 cover work that is finished. Day 5 goes out once the five test calls have run, Day 6 once the app is live on Vercel, and Day 7 is the demo post. If a day's work runs late, the plan moves back a day. The demo post must be live before 10 November.
+One post a day on both platforms, each covering one piece of work. Days 1–4 cover work that is finished. Day 5 goes out once the six test calls have run, Day 6 once the app is live on Vercel, and Day 7 is the demo post. If a day's work runs late, the plan moves back a day. The demo post must be live before 10 November.
 
 | Day | Post on | Covers | Work status |
 | --- | --- | --- | --- |
@@ -37,7 +37,7 @@ One post a day on both platforms, each covering one piece of work. Days 1–4 co
 | 2 | 24 October | Gnani Prisma tells the AI agent, customer and human agent apart | Done (#13) |
 | 3 | 25 October | Upload a call, get a report; "no quote, no pass" | Done (#3–#6) |
 | 4 | 26 October | Spoken coaching with Gnani Timbre, and the checklist editor | Done (#7, #8, #21) |
-| 5 | 27 October | Five made-up test calls, results written down first | In progress |
+| 5 | 27 October | Six made-up test calls, results written down first | In progress |
 | 6 | When it's live | SunoAI is live on Vercel | Not started (#9) |
 | 7 | Before 10 November | The demo video (nominate this one) | Not started |
 
@@ -178,9 +178,9 @@ Team leads can now edit the checklist each call is scored against.
 #GreatIndianAIInternshipChallenge #GnaniAI
 ```
 
-### Day 5: Five test calls
+### Day 5: Six test calls
 
-Not posted yet. Post after the five calls in `scripts/calls/` have run, and fill in the results in brackets. Attach a screenshot of the rude-agent call's report.
+Not posted yet. Post after the six calls in `scripts/calls/` have run (`pnpm check:calls`), and fill in the results in brackets. Attach a screenshot of the rude-agent call's report.
 
 **LinkedIn**
 
@@ -189,25 +189,26 @@ Day 5 of SunoAI for the Great Indian AI Internship Challenge 🎧
 
 How do you know an AI call checker is right? Write down the answer before you run it.
 
-I wrote five made-up support calls, voiced them with Gnani Timbre, and wrote down the score, red flags and peak frustration I expected for each before running them:
+I wrote six made-up support calls, voiced them with Gnani Timbre, and wrote down the score, red flags and peak frustration I expected for each before running them:
 😠 A human agent who brushes off a customer with broken eggs
 🪳 An insect in the food, answered with a coupon
 🛍️ A missing item, handled well
 🔁 An AI agent that asks for the order ID again and again
+⏰ A late order where the AI agent ignores a request for a person
 💸 A happy customer, but a refund promise the rules don't allow
 
-SunoAI matched [N] of 5. [What it got wrong, in one line.]
+SunoAI matched [N] of 6. [What it got wrong, in one line.]
 
 @Gnani AI
 #GreatIndianAIInternshipChallenge #GnaniAI
 ```
 
-**X** (274/280 with one digit in place of [N])
+**X** (275/280 with one digit in place of [N])
 
 ```text
-Day 5 of SunoAI 🎧 Five made-up support calls, voiced with @GnaniAi Timbre: a rude agent, an insect in food, a missing item, an order ID loop, a promise the rules don't allow.
+Day 5 of SunoAI 🎧 Six made-up support calls, voiced with @GnaniAi Timbre: a rude agent, an insect in food, a missing item, an order ID loop, a late order, a forbidden promise.
 
-Expected results written first. SunoAI matched [N]/5.
+Expected results written first. SunoAI matched [N]/6.
 
 #GreatIndianAIInternshipChallenge #GnaniAI
 ```

@@ -18,6 +18,7 @@ export type FakeJob = {
   status: string;
   cancel_reason?: string;
   statusAnswer?: number;
+  busyOnce?: boolean;
   filesAnswer?: number;
   files: FakeFile[];
 };
@@ -54,10 +55,7 @@ export function stubGnani() {
     }
     if (rest === '/files') {
       if (job.filesAnswer) {
-        return Response.json(
-          { error: 'STUBBED' },
-          { status: job.filesAnswer },
-        );
+        return Response.json({ error: 'STUBBED' }, { status: job.filesAnswer });
       }
       return Response.json({
         job_id: jobId,
@@ -70,6 +68,10 @@ export function stubGnani() {
               : `${TRANSCRIPTS_URL}/${jobId}/${index}.json`,
         })),
       });
+    }
+    if (job.busyOnce) {
+      job.busyOnce = false;
+      return Response.json({ error: 'STUBBED' }, { status: 429 });
     }
     if (job.statusAnswer) {
       return Response.json({ error: 'STUBBED' }, { status: job.statusAnswer });
