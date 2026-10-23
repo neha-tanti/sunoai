@@ -1,14 +1,14 @@
 // Runs the test calls in scripts/calls/ through the LLM and the report checks, and lists every difference from each call's EXPECTED.
 // Each call's transcript is read from the newest Ready call with the same title ("missing item") in the project .env.local points at:
-// voice the call with scripts/spike/make-call.mjs and upload the WAV in the app first.
+// voice the call with scripts/make-call.mjs and upload the WAV in the app first.
 // Usage: pnpm check:calls [--call missing-item] [--runs 3] [--coaching-lang bn-IN]
 
 import { readdirSync } from 'node:fs';
 import { parseArgs } from 'node:util';
+import { runAnalysis } from '../server/analysis';
 import { loadChecklist } from '../server/checklist';
-import { requestAnalysis } from '../server/llm';
-import { buildMessages, llmAnswerSchema } from '../server/prompts/analyze';
-import { buildReport, type Report } from '../server/report';
+import { DEADLINE_MS } from '../server/pipeline';
+import type { Report } from '../server/report';
 import { createAdminClient } from '../server/supabase';
 
 type Expected = {
@@ -25,8 +25,6 @@ type Expected = {
 
 type CallScript = { LINES: unknown[]; EXPECTED: Expected };
 
-const ANALYSIS_DEADLINE_MS = 280_000;
-
 const { values: args } = parseArgs({
   options: {
     call: { type: 'string' },
@@ -34,6 +32,13 @@ const { values: args } = parseArgs({
     'coaching-lang': { type: 'string' },
   },
 });
+
+const runs = Number(args.runs);
+if (!Number.isInteger(runs) || runs < 1) {
+  throw new Error(
+    `--runs must be a whole number of 1 or more, not "${args.runs}"`,
+  );
+}
 
 const callNames = args.call
   ? [args.call]
@@ -45,29 +50,34 @@ const supabase = createAdminClient();
 const { checklist } = await loadChecklist();
 
 for (const name of callNames) {
+  try {
+    await checkCall(name);
+  } catch (err) {
+    console.log(`${name}: failed, ${String(err)}`);
+  }
+}
+
+async function checkCall(name: string) {
   const script: CallScript = await import(`./calls/${name}.mjs`);
   const call = await loadCall(name.replaceAll('-', ' '));
-  const coachingLang = args['coaching-lang'] ?? call.coaching_lang;
   // Segment ids only line up with EXPECTED when the transcript has one segment per script line.
   const segmentsMatchLines = call.segments.length === script.LINES.length;
 
-  for (let run = 1; run <= Number(args.runs); run++) {
+  for (let run = 1; run <= runs; run++) {
     const tag = `${name} run ${run}`;
     try {
-      const llm = await requestAnalysis(
-        buildMessages(call.segments, checklist, coachingLang),
-        AbortSignal.timeout(ANALYSIS_DEADLINE_MS),
+      const { model, report, rejected } = await runAnalysis(
+        {
+          segments: call.segments,
+          checklist,
+          coachingLang: args['coaching-lang'] ?? call.coaching_lang,
+          durationSeconds: call.duration_seconds ?? 0,
+        },
+        AbortSignal.timeout(DEADLINE_MS),
       );
-      const { report, rejected } = buildReport({
-        answer: llmAnswerSchema.parse(JSON.parse(llm.content ?? 'null')),
-        segments: call.segments,
-        checklist,
-        durationSeconds: call.duration_seconds ?? 0,
-        coachingLang,
-      });
       const misses = differences(report, script.EXPECTED, segmentsMatchLines);
       console.log(
-        `${tag} (${llm.model}): ${report.score_passed}/${report.score_total}, ${misses.length ? misses.join('; ') : 'matches EXPECTED'}`,
+        `${tag} (${model}): ${report.score_passed}/${report.score_total}, ${misses.length ? misses.join('; ') : 'matches EXPECTED'}`,
       );
       console.log(
         `  coaching: ${report.coaching?.text ?? rejected.coaching ?? 'none'}`,

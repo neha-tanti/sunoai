@@ -5,10 +5,12 @@ import {
   ResponseValidationError,
   SDKValidationError,
 } from '@openrouter/sdk/models/errors';
+import { coachingLanguage } from '@/lib/call-upload';
 import type { TablesInsert } from '@/lib/database.types';
-import { loadChecklist } from './checklist';
+import { type Checklist, loadChecklist } from './checklist';
 import { loggableError } from './errors';
 import { failCall } from './fail-call';
+import type { TranscriptSegment } from './gnani';
 import { requestAnalysis } from './llm';
 import {
   buildMessages,
@@ -62,23 +64,21 @@ async function analyze(callId: string, signal: AbortSignal): Promise<Analysis> {
   if (segments.error) throw segments.error;
   if (!call.data) return { outcome: 'lost_race', detail: 'not analysing' };
 
-  const llm = await askLlm(
-    buildMessages(segments.data, checklist, call.data.coaching_lang),
+  const { model, report, rejected } = await runAnalysis(
+    {
+      segments: segments.data,
+      checklist,
+      coachingLang: call.data.coaching_lang,
+      durationSeconds: call.data.duration_seconds ?? 0,
+    },
     signal,
   );
-  const { report, rejected } = buildReport({
-    answer: parseAnswer(llm.content),
-    segments: segments.data,
-    checklist,
-    durationSeconds: call.data.duration_seconds ?? 0,
-    coachingLang: call.data.coaching_lang,
-  });
 
   const saved = await supabase.rpc('save_report', {
     p_call_id: callId,
     p_report: {
       ...report,
-      llm_model: llm.model,
+      llm_model: model,
       prompt_version: PROMPT_VERSION,
       checklist_snapshot: checklist,
     } satisfies Omit<
@@ -89,8 +89,32 @@ async function analyze(callId: string, signal: AbortSignal): Promise<Analysis> {
   if (saved.error) throw saved.error;
   return {
     outcome: saved.data ? 'ready' : 'lost_race',
-    detail: `${llm.model}, ${rejected.passes} passes and ${rejected.red_flags} red flags without a quote${rejected.coaching ? `, ${rejected.coaching} dropped` : ''}`,
+    detail: `${model}, ${rejected.passes} passes and ${rejected.red_flags} red flags without a quote${rejected.coaching ? `, ${rejected.coaching} dropped` : ''}`,
   };
+}
+
+export async function runAnalysis(
+  input: {
+    segments: TranscriptSegment[];
+    checklist: Checklist;
+    coachingLang: string;
+    durationSeconds: number;
+  },
+  signal: AbortSignal,
+) {
+  const language = coachingLanguage(input.coachingLang);
+  const llm = await askLlm(
+    buildMessages(input.segments, input.checklist, language),
+    signal,
+  );
+  const { report, rejected } = buildReport({
+    answer: parseAnswer(llm.content),
+    segments: input.segments,
+    checklist: input.checklist,
+    durationSeconds: input.durationSeconds,
+    coachingLanguage: language,
+  });
+  return { model: llm.model, report, rejected };
 }
 
 async function askLlm(

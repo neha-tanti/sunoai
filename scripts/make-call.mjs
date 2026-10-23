@@ -1,5 +1,5 @@
 // Voices each line of the call script with Gnani Timbre and joins them into one WAV.
-// Usage: node --env-file=.env.local scripts/spike/make-call.mjs --call missing-item
+// Usage: node --env-file=.env.local scripts/make-call.mjs --call missing-item
 // Voices scripts/calls/<name>.mjs into test-calls/calls/<name>.wav and <name>.timeline.json.
 
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -10,7 +10,7 @@ import { CALLS_DIR, gnani } from './lib.mjs';
 const { values: args } = parseArgs({ options: { call: { type: 'string' } } });
 if (!args.call) throw new Error('Pass --call <name>, one of the files in scripts/calls/.');
 const name = args.call;
-const { LINES } = await import(`../calls/${name}.mjs`);
+const { LINES } = await import(`./calls/${name}.mjs`);
 mkdirSync(CALLS_DIR, { recursive: true });
 
 const SAMPLE_RATE = 16000;

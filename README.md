@@ -80,7 +80,7 @@ The home page shows the answer from `GET /api/health`, fetched through the typed
 
 **Webhook locally.** Gnani can't reach `localhost`, so its webhook doesn't fire in development. To finish a call stuck in Transcribing, call the poll route by hand: `curl -X POST http://localhost:3000/api/jobs/poll -H "x-cron-secret: $CRON_SECRET"`.
 
-`.env.local` is also read by the hand-run spike scripts in `scripts/spike/`. Never commit it.
+`.env.local` is also read by the hand-run scripts in `scripts/` (the test calls and the spike). Never commit it.
 
 ## Repository layout
 
@@ -92,7 +92,7 @@ hooks/        TanStack Query hooks
 lib/          Code the browser may import: the typed Hono client and shared helpers
 e2e/          Playwright tests
 supabase/     Supabase CLI config
-scripts/      Hand-run scripts (the Gnani and LLM spike)
+scripts/      Hand-run scripts: the six test calls, voicing them, checking them and the Gnani and LLM spike
 docs/         PRD, TRD and spike write-ups
 .claude/      Claude Code agents, commands, skills, rules and settings
 AGENTS.md     Instructions for coding agents working in this repo

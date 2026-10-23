@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { coachingLanguage } from '@/lib/call-upload';
 import type { Checklist } from './checklist';
 import type { TranscriptSegment } from './gnani';
 import type { LlmAnswer } from './prompts/analyze';
@@ -132,7 +133,7 @@ const build = (
     segments,
     checklist,
     durationSeconds,
-    coachingLang,
+    coachingLanguage: coachingLanguage(coachingLang),
   });
 
 const checkOf = (report: ReturnType<typeof build>['report'], id: string) =>

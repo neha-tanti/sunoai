@@ -5,7 +5,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { EXPECTED, LINES } from '../calls/late-order.mjs';
-import { OUT_DIR, requireEnv } from './lib.mjs';
+import { OUT_DIR, requireEnv } from '../lib.mjs';
 import { buildMessages, CHECKS, RED_FLAGS, REPORT_SCHEMA } from './prompt.mjs';
 
 const { values: args } = parseArgs({

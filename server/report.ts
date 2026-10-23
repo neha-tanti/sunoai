@@ -1,5 +1,5 @@
 import 'server-only';
-import { COACHING_LANGUAGES } from '@/lib/call-upload';
+import type { CoachingLanguage } from '@/lib/call-upload';
 import { HANDOVER_CHECK_ID } from '@/lib/checklist';
 import type { Checklist } from './checklist';
 import type { TranscriptSegment } from './gnani';
@@ -38,7 +38,7 @@ export function buildReport(input: {
   segments: TranscriptSegment[];
   checklist: Checklist;
   durationSeconds: number;
-  coachingLang: string;
+  coachingLanguage: CoachingLanguage;
 }) {
   const { answer, segments, checklist } = input;
   const segmentById = new Map(segments.map((s) => [s.segment_id, s]));
@@ -93,7 +93,12 @@ export function buildReport(input: {
   });
 
   const coaching = handover
-    ? checkCoaching(answer.coaching, segmentById, roleOf, input.coachingLang)
+    ? checkCoaching(
+        answer.coaching,
+        segmentById,
+        roleOf,
+        input.coachingLanguage.script,
+      )
     : { kept: null, dropped: null };
 
   return {
@@ -122,12 +127,7 @@ export function buildReport(input: {
   };
 }
 
-function inCoachingScript(text: string, coachingLang: string) {
-  const script = COACHING_LANGUAGES.find(
-    (lang) => lang.code === coachingLang,
-  )?.script;
-  if (!script)
-    throw new Error(`No script for coaching language ${coachingLang}`);
+function inCoachingScript(text: string, script: CoachingLanguage['script']) {
   const allowed = new RegExp(`[\\p{Script=Latin}\\p{Script=${script}}]`, 'u');
   return (text.match(/\p{L}/gu) ?? []).every((letter) => allowed.test(letter));
 }
@@ -136,10 +136,10 @@ function checkCoaching(
   coaching: LlmAnswer['coaching'],
   segmentById: Map<number, TranscriptSegment>,
   roleOf: Map<number, LlmAnswer['speakers'][number]['role']>,
-  coachingLang: string,
+  script: CoachingLanguage['script'],
 ) {
   if (!coaching) return { kept: null, dropped: null };
-  if (!inCoachingScript(coaching.text, coachingLang)) {
+  if (!inCoachingScript(coaching.text, script)) {
     return { kept: null, dropped: 'coaching in another script' };
   }
 

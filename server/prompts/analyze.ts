@@ -1,6 +1,6 @@
 import 'server-only';
 import { z } from 'zod';
-import { COACHING_LANGUAGES, HINGLISH } from '@/lib/call-upload';
+import { type CoachingLanguage, HINGLISH } from '@/lib/call-upload';
 import type { Checklist } from '../checklist';
 import type { TranscriptSegment } from '../gnani';
 
@@ -97,17 +97,16 @@ Rules:
 const HINGLISH_COACHING =
   'Write the coaching text in Roman letters (a to z) only, never Devanagari, even when the transcript is in Devanagari: Hindi sentences with everyday English words such as customer, order, refund, coupon and delivery kept in English.';
 
-function coachingLanguageLine(code: string) {
-  const label = COACHING_LANGUAGES.find((lang) => lang.code === code)?.label;
-  const line = `Coaching language: ${label ? `${code} (${label})` : code}`;
-  if (code !== HINGLISH) return line;
+function coachingLanguageLine(language: CoachingLanguage) {
+  const line = `Coaching language: ${language.code} (${language.label})`;
+  if (language.code !== HINGLISH) return line;
   return `${line}\n${HINGLISH_COACHING}`;
 }
 
 export function buildMessages(
   segments: TranscriptSegment[],
   checklist: Checklist,
-  coachingLang: string,
+  coachingLanguage: CoachingLanguage,
 ) {
   const lines = segments
     .map(
@@ -127,7 +126,7 @@ ${checklist.rules}
 Transcript:
 ${lines}
 
-${coachingLanguageLine(coachingLang)}`;
+${coachingLanguageLine(coachingLanguage)}`;
 
   return [
     { role: 'system' as const, content: SYSTEM },

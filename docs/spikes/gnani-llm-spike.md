@@ -135,7 +135,7 @@ Items 1, 6 and 7 describe the free models chosen in #1. SunoAI has since moved t
 Put `GNANI_API_KEY`, `OPENROUTER_API_KEY` and `LLM_MODELS` in `.env.local`. The audio goes to `test-calls/calls/` and everything else to `test-calls/spike/`; git ignores both.
 
 ```bash
-node --env-file=.env.local scripts/spike/make-call.mjs --call late-order   # Timbre: late-order.wav and its timeline
+node --env-file=.env.local scripts/make-call.mjs --call late-order   # Timbre: late-order.wav and its timeline
 node --env-file=.env.local scripts/spike/transcribe.mjs                     # Gnani Batch without denoise
 node --env-file=.env.local scripts/spike/transcribe.mjs --denoise           # Gnani Batch with denoise
 node --env-file=.env.local scripts/spike/analyze.mjs --transcript transcript-late-order-raw.json

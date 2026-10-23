@@ -1,10 +1,10 @@
 // Sends a call from make-call.mjs to Gnani Batch with diarization, waits for it, and scores the speaker labels against its timeline.
 // Usage: node --env-file=.env.local scripts/spike/transcribe.mjs [--call late-order] [--denoise] [--job existing-job-id]
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
-import { CALLS_DIR, gnani, OUT_DIR } from './lib.mjs';
+import { CALLS_DIR, gnani, OUT_DIR } from '../lib.mjs';
 
 const { values: args } = parseArgs({
   options: {
@@ -54,6 +54,7 @@ if (!files?.length) throw new Error(`Job ${jobId} completed with no completed fi
 const transcriptRes = await fetch(files[0].transcript_url);
 if (!transcriptRes.ok) throw new Error(`Transcript download for job ${jobId} failed: ${transcriptRes.status}`);
 const transcript = await transcriptRes.json();
+mkdirSync(OUT_DIR, { recursive: true });
 writeFileSync(join(OUT_DIR, `transcript-${label}.json`), JSON.stringify(transcript, null, 2));
 
 const timeline = JSON.parse(readFileSync(join(CALLS_DIR, `${args.call}.timeline.json`), 'utf8'));
