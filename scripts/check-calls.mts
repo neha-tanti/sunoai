@@ -40,7 +40,8 @@ if (!Number.isInteger(runs) || runs < 1) {
     `--runs must be a whole number of 1 or more, not "${args.runs}"`,
   );
 }
-if (args['coaching-lang']) coachingLanguage(args['coaching-lang']);
+if (args['coaching-lang'] !== undefined)
+  coachingLanguage(args['coaching-lang']);
 
 const callNames = args.call
   ? [args.call]
