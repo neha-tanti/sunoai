@@ -5,6 +5,7 @@
 
 import { readdirSync } from 'node:fs';
 import { parseArgs } from 'node:util';
+import { coachingLanguage } from '../lib/call-upload';
 import { runAnalysis } from '../server/analysis';
 import { loadChecklist } from '../server/checklist';
 import { DEADLINE_MS } from '../server/pipeline';
@@ -39,6 +40,7 @@ if (!Number.isInteger(runs) || runs < 1) {
     `--runs must be a whole number of 1 or more, not "${args.runs}"`,
   );
 }
+if (args['coaching-lang']) coachingLanguage(args['coaching-lang']);
 
 const callNames = args.call
   ? [args.call]
