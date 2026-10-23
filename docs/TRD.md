@@ -1,10 +1,10 @@
 # SunoAI TRD
 
-Last updated: 10 October 2026
+Last updated: 23 October 2026
 
 ## Summary
 
-The SunoAI MVP is a Next.js app on Vercel, with a Hono API inside it and Supabase for data. It sends each call to Gnani's Batch speech-to-text, analyses the transcript with one open-weight model on OpenRouter, and speaks coaching with Gnani Timbre.
+The SunoAI MVP is a Next.js app on Vercel, with a Hono API inside it and Supabase for data. It sends each call to Gnani's Batch speech-to-text, analyses the transcript with one low-cost model on OpenRouter, and speaks coaching with Gnani Timbre.
 
 The product is described in the [SunoAI Product Document](PRD.md). This document covers how it is built.
 
@@ -15,7 +15,7 @@ The product is described in the [SunoAI Product Document](PRD.md). This document
 | Data | Supabase: Postgres, Auth, Storage and Cron |
 | Speech to text | Gnani Prisma v2.5 through the Batch API, for timestamps and speaker labels |
 | Coaching voice | Gnani Timbre v2.5 text-to-speech |
-| Analysis | An open-weight model on OpenRouter, paid per token, called with the OpenRouter TypeScript SDK |
+| Analysis | A low-cost model on OpenRouter, paid per token from the account's credits, called with the OpenRouter TypeScript SDK |
 | Accounts | One team; everyone who signs in is a team leader |
 | Live alerts | Not in the MVP; a design sketch is at the end |
 
@@ -52,7 +52,7 @@ flowchart LR
   hono["Hono API on Vercel<br/>Next.js route /api/*<br/>Runs the call pipeline<br/>Checks quotes, scores"]
   batch["Gnani Batch STT<br/>Words, speakers, times<br/>Reads file by URL<br/>Webhook when done"]
   timbre["Gnani Timbre<br/>Coaching voice"]
-  openrouter["OpenRouter<br/>Open-weight model"]
+  openrouter["OpenRouter<br/>Qwen 3.8 Flash"]
   subgraph supabase["Supabase"]
     auth["Auth<br/>Team leaders sign in with email and password"]
     storage["Storage<br/>Recordings and coaching audio"]
@@ -140,20 +140,35 @@ Job statuses `COMPLETED`, `PARTIAL_FAILURE`, `FAILED`, `START_FAILED` and `CANCE
 
 ## LLM analysis with OpenRouter
 
-Each call gets exactly one LLM request that returns the whole report as JSON. The model is the paid version of the one the spike chose, so there is no daily request limit, only the account's credits.
+Each call gets exactly one LLM request that returns the whole report as JSON, paid from the OpenRouter account's credits. The second model answers only when the first one fails.
 
 **Model**
 
-The [Gnani and LLM spike](spikes/gnani-llm-spike.md) compared free open-weight models on 10 October 2026 and chose Nemotron. SunoAI uses its paid version, which has no daily limit and no free-tier queue. Dots, the spike's fallback, has no paid version, so the list has one model. Every model in the list must accept a strict JSON schema, because the request sends one `response_format` to all of them.
+The [Gnani and LLM spike](spikes/gnani-llm-spike.md) compared free models on 10 October 2026 and chose Nemotron. On 22 and 23 October the six test calls went through every free model, and every low-cost paid one up to about $0.30 input and $1.10 output per million tokens, that accepts a strict JSON schema. Each call ran at least 3 times, plus two calls with Bengali coaching. Qwen 3.8 Flash comes first because it kept the same score on more calls than any other model. MiMo v2.6 Flash follows because it is the only other model with no failed requests and correct Bengali coaching. Every model in the list must accept a strict JSON schema, because the request sends one `response_format` to all of them.
 
-| Order | Model | Context | Spike result |
+| Order | Model | Price per 1M tokens (in / out) | Result |
 | --- | --- | --- | --- |
-| 1 | `nvidia/nemotron-3-super-120b-a12b` | 262K tokens | The free version matched the expected score 3 runs out of 3 in about 10 seconds |
+| 1 | `qwen/qwen3.8-flash` | $0.15 / $0.47 | Same score on every run of 5 of 6 calls; no failed requests in 38; Bengali coaching 2 of 2; 10 to 25 seconds |
+| 2 | `xiaomi/mimo-v2.6-flash` | $0.14 / $0.28 | Same score on every run of 4 of 6 calls; score matched the expected one in 11 of 18 runs; Bengali coaching 2 of 2; about 7 seconds |
+
+A call costs about $0.0015, so $1 checks roughly 600 calls.
+
+Models that were tried and not used:
+
+| Model | Why not |
+| --- | --- |
+| `nvidia/nemotron-3.5-super-vl:free` | 10 of 28 requests failed (502, an empty answer, a timeout); Bengali coaching came back in the wrong script |
+| `dots-studio/dots-3-note-preview:free` | Matched the expected result on none of the six calls |
+| `nvidia/nemotron-3-super-120b-a12b` and `nvidia/nemotron-3.5-super-vl` (paid) | Score changed between runs on 4 of 6 calls; Bengali coaching dropped |
+| `deepseek/deepseek-v4.1-flash`, `deepseek/deepseek-v4-flash`, `deepseek/deepseek-v3.2` | Score changed between runs on 2 to 5 of 6 calls |
+| `qwen/qwen3.5-flash-02-23`, `z-ai/glm-4.7-flash` | Bengali coaching in the wrong script; Qwen 3.5 Flash also broke the schema twice |
+| `z-ai/glm-5.3`, `z-ai/glm-5.3-flash`, `minimax/minimax-m3.1-flash`, `minimax/minimax-m2.5`, `liquid/lfm-2.5-2.6b:free` | Reasoning can't be turned off |
+| `qwen/qwen-plus`, `qwen/qwen3-235b-a22b-2507`, `nvidia/nemotron-3-ultra-550b-a55b:free`, `recursive/flint-v1.0:free`, `google/gemma-4-31b-it:free` | No provider accepts the strict JSON schema |
+| `nvidia/nemotron-3-super-120b-a12b:free`, `xingchen-agi/xing4.0-29b-a4b:free` | Every request answered 404 or 429 |
+| `openrouter/free` | Picks a different model each time, so the score can't stay the same |
 
 - Requests send a strict `json_schema` `response_format` built from the Zod answer schema with `z.toJSONSchema`, `reasoning: { effort: 'none' }` and `provider: { require_parameters: true }`, so only providers that honour the schema are picked. With reasoning on, Nemotron took up to 70 seconds and its score changed between runs. The spike sent `reasoning: { enabled: false }`; the SDK only passes `effort`, and `'none'` turns reasoning off.
 - OpenRouter's `supported_parameters` is not enough to pick a model: `apodex/apodex-1.1-mini:free` lists `structured_outputs` but rejects `json_schema`, and both Gemma 4 free models offer only JSON mode. Try any new model through the spike before adding it.
-- In the spike, free Nemotron was unavailable for 1 of 3 requests, so Dots answered with a weaker report. The paid version runs on several providers, and OpenRouter falls back between them.
-
 - The model list lives in the `LLM_MODELS` environment variable and is sent as OpenRouter's `models` array, so a second model can be added as a fallback on errors or rate limits ([model fallbacks](https://openrouter.ai/docs/guides/routing/model-fallbacks)).
 - The model that actually answered (the response's `model` field) is saved with each report.
 - The client is `@openrouter/sdk` (ESM only), created per request in `server/llm.ts` with `OPENROUTER_API_KEY`, and called as `openRouter.chat.send({ chatRequest: { models, messages, responseFormat, provider, reasoning, temperature } }, { signal })`. Its default retries a 5xx with backoff for up to an hour, so the client sets `retryConfig: { strategy: 'none' }`: the analysis is never retried, and the deadline holds.
@@ -184,7 +199,7 @@ The [Gnani and LLM spike](spikes/gnani-llm-spike.md) compared free open-weight m
 4. The score is passed checks divided by checks not marked `na`. 80% or more is Good, 50% to 79% Needs work, under 50% Poor.
 5. `needs_review` is true when at least one red flag survives step 3.
 6. Unknown check or flag ids are dropped.
-7. The handover is the first segment from the speaker labelled `human_agent`, or null. The spike showed the model points a handover field at the AI's "connecting you" line.
+7. The handover is the first segment from the speaker labelled `human_agent`, or null. The spike showed the model points a handover field at the AI's "connecting you" line. Without a handover, the Smooth handover check is `na` whatever the model answered: in the model tests every model marked it missed on a call the AI agent handled alone.
 8. Frustration is built from `customer_mood`, not asked of the model. Moods on segments not spoken by the `customer` speaker are dropped. A customer segment the model gives no mood keeps the previous one, or calm when there is none. Each mood holds from its segment until the customer's next segment, which gives the ranges. The peak is the highest level, and the turn is the first segment at the peak, or null when the peak is calm. The ranges and the turn are stored in `reports.frustration`, and the peak in `frustration_peak`.
 9. Coaching for a Hinglish call that contains Devanagari is dropped and logged, because Timbre's `hi-en` voice reads Roman letters.
 
@@ -323,7 +338,7 @@ The browser reads the length from the file before upload and blocks files over 3
 | --- | --- | --- |
 | Upload fails | "Upload failed. Check your connection and try again." | Call stays Uploaded and can be retried |
 | Gnani rejects the file | "Gnani couldn't read this file. Try an MP3 or WAV." | Status Failed (`file_rejected`); Gnani's reason is saved in `error` for us, never shown |
-| Gnani busy (429) or down (5xx) | Still Transcribing | `gnani_attempts` goes up by 1 and the next cron run retries; at 30 the call is Failed (`transcription_failed`). The job files endpoint can answer 429, with no `Retry-After`, for several minutes after jobs finish together while the job status endpoint still answers. A lone call is Failed after about 30 minutes of busy answers; during a Gnani outage the queued calls take turns, so each of N calls takes about 30×N minutes |
+| Gnani busy (429) or down (5xx) | Still Transcribing | `gnani_attempts` goes up by 1 and the next cron run retries; at 30 the call is Failed (`transcription_failed`). Gnani answers 429, with no `Retry-After`, to a request sent within about a second of the previous one, so every Gnani request that gets a 429 is sent once more after a second before it counts as busy. A lone call is Failed after about 30 minutes of busy answers; during a Gnani outage the queued calls take turns, so each of N calls takes about 30×N minutes |
 | Saving the transcript fails for any other reason | "Transcription failed." | Status Failed (`transcription_failed`), so the call doesn't hold up the cron job's queue |
 | Job ends in `FAILED`, `START_FAILED`, `PARTIAL_FAILURE` or `CANCELLED` | "Transcription failed." | Status Failed (`transcription_failed`); Gnani's reason is saved in `error` for us, never shown |
 | Gnani job still running 2 hours after the check | "Transcription failed." | Status Failed (`transcription_failed`); the signed link Gnani reads has expired |
@@ -374,7 +389,7 @@ One Vercel project serves the page and the API; one Supabase project holds the d
 
 ## Risks and things to confirm with Gnani
 
-The biggest unknowns are how well Gnani separates an AI voice from a human one, and how good an open-weight model is at Hinglish.
+The biggest unknowns are how well Gnani separates an AI voice from a human one, and how good a low-cost model is at Hinglish.
 
 | Risk | Effect | Plan |
 | --- | --- | --- |

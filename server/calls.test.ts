@@ -630,6 +630,8 @@ describe('DELETE /api/calls/:id', () => {
 });
 
 const COACHING = {
+  segment_id: 2,
+  quote: 'Apna order ID bataiye',
   text: 'Ravi, aapne customer ko turant jawab diya, bahut achha. Agli baar order ID pehle confirm kijiye.',
   english:
     'Ravi, you answered the customer straight away, well done. Next time, confirm the order ID first.',
@@ -718,7 +720,7 @@ describe('POST /api/calls/:id/coaching-audio', () => {
     const consoleError = vi
       .spyOn(console, 'error')
       .mockImplementation(() => {});
-    gnani.answers.tts = 429;
+    gnani.answers.tts = 503;
 
     const failed = await playCoaching(call.id);
 
@@ -761,6 +763,7 @@ describe('POST /api/calls/:id/coaching-audio', () => {
 
   it('refuses a call with a human agent whose Hinglish coaching came back in Devanagari', async () => {
     const call = await seedCoachedCall('hi-en', {
+      ...COACHING,
       text: 'रवि, आपने customer को तुरंत जवाब दिया, बहुत अच्छा।',
       english: 'Ravi, you answered the customer straight away, well done.',
     });

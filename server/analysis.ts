@@ -89,7 +89,7 @@ async function analyze(callId: string, signal: AbortSignal): Promise<Analysis> {
   if (saved.error) throw saved.error;
   return {
     outcome: saved.data ? 'ready' : 'lost_race',
-    detail: `${llm.model}, ${rejected.passes} passes and ${rejected.red_flags} red flags without a quote${rejected.coaching ? ', Hinglish coaching in Devanagari dropped' : ''}`,
+    detail: `${llm.model}, ${rejected.passes} passes and ${rejected.red_flags} red flags without a quote${rejected.coaching ? `, ${rejected.coaching} dropped` : ''}`,
   };
 }
 

@@ -342,8 +342,8 @@ export async function seedReadyCall(
     p_call_id: id,
     p_report: {
       ...report,
-      llm_model: 'nvidia/nemotron-3-super-120b-a12b',
-      prompt_version: 'analyze-v2',
+      llm_model: 'qwen/qwen3.8-flash',
+      prompt_version: 'analyze-v3',
       checklist_snapshot: CHECKLIST_SNAPSHOT,
     },
   });

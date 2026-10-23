@@ -3,7 +3,7 @@ import { vi } from 'vitest';
 const OPENROUTER = 'https://openrouter.ai/';
 const CHAT_URL = `${OPENROUTER}api/v1/chat/completions`;
 
-export const ANSWERING_MODEL = 'nvidia/nemotron-3-super-120b-a12b';
+export const ANSWERING_MODEL = 'qwen/qwen3.8-flash';
 
 type Reply = (signal: AbortSignal) => Response | Promise<Response>;
 

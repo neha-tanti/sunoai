@@ -1,10 +1,19 @@
 // Voices each line of the call script with Gnani Timbre and joins them into one WAV.
-// Usage: node --env-file=.env.local scripts/spike/make-call.mjs
+// Usage: node --env-file=.env.local scripts/spike/make-call.mjs [--call missing-item]
+// Without --call it voices the spike's call-script.mjs; with it, scripts/calls/<name>.mjs into test-calls/calls/.
 
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { LINES } from './call-script.mjs';
+import { fileURLToPath } from 'node:url';
+import { parseArgs } from 'node:util';
 import { gnani, OUT_DIR } from './lib.mjs';
+
+const { values: args } = parseArgs({ options: { call: { type: 'string' } } });
+const { LINES } = await import(args.call ? `../calls/${args.call}.mjs` : './call-script.mjs');
+const outDir = args.call ? fileURLToPath(new URL('../../test-calls/calls/', import.meta.url)) : OUT_DIR;
+const name = args.call ?? 'call';
+const timelineName = args.call ? `${args.call}.timeline.json` : 'timeline.json';
+mkdirSync(outDir, { recursive: true });
 
 const SAMPLE_RATE = 16000;
 const BYTES_PER_SECOND = SAMPLE_RATE * 2;
@@ -79,6 +88,6 @@ for (const [index, line] of LINES.entries()) {
 }
 
 const audio = Buffer.concat(parts);
-writeFileSync(join(OUT_DIR, 'call.wav'), Buffer.concat([wavHeader(audio.length), audio]));
-writeFileSync(join(OUT_DIR, 'timeline.json'), JSON.stringify(timeline, null, 2));
-console.log(`Wrote call.wav (${(bytes / BYTES_PER_SECOND).toFixed(1)}s, ${(audio.length / 1e6).toFixed(1)} MB) to ${OUT_DIR}`);
+writeFileSync(join(outDir, `${name}.wav`), Buffer.concat([wavHeader(audio.length), audio]));
+writeFileSync(join(outDir, timelineName), JSON.stringify(timeline, null, 2));
+console.log(`Wrote ${name}.wav (${(bytes / BYTES_PER_SECOND).toFixed(1)}s, ${(audio.length / 1e6).toFixed(1)} MB) to ${outDir}`);
