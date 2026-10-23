@@ -183,7 +183,7 @@ test.describe('uploading', () => {
 
   test.describe('on a session of its own', () => {
     test.use({ storageState: { cookies: [], origins: [] } });
-    let teamLeaderId: string;
+    let teamLeaderId: string | undefined;
 
     test.beforeEach(async ({ page }) => {
       const teamLeader = await createTeamLeader();
@@ -192,7 +192,9 @@ test.describe('uploading', () => {
     });
 
     test.afterEach(async () => {
+      if (!teamLeaderId) return;
       await deleteTeamLeader(teamLeaderId);
+      teamLeaderId = undefined;
     });
 
     test('trying again after the upload link expires replaces the call', async ({
