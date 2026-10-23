@@ -76,6 +76,13 @@ The home page shows the answer from `GET /api/health`, fetched through the typed
 
 **Test project.** API tests run against a second Supabase project, never the dev one. Create it, then put its URL and keys in `.env.test.local` under the same three names as above, plus `SUPABASE_TEST_DB_URL`: the **Session pooler** connection string from the project's **Connect** dialog, with the password filled in and percent-encoded. Apply the auth settings once with `pnpm supabase config push --project-ref <test ref>`, and run `pnpm db:reset:test` after every new migration. `pnpm test` reads only `.env.test.local`, and stops with a clear message if the file is missing or points at the dev project.
 
+**Deploying.** Production is a third Supabase project and one Vercel project; the TRD's [Deployment and environment variables](docs/TRD.md#deployment-and-environment-variables) lists what each needs. Never link the CLI to production, so a `db reset --linked` can only ever reach dev.
+
+1. Create the production Supabase project. Apply the migrations and the seed once with `pnpm supabase db push --db-url "<session pooler URL>" --include-seed` (try `--dry-run` first), then `pnpm supabase config push --project-ref <prod ref>`. Never run the seed against production again.
+2. Create the Vercel project from this GitHub repository. Give the Production environment every variable in `.env.example`, with the production Supabase keys, a fresh `GNANI_WEBHOOK_TOKEN` and `CRON_SECRET`, and `APP_URL` set to the production domain (`https://<project>.vercel.app`, no trailing slash). Give Preview the dev project's values.
+3. In the production project's SQL editor, add the two secrets the cron job reads: `select vault.create_secret('<APP_URL>', 'app_url');` and `select vault.create_secret('<CRON_SECRET>', 'cron_secret');`. Change one later with `vault.update_secret`, and change `CRON_SECRET` in Vercel at the same time.
+4. Deploy, then check that `curl -X POST <APP_URL>/api/jobs/poll` answers `401` from the API, not Vercel's login page, and that `select status_code, timed_out from net._http_response order by created desc limit 1` shows `202` within a minute.
+
 **End-to-end tests.** `pnpm test:e2e` runs against a production build (`pnpm build && pnpm start`), so it uses the dev project from `.env.local`. Stop `pnpm dev` first, or the tests reuse it. The tests under `e2e/signed-in/` create a team leader for the run, sign in, and delete the account and any calls they seeded when they finish. They never reach Gnani.
 
 **Webhook locally.** Gnani can't reach `localhost`, so its webhook doesn't fire in development. To finish a call stuck in Transcribing, call the poll route by hand: `curl -X POST http://localhost:3000/api/jobs/poll -H "x-cron-secret: $CRON_SECRET"`.
