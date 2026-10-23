@@ -251,6 +251,9 @@ export const COLD_BIRYANI_REPORT = {
   coaching: {
     text: 'Kavya, aapne refund turant start kiya, bahut badhiya.',
     english: 'Kavya, you started the refund straight away. Well done.',
+    segment_id: 8,
+    time: 43,
+    quote: 'Biryani ka refund abhi start kar rahi hoon',
   },
 } satisfies Report;
 
@@ -342,8 +345,8 @@ export async function seedReadyCall(
     p_call_id: id,
     p_report: {
       ...report,
-      llm_model: 'nvidia/nemotron-3-super-120b-a12b',
-      prompt_version: 'analyze-v2',
+      llm_model: 'qwen/qwen3.8-flash',
+      prompt_version: 'analyze-v3',
       checklist_snapshot: CHECKLIST_SNAPSHOT,
     },
   });

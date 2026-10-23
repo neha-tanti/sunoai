@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { coachingLanguage } from '@/lib/call-upload';
 import type { Checklist } from './checklist';
 import type { TranscriptSegment } from './gnani';
 import type { LlmAnswer } from './prompts/analyze';
@@ -113,7 +114,12 @@ function answer(overrides: Partial<LlmAnswer> = {}): LlmAnswer {
         should_have: 'Transfer to a person.',
       },
     ],
-    coaching: { text: 'Aapne achha kiya.', english: 'You did well.' },
+    coaching: {
+      segment_id: 5,
+      quote: 'aap pareshaan hain',
+      text: 'Arjun, aapne customer ki pareshani maani, yeh achha tha.',
+      english: 'Arjun, you recognised the customer was upset, that was good.',
+    },
     ...overrides,
   };
 }
@@ -127,7 +133,7 @@ const build = (
     segments,
     checklist,
     durationSeconds,
-    coachingLang,
+    coachingLanguage: coachingLanguage(coachingLang),
   });
 
 const checkOf = (report: ReturnType<typeof build>['report'], id: string) =>
@@ -295,6 +301,27 @@ describe('buildReport', () => {
 
       expect(report).toMatchObject({ score_passed: 1, score_total: 2 });
     });
+
+    it('leaves Smooth handover out when the call never reaches a human agent, even if the model marks it missed', () => {
+      const { report } = build({
+        speakers: speakers.map((s) =>
+          s.speaker_id === HUMAN ? { ...s, role: 'ai_agent' } : s,
+        ),
+        checks: [
+          ...answer().checks.slice(0, 2),
+          {
+            check_id: 'smooth_handover',
+            result: 'miss',
+            segment_id: null,
+            quote: null,
+            reason: 'Never transferred to a person.',
+          },
+        ],
+      });
+
+      expect(checkOf(report, 'smooth_handover')?.result).toBe('na');
+      expect(report).toMatchObject({ score_passed: 1, score_total: 2 });
+    });
   });
 
   describe('red flags', () => {
@@ -379,19 +406,70 @@ describe('buildReport', () => {
       expect(report.speakers.map((s) => s.speaker_id)).not.toContain(7);
     });
 
-    it('drops Hinglish coaching written in Devanagari, which the hi-en voice would misread', () => {
-      const devanagari = {
-        text: 'आपने customer को अच्छे से सुना।',
-        english: 'You listened to the customer well.',
-      };
+    const devanagari = {
+      segment_id: 5,
+      quote: 'aap pareshaan hain',
+      text: 'आपने customer को अच्छे से सुना।',
+      english: 'You listened to the customer well.',
+    };
 
+    it('keeps coaching that quotes the human agent, linked to their line', () => {
+      const { report, rejected } = build();
+
+      expect(report.coaching).toMatchObject({
+        text: 'Arjun, aapne customer ki pareshani maani, yeh achha tha.',
+        segment_id: 5,
+        time: 25,
+        quote: 'aap pareshaan hain',
+      });
+      expect(rejected.coaching).toBeNull();
+    });
+
+    it('drops coaching about a line the human agent did not say', () => {
+      const { report, rejected } = build({
+        coaching: {
+          ...answer().coaching!,
+          segment_id: 3,
+          quote: 'kisi insaan se baat karni hai',
+        },
+      });
+
+      expect(report.coaching).toBeNull();
+      expect(rejected.coaching).toBe('coaching without a human agent quote');
+    });
+
+    it('drops coaching whose quote is not in the line it points at', () => {
+      const { report, rejected } = build({
+        coaching: { ...answer().coaching!, quote: 'yeh toh normal hai' },
+      });
+
+      expect(report.coaching).toBeNull();
+      expect(rejected.coaching).toBe('coaching without a human agent quote');
+    });
+
+    it('drops Hinglish coaching written in Devanagari, which the hi-en voice would misread', () => {
       const { report, rejected } = build(
         { coaching: devanagari },
         { coachingLang: 'hi-en' },
       );
 
       expect(report.coaching).toBeNull();
-      expect(rejected.coaching).toBe(true);
+      expect(rejected.coaching).toBe('coaching in another script');
+    });
+
+    it('drops Hindi coaching with a word from another script, which the hi-IN voice would misread', () => {
+      const { report, rejected } = build(
+        {
+          coaching: {
+            ...devanagari,
+            text: 'आपने ग्राहक की नाराज़गी को 承认 किया।',
+          },
+        },
+        { coachingLang: 'hi-IN' },
+      );
+
+      expect(report.coaching).toBeNull();
+      expect(rejected.coaching).toBe('coaching in another script');
     });
 
     it('does not count Devanagari Hinglish coaching as dropped when there is no human agent', () => {
@@ -400,30 +478,22 @@ describe('buildReport', () => {
           speakers: speakers.map((s) =>
             s.speaker_id === HUMAN ? { ...s, role: 'ai_agent' } : s,
           ),
-          coaching: {
-            text: 'आपने customer को अच्छे से सुना।',
-            english: 'You listened to the customer well.',
-          },
+          coaching: devanagari,
         },
         { coachingLang: 'hi-en' },
       );
 
       expect(report.coaching).toBeNull();
-      expect(rejected.coaching).toBe(false);
+      expect(rejected.coaching).toBeNull();
     });
 
     it('keeps Devanagari coaching when the coaching language is Hindi', () => {
-      const devanagari = {
-        text: 'आपने ग्राहक को अच्छे से सुना।',
-        english: 'You listened to the customer well.',
-      };
-
       const { report } = build(
         { coaching: devanagari },
         { coachingLang: 'hi-IN' },
       );
 
-      expect(report.coaching).toEqual(devanagari);
+      expect(report.coaching).toMatchObject({ text: devanagari.text });
     });
   });
 

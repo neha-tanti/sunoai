@@ -1,10 +1,10 @@
 // Writes the call script as a Gnani-shaped transcript with perfect speaker labels, so the LLM half can run without audio.
 // Usage: node scripts/spike/script-transcript.mjs
 
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { LINES } from './call-script.mjs';
-import { OUT_DIR } from './lib.mjs';
+import { LINES } from '../calls/late-order.mjs';
+import { OUT_DIR } from '../lib.mjs';
 
 const SPEAKER_IDS = { ai_agent: 1, customer: 2, human_agent: 3 };
 const SECONDS_PER_CHAR = 0.07;
@@ -25,5 +25,6 @@ const transcript = {
   duration_seconds: time,
   segments,
 };
+mkdirSync(OUT_DIR, { recursive: true });
 writeFileSync(join(OUT_DIR, 'transcript-script.json'), JSON.stringify(transcript, null, 2));
 console.log(`Wrote transcript-script.json (${segments.length} segments, ${time.toFixed(1)}s)`);

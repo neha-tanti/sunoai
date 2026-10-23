@@ -12,9 +12,9 @@ Issues: [#1](https://github.com/neha-tanti/sunoai/issues/1), run 10 October 2026
 
 ## The test call
 
-One synthetic call, written in `scripts/spike/call-script.mjs`: a late order on FreshDabba, a made-up food delivery app. An AI agent (Timbre voice Kaveri, `en-IN`) answers, the customer (Poorvi, `hi-en`) speaks Hinglish, and a human agent (Deepak, `hi-IN`) takes over. The AI ignores "Mujhe kisi insaan se baat karni hai, please" and repeats its answer, then transfers when the customer insists.
+One synthetic call, written in `scripts/calls/late-order.mjs`: a late order on FreshDabba, a made-up food delivery app. An AI agent (Timbre voice Kaveri, `en-IN`) answers, the customer (Poorvi, `hi-en`) speaks Hinglish, and a human agent (Deepak, `hi-IN`) takes over. The AI ignores "Mujhe kisi insaan se baat karni hai, please" and repeats its answer, then transfers when the customer insists.
 
-Expected results, written down before the first run as `EXPECTED` in `call-script.mjs` (segment N is script line N + 1). `analyze.mjs` lists every difference from them for each run.
+Expected results, written down before the first run as `EXPECTED` in `late-order.mjs` (segment N is script line N + 1). `analyze.mjs` lists every difference from them for each run.
 
 | Field | Expected |
 | --- | --- |
@@ -132,14 +132,14 @@ Items 1, 6 and 7 describe the free models chosen in #1. SunoAI has since moved t
 
 ## Running the spike
 
-Put `GNANI_API_KEY`, `OPENROUTER_API_KEY` and `LLM_MODELS` in `.env.local`. Output goes to `test-calls/spike/`, which git ignores.
+Put `GNANI_API_KEY`, `OPENROUTER_API_KEY` and `LLM_MODELS` in `.env.local`. The audio goes to `test-calls/calls/` and everything else to `test-calls/spike/`; git ignores both.
 
 ```bash
-node --env-file=.env.local scripts/spike/make-call.mjs              # Timbre: call.wav and timeline.json
-node --env-file=.env.local scripts/spike/transcribe.mjs             # Gnani Batch without denoise
-node --env-file=.env.local scripts/spike/transcribe.mjs --denoise   # Gnani Batch with denoise
-node --env-file=.env.local scripts/spike/analyze.mjs --transcript transcript-call-raw.json
-node scripts/spike/script-transcript.mjs                            # the script as a perfect transcript, no Gnani needed
+node --env-file=.env.local scripts/make-call.mjs --call late-order   # Timbre: late-order.wav and its timeline
+node --env-file=.env.local scripts/spike/transcribe.mjs                     # Gnani Batch without denoise
+node --env-file=.env.local scripts/spike/transcribe.mjs --denoise           # Gnani Batch with denoise
+node --env-file=.env.local scripts/spike/analyze.mjs --transcript transcript-late-order-raw.json
+node scripts/spike/script-transcript.mjs                                    # the script as a perfect transcript, no Gnani needed
 ```
 
 `analyze.mjs` takes `--runs` (default 3) and `--only` to run one setup: `nemotron`, `apodex`, `dots` (the free models) or `llm-models` (the list in `LLM_MODELS`). `transcribe.mjs --job <id>` fetches and scores a job that already ran, without sending the audio again, and names its transcript after the job id.

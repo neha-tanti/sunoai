@@ -1,10 +1,8 @@
-import { mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 export const GNANI_URL = 'https://api.vachana.ai';
-export const OUT_DIR = fileURLToPath(new URL('../../test-calls/spike/', import.meta.url));
-
-mkdirSync(OUT_DIR, { recursive: true });
+export const OUT_DIR = fileURLToPath(new URL('../test-calls/spike/', import.meta.url));
+export const CALLS_DIR = fileURLToPath(new URL('../test-calls/calls/', import.meta.url));
 
 export function requireEnv(name) {
   const value = process.env[name];

@@ -48,6 +48,7 @@ pnpm lint
 pnpm typecheck    # next typegen && tsc --noEmit
 pnpm test         # Vitest: *.test.ts, unit and API tests
 pnpm test:e2e     # Playwright: e2e/*.spec.ts
+pnpm check:calls  # by hand: the six test calls through the real LLM, against their EXPECTED
 ```
 
 Claude-specific workflow assets — agents, commands, skills and permissions — live in `.claude/`. Other agents should read a `.claude/commands/*.md` or `.claude/skills/*/SKILL.md` for process guidance rather than trying to execute it.

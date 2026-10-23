@@ -1,5 +1,6 @@
 import 'server-only';
-import { HINGLISH } from '@/lib/call-upload';
+import type { CoachingLanguage } from '@/lib/call-upload';
+import { HANDOVER_CHECK_ID } from '@/lib/checklist';
 import type { Checklist } from './checklist';
 import type { TranscriptSegment } from './gnani';
 import { type LlmAnswer, type Mood, moodSchema } from './prompts/analyze';
@@ -37,7 +38,7 @@ export function buildReport(input: {
   segments: TranscriptSegment[];
   checklist: Checklist;
   durationSeconds: number;
-  coachingLang: string;
+  coachingLanguage: CoachingLanguage;
 }) {
   const { answer, segments, checklist } = input;
   const segmentById = new Map(segments.map((s) => [s.segment_id, s]));
@@ -47,12 +48,19 @@ export function buildReport(input: {
     return { segment_id: segment.segment_id, time: segment.start_time, quote };
   };
 
+  const speakers = knownSpeakers(answer.speakers, segments);
+  const roleOf = new Map(speakers.map((s) => [s.speaker_id, s.role]));
+  const handover =
+    segments.find((s) => roleOf.get(s.speaker_id) === 'human_agent') ?? null;
+
   const answers = new Map<string, AnswerCheck>();
   for (const check of answer.checks) {
     if (!answers.has(check.check_id)) answers.set(check.check_id, check);
   }
   const checks = checklist.checks.map((check) =>
-    checkResult(check.id, answers.get(check.id), evidenceFor),
+    check.id === HANDOVER_CHECK_ID && !handover
+      ? noHandoverCheck()
+      : checkResult(check.id, answers.get(check.id), evidenceFor),
   );
 
   const flagIds = new Set(checklist.red_flags.map((flag) => flag.id));
@@ -65,10 +73,6 @@ export function buildReport(input: {
     return [{ flag_id: flag.flag_id, ...evidence, note: flag.note }];
   });
 
-  const speakers = knownSpeakers(answer.speakers, segments);
-  const roleOf = new Map(speakers.map((s) => [s.speaker_id, s.role]));
-  const handover =
-    segments.find((s) => roleOf.get(s.speaker_id) === 'human_agent') ?? null;
   const customerSegments = segments.filter(
     (s) => roleOf.get(s.speaker_id) === 'customer',
   );
@@ -88,10 +92,14 @@ export function buildReport(input: {
     return [{ ...note, time: segment.start_time }];
   });
 
-  const devanagariHinglish =
-    handover !== null &&
-    input.coachingLang === HINGLISH &&
-    /\p{Script=Devanagari}/u.test(answer.coaching?.text ?? '');
+  const coaching = handover
+    ? checkCoaching(
+        answer.coaching,
+        segmentById,
+        roleOf,
+        input.coachingLanguage.script,
+      )
+    : { kept: null, dropped: null };
 
   return {
     report: {
@@ -106,7 +114,7 @@ export function buildReport(input: {
       red_flags: redFlags,
       fix_notes: fixNotes,
       summary: answer.summary,
-      coaching: handover && !devanagariHinglish ? answer.coaching : null,
+      coaching: coaching.kept,
     },
     rejected: {
       passes: checks.filter(
@@ -114,8 +122,56 @@ export function buildReport(input: {
           c.result === 'miss' && answers.get(c.check_id)?.result === 'pass',
       ).length,
       red_flags: knownFlags.length - redFlags.length,
-      coaching: devanagariHinglish,
+      coaching: coaching.dropped,
     },
+  };
+}
+
+function inCoachingScript(text: string, script: CoachingLanguage['script']) {
+  const allowed = new RegExp(`[\\p{Script=Latin}\\p{Script=${script}}]`, 'u');
+  return (text.match(/\p{L}/gu) ?? []).every((letter) => allowed.test(letter));
+}
+
+function checkCoaching(
+  coaching: LlmAnswer['coaching'],
+  segmentById: Map<number, TranscriptSegment>,
+  roleOf: Map<number, LlmAnswer['speakers'][number]['role']>,
+  script: CoachingLanguage['script'],
+) {
+  if (!coaching) return { kept: null, dropped: null };
+  if (!inCoachingScript(coaching.text, script)) {
+    return { kept: null, dropped: 'coaching in another script' };
+  }
+
+  const segment = segmentById.get(coaching.segment_id);
+  const humanAgentLine =
+    segment !== undefined &&
+    roleOf.get(segment.speaker_id) === 'human_agent' &&
+    quoteFound(segment.text, coaching.quote);
+  if (!humanAgentLine) {
+    return { kept: null, dropped: 'coaching without a human agent quote' };
+  }
+
+  return {
+    kept: {
+      text: coaching.text,
+      english: coaching.english,
+      segment_id: segment.segment_id,
+      time: segment.start_time,
+      quote: coaching.quote,
+    },
+    dropped: null,
+  };
+}
+
+function noHandoverCheck() {
+  return {
+    check_id: HANDOVER_CHECK_ID,
+    result: 'na' as const,
+    segment_id: null,
+    time: null,
+    quote: null,
+    reason: 'The call never reached a human agent.',
   };
 }
 

@@ -1,9 +1,11 @@
 import 'server-only';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { z } from 'zod';
 import { requireEnv } from './env';
 
 const GNANI_URL = 'https://api.vachana.ai';
 const JOBS = '/stt/v3/batch/jobs';
+const BURST_RETRY_MS = 1000;
 
 export const GNANI_REQUEST_MS = 20_000;
 
@@ -33,15 +35,23 @@ async function send(
   signal: AbortSignal,
   { method = 'GET', body }: GnaniRequest = {},
 ): Promise<Response> {
-  const res = await fetch(`${GNANI_URL}${path}`, {
-    method,
-    headers: {
-      'X-API-Key-ID': requireEnv('GNANI_API_KEY'),
-      ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-    signal,
-  });
+  const request = () =>
+    fetch(`${GNANI_URL}${path}`, {
+      method,
+      headers: {
+        'X-API-Key-ID': requireEnv('GNANI_API_KEY'),
+        ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal,
+    });
+  let res = await request();
+  // Gnani answers 429 to a request sent within about a second of the previous one.
+  if (res.status === 429) {
+    await res.body?.cancel();
+    await sleep(BURST_RETRY_MS, undefined, { signal });
+    res = await request();
+  }
   if (!res.ok) {
     throw new GnaniError(
       res.status,

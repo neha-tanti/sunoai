@@ -1,10 +1,10 @@
 import 'server-only';
 import { z } from 'zod';
-import { COACHING_LANGUAGES, HINGLISH } from '@/lib/call-upload';
+import { type CoachingLanguage, HINGLISH } from '@/lib/call-upload';
 import type { Checklist } from '../checklist';
 import type { TranscriptSegment } from '../gnani';
 
-export const PROMPT_VERSION = 'analyze-v2';
+export const PROMPT_VERSION = 'analyze-v3';
 
 const MOODS = ['calm', 'annoyed', 'angry'] as const;
 export const moodSchema = z.enum(MOODS);
@@ -45,7 +45,14 @@ export const llmAnswerSchema = z.object({
       should_have: z.string(),
     }),
   ),
-  coaching: z.object({ text: z.string(), english: z.string() }).nullable(),
+  coaching: z
+    .object({
+      segment_id: z.int(),
+      quote: z.string(),
+      text: z.string(),
+      english: z.string(),
+    })
+    .nullable(),
 });
 
 export type LlmAnswer = z.infer<typeof llmAnswerSchema>;
@@ -79,24 +86,27 @@ Rules:
 - "customer_mood" has one entry for every segment spoken by the customer, judged from that segment's own words.
 - "summary" is 2 or 3 sentences in English: why the customer called, what happened and how it ended.
 - "fix_notes" are for the AI team: one per thing the AI agent got wrong.
-- "coaching" is for the human agent: one thing done well and one to improve, 2 or 3 friendly sentences in the coaching language, plus an English version. Use null when there is no human agent.
-- Coaching is only about what the human agent said and did after the handover. Never mention the transfer or anything before it in coaching: the human agent did not choose when the call reached them, and the AI agent's mistakes belong in "fix_notes". When the human agent made no mistake, the thing to improve is a small tip for their next call.
-- Coaching speaks to the human agent directly and respectfully ("aap" in Hindi and Hinglish), by name when the call gives it and otherwise without a name, in simple words a colleague would say out loud, not a word-for-word translation of the English version.`;
+- "coaching" is feedback for the human agent from a senior colleague who listened to the call. Use null when there is no human agent.
+- Coaching is only about what the human agent said and did after the handover. Never mention the transfer or anything before it in coaching: the human agent did not choose when the call reached them, and the AI agent's mistakes belong in "fix_notes".
+- Choose the coaching line first. "coaching.segment_id" and "coaching.quote" point at the human agent's own line with their biggest mistake: a check their lines missed (such as asking the customer to repeat what they already told the AI agent, brushing off the customer's frustration, or ending without checking the customer is happy), otherwise a line after which the customer got more upset. Start with the human agent's first line: if it asks for the problem or the order ID the customer already gave, that is the mistake. Only when they made no mistake, point at the line a small tip for their next call builds on.
+- Something is a mistake only when the transcript and the company rules show it. Before calling something missing, check every human agent line, and before calling a promise wrong, check it against the company rules.
+- "coaching.text" is 2 or 3 sentences in the coaching language, and "coaching.english" says the same in English. Say it the way the colleague would after the call: name what they said in that line, say plainly why it was the wrong thing to say to this customer, and give the exact sentence they should say instead. Add one short line on something they really did well. Never call it a great job when they made a mistake, and never suggest something they already did on this call.
+- Coaching is only about words in the transcript. Never comment on speed, tone of voice, pauses or anything else a transcript cannot show.
+- Coaching speaks to the human agent directly and respectfully ("aap" in Hindi and Hinglish). When the call gives their name, both "coaching.text" and "coaching.english" start with it ("Rahul, ..."); otherwise they start without a name. Use simple words a colleague would say out loud, not a word-for-word translation of the English version. Use only words from the coaching language and English.`;
 
 const HINGLISH_COACHING =
   'Write the coaching text in Roman letters (a to z) only, never Devanagari, even when the transcript is in Devanagari: Hindi sentences with everyday English words such as customer, order, refund, coupon and delivery kept in English.';
 
-function coachingLanguageLine(code: string) {
-  const label = COACHING_LANGUAGES.find((lang) => lang.code === code)?.label;
-  const line = `Coaching language: ${label ? `${code} (${label})` : code}`;
-  if (code !== HINGLISH) return line;
+function coachingLanguageLine(language: CoachingLanguage) {
+  const line = `Coaching language: ${language.code} (${language.label})`;
+  if (language.code !== HINGLISH) return line;
   return `${line}\n${HINGLISH_COACHING}`;
 }
 
 export function buildMessages(
   segments: TranscriptSegment[],
   checklist: Checklist,
-  coachingLang: string,
+  coachingLanguage: CoachingLanguage,
 ) {
   const lines = segments
     .map(
@@ -116,7 +126,7 @@ ${checklist.rules}
 Transcript:
 ${lines}
 
-${coachingLanguageLine(coachingLang)}`;
+${coachingLanguageLine(coachingLanguage)}`;
 
   return [
     { role: 'system' as const, content: SYSTEM },

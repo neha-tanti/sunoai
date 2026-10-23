@@ -428,6 +428,17 @@ describe('each failure in the TRD table', () => {
     },
   );
 
+  it('finishes the call when Gnani answers 429 once and then answers', async () => {
+    const call = await transcribingCall({ ...completedJob(), busyOnce: true });
+
+    expect(await finishByWebhook(call.jobId)).toEqual(['ready']);
+
+    expect((await readCall(call.id)).call).toMatchObject({
+      status: 'ready',
+      gnani_attempts: 0,
+    });
+  });
+
   it('keeps a finished call Transcribing when Gnani rate-limits its files', async () => {
     const call = await transcribingCall({
       ...completedJob(),

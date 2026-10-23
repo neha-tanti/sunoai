@@ -35,7 +35,7 @@ It works in Hindi, Bengali, Marathi, Tamil, Telugu, Kannada, Malayalam, Gujarati
 | Prisma v2.5, Batch speech-to-text | Writing down every call, with speaker labels, timestamps and noise removal |
 | Timbre v2.5, text-to-speech | Speaking coaching to the human agent in their language |
 
-The analysis (checklist, red flags, frustration, fix notes) comes from an open-weight model on OpenRouter. Our own code checks every quote and counts the score.
+The analysis (checklist, red flags, frustration, fix notes) comes from Qwen 3.8 Flash on OpenRouter. Our own code checks every quote and counts the score.
 
 ## Stack
 
@@ -69,6 +69,7 @@ The home page shows the answer from `GET /api/health`, fetched through the typed
 | `pnpm typecheck` | Generates Next.js route types, then runs `tsc --noEmit` |
 | `pnpm test` | Vitest unit and API tests (`*.test.ts`) |
 | `pnpm test:e2e` | Playwright end-to-end tests (`e2e/*.spec.ts`); starts `pnpm dev` if it isn't running |
+| `pnpm check:calls` | Runs the six test calls in `scripts/calls/` through the real LLM and lists every difference from their expected results (see the TRD's [Testing](docs/TRD.md#testing)) |
 | `pnpm format` | Prettier |
 
 **Supabase.** Create a project at [supabase.com/dashboard](https://supabase.com/dashboard). From its **API Keys** page, put the project URL in `NEXT_PUBLIC_SUPABASE_URL`, the publishable key in `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` and the secret key in `SUPABASE_SECRET_KEY`. Then link the CLI with `pnpm supabase login` and `pnpm supabase link --project-ref <ref>`; `pnpm supabase db push` applies the migrations in `supabase/migrations`, and `pnpm supabase config push` applies the auth settings in `supabase/config.toml` (sign-up on, email confirmation off). To rebuild the dev project with the seed, run `pnpm supabase db reset --linked`; it also deletes every account, so sign up again at `/signup` afterwards. After a schema change, run `pnpm db:types` to regenerate `lib/database.types.ts`.
@@ -79,7 +80,7 @@ The home page shows the answer from `GET /api/health`, fetched through the typed
 
 **Webhook locally.** Gnani can't reach `localhost`, so its webhook doesn't fire in development. To finish a call stuck in Transcribing, call the poll route by hand: `curl -X POST http://localhost:3000/api/jobs/poll -H "x-cron-secret: $CRON_SECRET"`.
 
-`.env.local` is also read by the hand-run spike scripts in `scripts/spike/`. Never commit it.
+`.env.local` is also read by the hand-run scripts in `scripts/` (the test calls and the spike). Never commit it.
 
 ## Repository layout
 
@@ -91,7 +92,7 @@ hooks/        TanStack Query hooks
 lib/          Code the browser may import: the typed Hono client and shared helpers
 e2e/          Playwright tests
 supabase/     Supabase CLI config
-scripts/      Hand-run scripts (the Gnani and LLM spike)
+scripts/      Hand-run scripts: the six test calls, voicing them, checking them and the Gnani and LLM spike
 docs/         PRD, TRD and spike write-ups
 .claude/      Claude Code agents, commands, skills, rules and settings
 AGENTS.md     Instructions for coding agents working in this repo

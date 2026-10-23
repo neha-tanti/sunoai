@@ -179,6 +179,9 @@ test.describe('coaching', () => {
 
     await expect(coaching).toContainText(COLD_BIRYANI_REPORT.coaching.text);
     await expect(coaching).toContainText(COLD_BIRYANI_REPORT.coaching.english);
+    await expect(
+      coaching.getByRole('link', { name: COLD_BIRYANI_REPORT.coaching.quote }),
+    ).toHaveAttribute('href', '#segment-8');
     await coaching.getByRole('button', { name: 'Play coaching' }).click();
 
     await expect(
