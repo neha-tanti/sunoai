@@ -4,7 +4,12 @@ import { expect, test } from '@playwright/test';
 import { CALL_ERROR_MESSAGES } from '@/lib/call-errors';
 import { UPLOAD_TOKEN_REUSE_MS } from '@/lib/call-upload';
 import type { Enums } from '@/lib/database.types';
-import { createDevAdminClient } from '../support/team-leader';
+import {
+  createDevAdminClient,
+  createTeamLeader,
+  deleteTeamLeader,
+  signIn,
+} from '../support/team-leader';
 
 function silentWav(seconds: number) {
   const sampleRate = 8000;
@@ -108,9 +113,9 @@ test.describe('uploading', () => {
   test('trying again after a failed upload keeps the same call', async ({
     page,
   }) => {
-    let uploads = 0;
+    const uploadUrls: string[] = [];
     await page.route('**/storage/v1/object/upload/sign/**', (route) => {
-      uploads += 1;
+      uploadUrls.push(route.request().url());
       return route.abort('connectionfailed');
     });
     await page.goto('/');
@@ -122,10 +127,11 @@ test.describe('uploading', () => {
     });
     await page.getByLabel('Call title').fill(title);
     const checkThisCall = page.getByRole('button', { name: 'Check this call' });
+    const alert = page.getByRole('main').getByRole('alert');
     await checkThisCall.click();
-    await expect(page.getByRole('main').getByRole('alert')).toBeVisible();
+    await expect(alert).toBeVisible();
     await checkThisCall.click();
-    await expect.poll(() => uploads).toBe(2);
+    await expect.poll(() => uploadUrls).toHaveLength(2);
 
     const calls = await createDevAdminClient()
       .from('calls')
@@ -133,6 +139,7 @@ test.describe('uploading', () => {
       .eq('title', title);
     if (calls.error) throw calls.error;
     expect(calls.data).toHaveLength(1);
+    for (const url of uploadUrls) expect(url).toContain(calls.data[0].id);
   });
 
   test('a check that started but lost its answer opens the call on retry', async ({
@@ -174,52 +181,69 @@ test.describe('uploading', () => {
     expect(uploads).toBe(1);
   });
 
-  test('trying again after the upload link expires replaces the call', async ({
-    page,
-  }) => {
-    const uploadUrls: string[] = [];
-    await page.route('**/storage/v1/object/upload/sign/**', (route) => {
-      uploadUrls.push(route.request().url());
-      return route.abort('connectionfailed');
+  test.describe('on a session of its own', () => {
+    test.use({ storageState: { cookies: [], origins: [] } });
+    let teamLeaderId: string;
+
+    test.beforeEach(async ({ page }) => {
+      const teamLeader = await createTeamLeader();
+      teamLeaderId = teamLeader.id;
+      await signIn(page, teamLeader);
     });
-    await page.clock.install();
-    await page.goto('/');
 
-    await page.getByLabel('Call recording').setInputFiles({
-      name: 'missing-raita.mp3',
-      mimeType: 'audio/mpeg',
-      buffer: Buffer.from('not really audio'),
+    test.afterEach(async () => {
+      await deleteTeamLeader(teamLeaderId);
     });
-    await page.getByLabel('Call title').fill(title);
-    const checkThisCall = page.getByRole('button', { name: 'Check this call' });
-    const alert = page.getByRole('main').getByRole('alert');
-    await checkThisCall.click();
-    await expect(alert).toBeVisible();
-    const db = createDevAdminClient();
-    const first = await db
-      .from('calls')
-      .select('id')
-      .eq('title', title)
-      .single();
-    if (first.error) throw first.error;
 
-    await page.clock.fastForward(UPLOAD_TOKEN_REUSE_MS + 60_000);
-    const created = page.waitForResponse(
-      (response) =>
-        response.request().method() === 'POST' &&
-        new URL(response.url()).pathname === '/api/calls',
-    );
-    await checkThisCall.click();
-    await created;
-    await expect(alert).toHaveText(
-      'Upload failed. Check your connection and try again.',
-    );
+    test('trying again after the upload link expires replaces the call', async ({
+      page,
+    }) => {
+      const uploadUrls: string[] = [];
+      await page.route('**/storage/v1/object/upload/sign/**', (route) => {
+        uploadUrls.push(route.request().url());
+        return route.abort('connectionfailed');
+      });
+      await page.clock.install();
+      await page.goto('/');
 
-    const calls = await db.from('calls').select('id').eq('title', title);
-    if (calls.error) throw calls.error;
-    expect(calls.data).toHaveLength(1);
-    expect(calls.data[0].id).not.toBe(first.data.id);
-    expect(uploadUrls.at(-1)).toContain(calls.data[0].id);
+      await page.getByLabel('Call recording').setInputFiles({
+        name: 'missing-raita.mp3',
+        mimeType: 'audio/mpeg',
+        buffer: Buffer.from('not really audio'),
+      });
+      await page.getByLabel('Call title').fill(title);
+      const checkThisCall = page.getByRole('button', {
+        name: 'Check this call',
+      });
+      const alert = page.getByRole('main').getByRole('alert');
+      await checkThisCall.click();
+      await expect(alert).toBeVisible();
+      const db = createDevAdminClient();
+      const first = await db
+        .from('calls')
+        .select('id')
+        .eq('title', title)
+        .single();
+      if (first.error) throw first.error;
+
+      await page.clock.fastForward(UPLOAD_TOKEN_REUSE_MS + 60_000);
+      const replacementCreated = page.waitForResponse(
+        (response) =>
+          response.request().method() === 'POST' &&
+          new URL(response.url()).pathname === '/api/calls',
+      );
+      await checkThisCall.click();
+      await replacementCreated;
+      await expect(alert).toHaveText(
+        'Upload failed. Check your connection and try again.',
+      );
+
+      const calls = await db.from('calls').select('id').eq('title', title);
+      if (calls.error) throw calls.error;
+      expect(calls.data).toHaveLength(1);
+      expect(calls.data[0].id).not.toBe(first.data.id);
+      expect(uploadUrls.at(-1)).toContain(calls.data[0].id);
+    });
   });
 });
 
