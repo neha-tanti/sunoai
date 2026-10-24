@@ -9,7 +9,7 @@ import {
   deleteCalls,
   seedReadyCall,
 } from '../support/ready-call';
-import { createDevAdminClient } from '../support/team-leader';
+import { createTestAdminClient } from '../support/team-leader';
 
 const run = randomUUID().slice(0, 8);
 const titles = {
@@ -22,7 +22,7 @@ const ids: string[] = [];
 
 async function seedSilentCall() {
   const id = randomUUID();
-  const inserted = await createDevAdminClient()
+  const inserted = await createTestAdminClient()
     .from('calls')
     .insert({
       id,
@@ -115,7 +115,7 @@ test('deleting a call removes it from the list', async ({ page }) => {
 
   await expect(dialog).toBeHidden();
   await expect(callRow(page, titles.toDelete)).toHaveCount(0);
-  const left = await createDevAdminClient()
+  const left = await createTestAdminClient()
     .from('calls')
     .select('id')
     .eq('title', titles.toDelete);

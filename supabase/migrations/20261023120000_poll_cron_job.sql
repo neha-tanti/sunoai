@@ -15,3 +15,9 @@ select cron.schedule(
   where app_url.name = 'app_url' and cron_secret.name = 'cron_secret'
   $$
 );
+
+select cron.schedule(
+  'delete-old-cron-runs',
+  '0 0 * * *',
+  $$delete from cron.job_run_details where end_time < now() - interval '7 days'$$
+);

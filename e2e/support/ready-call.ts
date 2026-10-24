@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Checklist } from '@/server/checklist';
 import type { Report } from '@/server/report';
-import { createDevAdminClient } from './team-leader';
+import { createTestAdminClient } from './team-leader';
 
 type Segment = {
   segment_id: number;
@@ -319,7 +319,7 @@ export async function seedReadyCall(
   segments: Segment[],
   report: Report,
 ) {
-  const supabase = createDevAdminClient();
+  const supabase = createTestAdminClient();
   const id = randomUUID();
   const inserted = await supabase.from('calls').insert({
     id,
@@ -355,7 +355,7 @@ export async function seedReadyCall(
 }
 
 export async function deleteCalls(ids: string[]) {
-  const deleted = await createDevAdminClient()
+  const deleted = await createTestAdminClient()
     .from('calls')
     .delete()
     .in('id', ids);

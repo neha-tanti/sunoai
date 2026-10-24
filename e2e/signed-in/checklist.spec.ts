@@ -1,14 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test } from '@playwright/test';
 import { keepChecklist } from '@/server/test/checklist';
-import { createDevAdminClient } from '../support/team-leader';
+import { createTestAdminClient } from '../support/team-leader';
 
 const SAVED = 'Saved. The next call you check uses this checklist.';
 const run = randomUUID().slice(0, 8);
 let restoreChecklist: () => Promise<void>;
 
 test.beforeAll(async () => {
-  restoreChecklist = await keepChecklist(createDevAdminClient());
+  restoreChecklist = await keepChecklist(createTestAdminClient());
 });
 
 test.afterAll(async () => {

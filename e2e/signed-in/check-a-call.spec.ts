@@ -5,7 +5,7 @@ import { CALL_ERROR_MESSAGES } from '@/lib/call-errors';
 import { UPLOAD_TOKEN_REUSE_MS } from '@/lib/call-upload';
 import type { Enums } from '@/lib/database.types';
 import {
-  createDevAdminClient,
+  createTestAdminClient,
   createTeamLeader,
   deleteTeamLeader,
   signIn,
@@ -81,7 +81,7 @@ test.describe('uploading', () => {
   const title = `Missing raita, upload test ${randomUUID()}`;
 
   test.afterEach(async () => {
-    const deleted = await createDevAdminClient()
+    const deleted = await createTestAdminClient()
       .from('calls')
       .delete()
       .eq('title', title);
@@ -133,7 +133,7 @@ test.describe('uploading', () => {
     await checkThisCall.click();
     await expect.poll(() => uploadUrls).toHaveLength(2);
 
-    const calls = await createDevAdminClient()
+    const calls = await createTestAdminClient()
       .from('calls')
       .select('id')
       .eq('title', title);
@@ -220,7 +220,7 @@ test.describe('uploading', () => {
       const alert = page.getByRole('main').getByRole('alert');
       await checkThisCall.click();
       await expect(alert).toBeVisible();
-      const db = createDevAdminClient();
+      const db = createTestAdminClient();
       const first = await db
         .from('calls')
         .select('id')
@@ -257,7 +257,7 @@ test.describe('a failed call', () => {
   const callIds = new Map<string, string>();
 
   test.beforeAll(async () => {
-    const inserted = await createDevAdminClient()
+    const inserted = await createTestAdminClient()
       .from('calls')
       .insert(
         failures.map(([errorCode]) => {
@@ -281,7 +281,7 @@ test.describe('a failed call', () => {
   });
 
   test.afterAll(async () => {
-    const deleted = await createDevAdminClient()
+    const deleted = await createTestAdminClient()
       .from('calls')
       .delete()
       .in('id', [...callIds.values()]);

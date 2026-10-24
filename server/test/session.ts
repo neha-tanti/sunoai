@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
-import { parseEnv } from 'node:util';
 import { createServerClient } from '@supabase/ssr';
+import { assertNotDevProject } from '../../scripts/test-project.mjs';
 import { createAdminClient } from '../supabase';
 
 function testProject() {
@@ -12,15 +11,7 @@ function testProject() {
       'API tests need the Supabase test project. Create .env.test.local (see README).',
     );
   }
-
-  const devUrl = existsSync('.env.local')
-    ? parseEnv(readFileSync('.env.local', 'utf8')).NEXT_PUBLIC_SUPABASE_URL
-    : undefined;
-  if (url === devUrl) {
-    throw new Error(
-      '.env.test.local points at the dev/production project. API tests must use the test project.',
-    );
-  }
+  assertNotDevProject(url);
   return { url, publishableKey };
 }
 
