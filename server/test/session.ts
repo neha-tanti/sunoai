@@ -18,7 +18,7 @@ function testProject() {
     : undefined;
   if (url === devUrl) {
     throw new Error(
-      '.env.test.local points at the dev project. API tests must use the test project.',
+      '.env.test.local points at the dev/production project. API tests must use the test project.',
     );
   }
   return { url, publishableKey };
