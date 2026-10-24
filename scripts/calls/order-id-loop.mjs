@@ -64,7 +64,7 @@ export const EXPECTED = {
     moods: {
       1: 'calm',
       3: 'calm',
-      5: 'calm',
+      5: 'annoyed',
       7: 'angry',
       9: 'angry',
       12: 'annoyed',

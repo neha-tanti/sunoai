@@ -9,6 +9,7 @@ import { coachingLanguage } from '../lib/call-upload';
 import { runAnalysis } from '../server/analysis';
 import { loadChecklist } from '../server/checklist';
 import { DEADLINE_MS } from '../server/pipeline';
+import type { LlmAnswer, Mood } from '../server/prompts/analyze';
 import type { Report } from '../server/report';
 import { createAdminClient } from '../server/supabase';
 
@@ -21,7 +22,7 @@ type Expected = {
     red_flags: string[];
     handover: number | null;
     frustration_turn: number | null;
-    moods: Record<number, string>;
+    moods: Record<number, Mood>;
   };
 };
 
@@ -70,7 +71,7 @@ async function checkCall(name: string) {
   for (let run = 1; run <= runs; run++) {
     const tag = `${name} run ${run}`;
     try {
-      const { model, report, rejected } = await runAnalysis(
+      const { model, answer, report, rejected } = await runAnalysis(
         {
           segments: call.segments,
           checklist,
@@ -80,12 +81,13 @@ async function checkCall(name: string) {
         AbortSignal.timeout(DEADLINE_MS),
       );
       const misses = differences(
+        answer,
         report,
         script.EXPECTED,
-        segmentsMatchLines ? call.segments : null,
+        segmentsMatchLines,
       );
       console.log(
-        `${tag} (${model}): ${report.score_passed}/${report.score_total}, ${misses.length ? misses.join('; ') : 'matches EXPECTED'}`,
+        `${tag} (${model}): ${report.score_passed}/${report.score_total}, ${rejected.passes} passes dropped for a quote not in the transcript, ${misses.length ? misses.join('; ') : 'matches EXPECTED'}`,
       );
       console.log(
         `  coaching: ${report.coaching?.text ?? rejected.coaching ?? 'none'}`,
@@ -118,9 +120,10 @@ async function loadCall(title: string) {
 }
 
 function differences(
+  answer: LlmAnswer,
   report: Report,
   expected: Expected,
-  segments: { segment_id: number; start_time: number }[] | null,
+  segmentsMatchLines: boolean,
 ) {
   const resultOf = new Map(report.checks.map((c) => [c.check_id, c.result]));
   const pairs: [string, unknown, unknown][] = [
@@ -135,7 +138,7 @@ function differences(
       ],
     ),
   ];
-  if (segments) {
+  if (segmentsMatchLines) {
     pairs.push(
       [
         'red_flags',
@@ -154,7 +157,8 @@ function differences(
       ...Object.entries(expected.segments.moods).map(
         ([id, mood]): [string, unknown, unknown] => [
           `mood@${id}`,
-          moodAt(report, segments, Number(id)),
+          answer.customer_mood.find((m) => m.segment_id === Number(id))
+            ?.level ?? 'missing',
           mood,
         ],
       ),
@@ -165,16 +169,4 @@ function differences(
     .map(
       ([field, actual, wanted]) => `${field}: ${actual} (expected ${wanted})`,
     );
-}
-
-function moodAt(
-  report: Report,
-  segments: { segment_id: number; start_time: number }[],
-  segmentId: number,
-) {
-  const start = segments.find((s) => s.segment_id === segmentId)?.start_time;
-  if (start === undefined) return undefined;
-  return report.frustration.ranges.find(
-    (range) => range.start <= start && start < range.end,
-  )?.level;
 }

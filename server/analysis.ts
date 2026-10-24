@@ -107,14 +107,15 @@ export async function runAnalysis(
     buildMessages(input.segments, input.checklist, language),
     signal,
   );
+  const answer = parseAnswer(llm.content);
   const { report, rejected } = buildReport({
-    answer: parseAnswer(llm.content),
+    answer,
     segments: input.segments,
     checklist: input.checklist,
     durationSeconds: input.durationSeconds,
     coachingLanguage: language,
   });
-  return { model: llm.model, report, rejected };
+  return { model: llm.model, answer, report, rejected };
 }
 
 async function askLlm(
