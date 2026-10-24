@@ -4,7 +4,7 @@ import { type CoachingLanguage, HINGLISH } from '@/lib/call-upload';
 import type { Checklist } from '../checklist';
 import type { TranscriptSegment } from '../gnani';
 
-export const PROMPT_VERSION = 'analyze-v3';
+export const PROMPT_VERSION = 'analyze-v4';
 
 const MOODS = ['calm', 'annoyed', 'angry'] as const;
 export const moodSchema = z.enum(MOODS);
@@ -84,9 +84,10 @@ Rules:
 - "red_flags" lists only red flags that happened, each citing the words that raised it. Leave out any flag that did not happen; never add an entry to say a flag does not apply. Judge promises against the company rules.
 - "human_not_transferred" applies whenever the AI agent answers a request for a person with anything other than a transfer, even if it transfers later.
 - "customer_mood" has one entry for every segment spoken by the customer, judged from that segment's own words:
-  - "calm": gives details, answers a question, states the problem plainly or asks when the order will come, with no complaint about it ("pizza thanda aaya hai", "rider kahan hai?").
-  - "annoyed": complains about the problem or the service without shouting or demands: says it is too late or too much, says they were already told or already said it, or asks for a person politely ("ye theek nahi hai", "kitni baar bolun").
-  - "angry": exclaims in shock or outrage, demands a person or manager right now, mocks or accuses the agent, or calls it a safety issue ("Ye bilkul bakwas hai!", "Aap log kya kar rahe ho?", "senior ko bulao, abhi!").
+  - "calm": gives details, answers a question, states the problem or how long they have waited as a plain fact, asks when the order will come, agrees or says thanks ("pizza thanda aaya hai", "delivery kitne baje tak hogi?").
+  - "annoyed": complains about the problem or the service: says it is too late, too much or keeps happening, says they already said it or were already told, or asks for a person without saying it must be right now, even when asking again ("itna time kyun lag raha hai", "main pehle hi bata chuki hoon", "kisi aur se baat kara dijiye, please").
+  - "angry": exclaims in outrage at the problem or the agent, demands a person right now, or mocks or accuses the agent ("Ye kya bakwas hai!", "Aap log sote ho kya?", "supervisor ko line pe lao, turant!"). An exclamation of thanks or relief is not anger.
+  - When a line fits two levels, use the higher one. Judge only the customer's words, never the topic of the call.
 - "summary" is 2 or 3 sentences in English: why the customer called, what happened and how it ended.
 - "fix_notes" are for the AI team: one per thing the AI agent got wrong.
 - "coaching" is feedback for the human agent from a senior colleague who listened to the call. Use null when there is no human agent.

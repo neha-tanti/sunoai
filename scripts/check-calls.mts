@@ -21,6 +21,7 @@ type Expected = {
     red_flags: string[];
     handover: number | null;
     frustration_turn: number | null;
+    moods: Record<number, string>;
   };
 };
 
@@ -78,7 +79,11 @@ async function checkCall(name: string) {
         },
         AbortSignal.timeout(DEADLINE_MS),
       );
-      const misses = differences(report, script.EXPECTED, segmentsMatchLines);
+      const misses = differences(
+        report,
+        script.EXPECTED,
+        segmentsMatchLines ? call.segments : null,
+      );
       console.log(
         `${tag} (${model}): ${report.score_passed}/${report.score_total}, ${misses.length ? misses.join('; ') : 'matches EXPECTED'}`,
       );
@@ -115,7 +120,7 @@ async function loadCall(title: string) {
 function differences(
   report: Report,
   expected: Expected,
-  segmentsMatchLines: boolean,
+  segments: { segment_id: number; start_time: number }[] | null,
 ) {
   const resultOf = new Map(report.checks.map((c) => [c.check_id, c.result]));
   const pairs: [string, unknown, unknown][] = [
@@ -130,7 +135,7 @@ function differences(
       ],
     ),
   ];
-  if (segmentsMatchLines) {
+  if (segments) {
     pairs.push(
       [
         'red_flags',
@@ -146,6 +151,13 @@ function differences(
         report.frustration.turn?.segment_id ?? null,
         expected.segments.frustration_turn,
       ],
+      ...Object.entries(expected.segments.moods).map(
+        ([id, mood]): [string, unknown, unknown] => [
+          `mood@${id}`,
+          moodAt(report, segments, Number(id)),
+          mood,
+        ],
+      ),
     );
   }
   return pairs
@@ -153,4 +165,16 @@ function differences(
     .map(
       ([field, actual, wanted]) => `${field}: ${actual} (expected ${wanted})`,
     );
+}
+
+function moodAt(
+  report: Report,
+  segments: { segment_id: number; start_time: number }[],
+  segmentId: number,
+) {
+  const start = segments.find((s) => s.segment_id === segmentId)?.start_time;
+  if (start === undefined) return undefined;
+  return report.frustration.ranges.find(
+    (range) => range.start <= start && start < range.end,
+  )?.level;
 }

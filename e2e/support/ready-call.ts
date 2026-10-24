@@ -346,7 +346,7 @@ export async function seedReadyCall(
     p_report: {
       ...report,
       llm_model: 'qwen/qwen3.8-flash',
-      prompt_version: 'analyze-v3',
+      prompt_version: 'analyze-v4',
       checklist_snapshot: CHECKLIST_SNAPSHOT,
     },
   });

@@ -360,7 +360,7 @@ The rules that make the report trustworthy are tested in code; Gnani and the LLM
 | End to end | Playwright, external services mocked | Sign in, upload, see the report, play coaching, edit the checklist, delete a call |
 | Real services | A script run by hand | The 7 test calls through real Gnani and the LLMs in `LLM_MODELS`, compared with their expected results |
 
-- Expected results per test call are written down first: score, Needs review, red flags, peak frustration and the line where it turned.
+- Expected results per test call are written down first: score, Needs review, red flags, peak frustration, the line where it turned and the mood of every customer line.
 - The analysis runs at temperature 0, and the same call is checked 3 times to confirm the score doesn't change.
 - Test recordings stay in a private folder and are never committed; fixtures use made-up transcripts.
 - The seven calls are written in `scripts/calls/`, each with its `EXPECTED` results. `node --env-file=.env.local scripts/make-call.mjs --call <name>` voices one with Timbre into `test-calls/calls/`; after it is uploaded in the app with the call name as its title ("missing item"), `pnpm check:calls` sends each call's transcript through the LLM and the report checks 3 times and lists every difference from `EXPECTED`. `--call <name>` runs one call and `--coaching-lang bn-IN` checks the coaching in another language.

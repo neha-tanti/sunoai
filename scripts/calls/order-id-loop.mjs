@@ -61,5 +61,15 @@ export const EXPECTED = {
     red_flags: ['agent_loop@8'],
     handover: 11,
     frustration_turn: 7,
+    moods: {
+      1: 'calm',
+      3: 'calm',
+      5: 'calm',
+      7: 'angry',
+      9: 'angry',
+      12: 'annoyed',
+      14: 'calm',
+      16: 'calm',
+    },
   },
 };
