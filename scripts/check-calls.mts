@@ -9,6 +9,7 @@ import { coachingLanguage } from '../lib/call-upload';
 import { runAnalysis } from '../server/analysis';
 import { loadChecklist } from '../server/checklist';
 import { DEADLINE_MS } from '../server/pipeline';
+import type { LlmAnswer, Mood } from '../server/prompts/analyze';
 import type { Report } from '../server/report';
 import { createAdminClient } from '../server/supabase';
 
@@ -21,6 +22,7 @@ type Expected = {
     red_flags: string[];
     handover: number | null;
     frustration_turn: number | null;
+    moods: Record<number, Mood>;
   };
 };
 
@@ -69,7 +71,7 @@ async function checkCall(name: string) {
   for (let run = 1; run <= runs; run++) {
     const tag = `${name} run ${run}`;
     try {
-      const { model, report, rejected } = await runAnalysis(
+      const { model, answer, report, rejected } = await runAnalysis(
         {
           segments: call.segments,
           checklist,
@@ -78,9 +80,14 @@ async function checkCall(name: string) {
         },
         AbortSignal.timeout(DEADLINE_MS),
       );
-      const misses = differences(report, script.EXPECTED, segmentsMatchLines);
+      const misses = differences(
+        answer,
+        report,
+        script.EXPECTED,
+        segmentsMatchLines,
+      );
       console.log(
-        `${tag} (${model}): ${report.score_passed}/${report.score_total}, ${misses.length ? misses.join('; ') : 'matches EXPECTED'}`,
+        `${tag} (${model}): ${report.score_passed}/${report.score_total}, ${rejected.passes} passes dropped for a quote not in the transcript, ${misses.length ? misses.join('; ') : 'matches EXPECTED'}`,
       );
       console.log(
         `  coaching: ${report.coaching?.text ?? rejected.coaching ?? 'none'}`,
@@ -113,6 +120,7 @@ async function loadCall(title: string) {
 }
 
 function differences(
+  answer: LlmAnswer,
   report: Report,
   expected: Expected,
   segmentsMatchLines: boolean,
@@ -146,6 +154,14 @@ function differences(
         report.frustration.turn?.segment_id ?? null,
         expected.segments.frustration_turn,
       ],
+      ...Object.entries(expected.segments.moods).map(
+        ([id, mood]): [string, unknown, unknown] => [
+          `mood@${id}`,
+          answer.customer_mood.find((m) => m.segment_id === Number(id))
+            ?.level ?? 'missing',
+          mood,
+        ],
+      ),
     );
   }
   return pairs

@@ -4,7 +4,7 @@ import { type CoachingLanguage, HINGLISH } from '@/lib/call-upload';
 import type { Checklist } from '../checklist';
 import type { TranscriptSegment } from '../gnani';
 
-export const PROMPT_VERSION = 'analyze-v3';
+export const PROMPT_VERSION = 'analyze-v4';
 
 const MOODS = ['calm', 'annoyed', 'angry'] as const;
 export const moodSchema = z.enum(MOODS);
@@ -77,13 +77,17 @@ ${JSON.stringify(ANSWER_JSON_SCHEMA)}
 Rules:
 - Speaker ids come from automatic diarization and can be wrong. Decide each speaker's role from what they say.
 - Refer to lines only by segment_id. Never give times.
-- Every quote is the shortest phrase that proves the point, copied character for character from the segment it cites. Keep mixed Hindi and English exactly as written: never translate, transliterate or fix a word.
+- Every quote is the shortest phrase that proves the point, copied character for character from the segment it cites. Keep mixed Hindi and English exactly as written: never translate, transliterate or fix a word. A quote uses the same letters as its segment: when English words are written in Devanagari ("डिलीवरी बॉय"), the quote keeps them in Devanagari.
 - Checks apply to the whole call: a check passes when either the AI agent or the human agent does it.
 - A check is "pass" only with a quote that proves it. Without one it is "miss". Use "na" only when the check does not apply.
 - Give one entry in "checks" for every check id, and use only the check and red flag ids listed.
 - "red_flags" lists only red flags that happened, each citing the words that raised it. Leave out any flag that did not happen; never add an entry to say a flag does not apply. Judge promises against the company rules.
 - "human_not_transferred" applies whenever the AI agent answers a request for a person with anything other than a transfer, even if it transfers later.
-- "customer_mood" has one entry for every segment spoken by the customer, judged from that segment's own words.
+- "customer_mood" has one entry for every segment spoken by the customer, judged from that segment's own words:
+  - "calm": gives details, answers a question, states the problem or how long they have waited as a plain fact, asks when the order will come, says they did what the agent asked, agrees or says thanks ("pizza thanda aaya hai", "delivery kitne baje tak hogi?", "screenshot upload kar diya").
+  - "annoyed": complains about the problem or the service: says it is too late, too much or keeps happening, says they already said it or were already told, says the same detail twice in one line, or asks for a person without saying it must be right now, even when asking again ("itna time kyun lag raha hai", "main pehle hi bata chuki hoon", "naam Riya hai. R I Y A, Riya.", "kisi aur se baat kara dijiye, please").
+  - "angry": exclaims in shock, alarm or outrage at the problem or the agent, demands a person right now, or mocks or accuses the agent ("Ye kya bakwas hai!", "Daal mein kaanch ka tukda tha!", "Aap log sote ho kya?", "supervisor ko line pe lao, turant!"). An exclamation of pleasant surprise, thanks or relief is calm.
+  - When a line fits two levels, use the higher one. Judge only the customer's words, never the topic of the call.
 - "summary" is 2 or 3 sentences in English: why the customer called, what happened and how it ended.
 - "fix_notes" are for the AI team: one per thing the AI agent got wrong.
 - "coaching" is feedback for the human agent from a senior colleague who listened to the call. Use null when there is no human agent.

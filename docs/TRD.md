@@ -351,19 +351,19 @@ The browser reads the length from the file before upload and blocks files over 3
 
 ## Testing
 
-The rules that make the report trustworthy are tested in code; Gnani and the LLM are tested with 6 test calls.
+The rules that make the report trustworthy are tested in code; Gnani and the LLM are tested with 7 test calls.
 
 | Level | Tool | What it covers |
 | --- | --- | --- |
 | Unit | Vitest | Score bands, quote matching, segment id to time, building frustration ranges from per-segment moods, the handover from speaker roles, the LLM output schema, parsing Gnani's transcript JSON |
 | API | Vitest with Hono's `app.request()` against the Supabase test project, Gnani and OpenRouter mocked, and `after` from `next/server` replaced with one that runs the work and lets the test await it | Every route, status changes, the webhook and cron arriving together (only one finishes the call and sends one LLM request), the cron job failing a call in Analysing for over 5 minutes but not a newer one, and Check again refusing a call that isn't Failed or failed before analysis |
 | End to end | Playwright, external services mocked | Sign in, upload, see the report, play coaching, edit the checklist, delete a call |
-| Real services | A script run by hand | The 6 test calls through real Gnani and the LLMs in `LLM_MODELS`, compared with their expected results |
+| Real services | A script run by hand | The 7 test calls through real Gnani and the LLMs in `LLM_MODELS`, compared with their expected results |
 
-- Expected results per test call are written down first: score, Needs review, red flags, peak frustration and the line where it turned.
+- Expected results per test call are written down first: score, Needs review, red flags, peak frustration, the line where it turned and the mood of every customer line.
 - The analysis runs at temperature 0, and the same call is checked 3 times to confirm the score doesn't change.
 - Test recordings stay in a private folder and are never committed; fixtures use made-up transcripts.
-- The six calls are written in `scripts/calls/`, each with its `EXPECTED` results. `node --env-file=.env.local scripts/make-call.mjs --call <name>` voices one with Timbre into `test-calls/calls/`; after it is uploaded in the app with the call name as its title ("missing item"), `pnpm check:calls` sends each call's transcript through the LLM and the report checks 3 times and lists every difference from `EXPECTED`. `--call <name>` runs one call and `--coaching-lang bn-IN` checks the coaching in another language.
+- The seven calls are written in `scripts/calls/`, each with its `EXPECTED` results. `node --env-file=.env.local scripts/make-call.mjs --call <name>` voices one with Timbre into `test-calls/calls/`; after it is uploaded in the app with the call name as its title ("missing item"), `pnpm check:calls` sends each call's transcript through the LLM and the report checks 3 times and lists every difference from `EXPECTED`. `--call <name>` runs one call and `--coaching-lang bn-IN` checks the coaching in another language.
 
 **Making the test calls.** We will try to make them fully synthetic with Gnani Timbre: each line spoken in its own voice (AI agent, human agent and customer) and joined into one audio file. For noisy telephonic audio, the synthetic call is played over a real phone call and re-recorded. If that isn't possible, we will record our own acted calls instead.
 

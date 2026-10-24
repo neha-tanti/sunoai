@@ -29,7 +29,7 @@ This is the post that decides shortlisting. Progress posts build an audience for
 
 ## Plan
 
-One post a day on both platforms, each covering one piece of work. Days 1–4 cover work that is finished. Day 5 goes out once the six test calls have run, Day 6 once the app is live on Vercel, and Day 7 is the demo post. If a day's work runs late, the plan moves back a day. The demo post must be live before 10 November.
+One post a day on both platforms, each covering one piece of work. Days 1–4 cover work that is finished. Day 5 goes out once the seven test calls have run, Day 6 once the app is live on Vercel, and Day 7 is the demo post. If a day's work runs late, the plan moves back a day. The demo post must be live before 10 November.
 
 | Day | Post on | Covers | Work status |
 | --- | --- | --- | --- |
@@ -178,9 +178,9 @@ Team leads can now edit the checklist each call is scored against.
 #GreatIndianAIInternshipChallenge #GnaniAI
 ```
 
-### Day 5: Six test calls
+### Day 5: Seven test calls
 
-Not posted yet. Post after the six calls in `scripts/calls/` have run (`pnpm check:calls`), and fill in the results in brackets. Attach a screenshot of the rude-agent call's report.
+Not posted yet. Post after the seven calls in `scripts/calls/` have run (`pnpm check:calls`), and fill in the results in brackets. Attach a screenshot of the rude-agent call's report.
 
 **LinkedIn**
 
@@ -189,15 +189,16 @@ Day 5 of SunoAI for the Great Indian AI Internship Challenge 🎧
 
 How do you know an AI call checker is right? Write down the answer before you run it.
 
-I wrote six made-up support calls, voiced them with Gnani Timbre, and wrote down the score, red flags and peak frustration I expected for each before running them:
+I wrote seven made-up support calls, voiced them with Gnani Timbre, and wrote down the score, red flags and peak frustration I expected for each before running them:
 😠 A human agent who brushes off a customer with broken eggs
 🪳 An insect in the food, answered with a coupon
 🛍️ A missing item, handled well
 🔁 An AI agent that asks for the order ID again and again
 ⏰ A late order where the AI agent ignores a request for a person
 💸 A happy customer, but a refund promise the rules don't allow
+🔀 A customer who goes from calm to annoyed to angry, then calms down
 
-SunoAI matched [N] of 6. [What it got wrong, in one line.]
+SunoAI matched [N] of 7. [What it got wrong, in one line.]
 
 @Gnani AI
 #GreatIndianAIInternshipChallenge #GnaniAI

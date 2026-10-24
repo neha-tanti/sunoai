@@ -40,7 +40,7 @@ export const LINES = toLines([
 export const EXPECTED = {
   score: '6/6',
   needs_review: false,
-  frustration_peak: 'annoyed',
+  frustration_peak: 'calm',
   checks: {
     order_confirmed: 'pass',
     problem_understood: 'pass',
@@ -53,5 +53,12 @@ export const EXPECTED = {
     red_flags: [],
     handover: 5,
     frustration_turn: null,
+    moods: {
+      1: 'calm',
+      3: 'calm',
+      6: 'calm',
+      8: 'calm',
+      10: 'calm',
+    },
   },
 };

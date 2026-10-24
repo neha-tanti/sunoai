@@ -63,5 +63,14 @@ export const EXPECTED = {
     red_flags: ['human_not_transferred@5'],
     handover: 9,
     frustration_turn: 7,
+    moods: {
+      1: 'calm',
+      3: 'annoyed',
+      5: 'annoyed',
+      7: 'angry',
+      10: 'calm',
+      12: 'calm',
+      14: 'calm',
+    },
   },
 };

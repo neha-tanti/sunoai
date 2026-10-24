@@ -47,5 +47,11 @@ export const EXPECTED = {
     red_flags: ['safety_not_escalated@4', 'human_not_transferred@8'],
     handover: null,
     frustration_turn: 1,
+    moods: {
+      1: 'angry',
+      3: 'calm',
+      5: 'angry',
+      7: 'angry',
+    },
   },
 };
