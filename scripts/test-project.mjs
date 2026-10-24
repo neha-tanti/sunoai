@@ -26,12 +26,24 @@ export function assertNotDevProject(value) {
   }
 }
 
+const TEST_PROJECT_VARS = [
+  'NEXT_PUBLIC_SUPABASE_URL',
+  'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY',
+  'SUPABASE_SECRET_KEY',
+];
+
 export function loadTestProjectEnv() {
   if (!existsSync('.env.test.local')) {
     throw new Error(
       'Create .env.test.local for the Supabase test project (see README).',
     );
   }
-  process.loadEnvFile('.env.test.local');
-  assertNotDevProject(process.env.NEXT_PUBLIC_SUPABASE_URL ?? '');
+  const env = parseEnv(readFileSync('.env.test.local', 'utf8'));
+  for (const name of TEST_PROJECT_VARS) {
+    if (!env[name]) {
+      throw new Error(`Set ${name} in .env.test.local (see README).`);
+    }
+  }
+  assertNotDevProject(env.NEXT_PUBLIC_SUPABASE_URL);
+  Object.assign(process.env, env);
 }
