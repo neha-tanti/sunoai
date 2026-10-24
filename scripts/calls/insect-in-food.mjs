@@ -49,7 +49,7 @@ export const EXPECTED = {
     frustration_turn: 1,
     moods: {
       1: 'angry',
-      3: 'angry',
+      3: 'calm',
       5: 'angry',
       7: 'angry',
     },
