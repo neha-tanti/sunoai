@@ -23,7 +23,7 @@ Unit and API tests run under `pnpm test`; end-to-end tests run under `pnpm test:
 
 - **No snapshot tests.** No `toMatchSnapshot` / `toMatchInlineSnapshot`, and no frozen output fixtures compared with `toEqual`. Assert the property that matters — a score band, a dropped quote, a status change — not the exact output.
 - **No component or hook tests of their own.** The UI is covered by the Playwright flows that use it.
-- **No real services in automated tests.** `pnpm test` and `pnpm test:e2e` never reach Gnani or OpenRouter; only the hand-run script does. API tests reach only the Supabase test project, never the dev project: Vitest reads its keys from `.env.test.local`, and `pnpm db:reset:test` brings its schema up to date after each migration.
+- **No real services in automated tests.** `pnpm test` and `pnpm test:e2e` never reach Gnani or OpenRouter; only the hand-run script does. API and end-to-end tests reach only the Supabase test project, never the dev/production project: Vitest and Playwright read its keys from `.env.test.local`, and `pnpm db:reset:test` brings its schema up to date after each migration.
 
 ## Core Philosophy
 

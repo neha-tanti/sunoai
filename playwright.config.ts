@@ -1,5 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 import { TEAM_LEADER_STATE } from './e2e/support/team-leader';
+import { loadTestProjectEnv } from './scripts/test-project.mjs';
+
+loadTestProjectEnv();
 
 export default defineConfig({
   testDir: './e2e',
@@ -29,7 +32,7 @@ export default defineConfig({
   webServer: {
     command: 'pnpm build && pnpm start',
     url: 'http://localhost:3000/api/health',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 300_000,
   },
 });

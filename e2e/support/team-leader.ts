@@ -6,8 +6,7 @@ import type { Database } from '@/lib/database.types';
 export const TEAM_LEADER_STATE = 'e2e/.auth/team-leader.json';
 export const TEAM_LEADER_ID_FILE = 'e2e/.auth/team-leader-id.txt';
 
-export function createDevAdminClient() {
-  process.loadEnvFile('.env.local');
+export function createTestAdminClient() {
   return createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SECRET_KEY!,
@@ -18,7 +17,7 @@ export function createDevAdminClient() {
 export async function createTeamLeader() {
   const email = `e2e-team-leader-${randomUUID()}@example.test`;
   const password = randomUUID();
-  const created = await createDevAdminClient().auth.admin.createUser({
+  const created = await createTestAdminClient().auth.admin.createUser({
     email,
     password,
     email_confirm: true,
@@ -28,7 +27,7 @@ export async function createTeamLeader() {
 }
 
 export async function deleteTeamLeader(id: string) {
-  const deleted = await createDevAdminClient().auth.admin.deleteUser(id);
+  const deleted = await createTestAdminClient().auth.admin.deleteUser(id);
   if (deleted.error) throw deleted.error;
 }
 

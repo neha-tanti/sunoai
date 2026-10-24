@@ -43,6 +43,7 @@ Pre-production. The app is scaffolded: an empty Next.js app with the Hono API, T
 
 ```bash
 pnpm dev          # app at http://localhost:3000
+pnpm dev:test     # the app on the Supabase test project, for a branch's code or migration
 pnpm build
 pnpm lint
 pnpm typecheck    # next typegen && tsc --noEmit
