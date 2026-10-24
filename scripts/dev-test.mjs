@@ -6,4 +6,4 @@ loadTestProjectEnv();
 
 spawn(process.execPath, ['node_modules/next/dist/bin/next', 'dev'], {
   stdio: 'inherit',
-}).on('exit', (code) => process.exit(code ?? 0));
+}).on('exit', (code) => process.exit(code ?? 1));

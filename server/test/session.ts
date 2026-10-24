@@ -1,18 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { createServerClient } from '@supabase/ssr';
-import { assertNotDevProject } from '../../scripts/test-project.mjs';
 import { createAdminClient } from '../supabase';
 
 function testProject() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !publishableKey) {
-    throw new Error(
-      'API tests need the Supabase test project. Create .env.test.local (see README).',
-    );
-  }
-  assertNotDevProject(url);
-  return { url, publishableKey };
+  return {
+    url: process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    publishableKey: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+  };
 }
 
 export function sessionCookieName(): string {

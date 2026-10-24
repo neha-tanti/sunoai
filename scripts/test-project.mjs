@@ -46,4 +46,5 @@ export function loadTestProjectEnv() {
   }
   assertNotDevProject(env.NEXT_PUBLIC_SUPABASE_URL);
   Object.assign(process.env, env);
+  return env;
 }
