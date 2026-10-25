@@ -1,5 +1,5 @@
-import { expect, test } from '@playwright/test';
-import { createTestAdminClient } from './support/team-leader';
+import { expect, test, type Page } from '@playwright/test';
+import { deleteTeamLeader, signedInUserId } from './support/team-leader';
 
 test('a signed-out visitor sees what SunoAI does and a way in', async ({
   page,
@@ -24,33 +24,42 @@ test('a signed-out visitor to a call is sent to the homepage', async ({
 });
 
 test.describe('Try it', () => {
-  let startedAt: Date;
+  const visitorIds: string[] = [];
 
-  test.beforeEach(() => {
-    startedAt = new Date();
-  });
+  async function tryIt(page: Page) {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Try it' }).click();
+    await expect(page).toHaveURL(/\/check$/, { timeout: 30_000 });
+    visitorIds.push(await signedInUserId(page));
+  }
 
   test.afterEach(async () => {
-    const admin = createTestAdminClient();
-    const listed = await admin.auth.admin.listUsers();
-    if (listed.error) throw listed.error;
-    const visitors = listed.data.users.filter(
-      (user) => user.is_anonymous && new Date(user.created_at) >= startedAt,
-    );
-    for (const visitor of visitors) {
-      const deleted = await admin.auth.admin.deleteUser(visitor.id);
-      if (deleted.error) throw deleted.error;
-    }
+    for (const id of visitorIds.splice(0)) await deleteTeamLeader(id);
   });
 
   test('opens Check a call without an account', async ({ page }) => {
-    await page.goto('/');
+    await tryIt(page);
 
-    await page.getByRole('button', { name: 'Try it' }).click();
-
-    await expect(page).toHaveURL(/\/check$/, { timeout: 30_000 });
     await expect(
       page.getByRole('heading', { name: 'Check a call' }),
     ).toBeVisible();
+  });
+
+  test('shows a visitor the checklist without letting them change it', async ({
+    page,
+  }) => {
+    await tryIt(page);
+
+    await page.goto('/checklist');
+
+    await expect(
+      page.getByText('Visitors can read the checklist but not change it.'),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('region', { name: 'Checks' }).getByText('Smooth handover'),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Save checklist' }),
+    ).toHaveCount(0);
   });
 });

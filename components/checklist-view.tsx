@@ -1,6 +1,7 @@
 'use client';
 
 import { ChecklistEditor } from '@/components/checklist-editor';
+import { ChecklistReadOnly } from '@/components/checklist-read-only';
 import { useChecklist, useSaveChecklist } from '@/hooks/use-checklist';
 
 export function ChecklistView() {
@@ -16,6 +17,10 @@ export function ChecklistView() {
         {checklist.error.message} Refresh the page to try again.
       </p>
     );
+  }
+
+  if (!checklist.data.can_edit) {
+    return <ChecklistReadOnly checklist={checklist.data} />;
   }
 
   return (

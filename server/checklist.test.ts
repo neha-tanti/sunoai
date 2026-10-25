@@ -4,7 +4,11 @@ import { HANDOVER_CHECK_ID, type SaveChecklist } from '@/lib/checklist';
 import { app } from './app';
 import { createAdminClient } from './supabase';
 import { keepChecklist } from './test/checklist';
-import { sessionCookieName, signInTeamLeader } from './test/session';
+import {
+  sessionCookieName,
+  signInTeamLeader,
+  signInVisitor,
+} from './test/session';
 
 const SEEDED_CHECKS = [
   'order_confirmed',
@@ -390,5 +394,48 @@ describe('PUT /api/checklist', () => {
 
     expect(saved.error).not.toBeNull();
     expect(await readChecklist()).toEqual(before);
+  });
+});
+
+describe('the checklist for visitors', () => {
+  let visitor: Awaited<ReturnType<typeof signInVisitor>>;
+  let restoreChecklist: () => Promise<void>;
+
+  beforeAll(async () => {
+    visitor = await signInVisitor();
+    restoreChecklist = await keepChecklist(createAdminClient());
+  });
+
+  afterAll(async () => {
+    await restoreChecklist();
+    await visitor?.deleteVisitor();
+  });
+
+  it('shows a visitor the checklist without letting them edit it', async () => {
+    const res = await api.checklist.$get(undefined, {
+      headers: { Cookie: visitor.cookie },
+    });
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ can_edit: false });
+  });
+
+  it("refuses a visitor's save and keeps the checklist", async () => {
+    const read = await api.checklist.$get(undefined, {
+      headers: { Cookie: visitor.cookie },
+    });
+    const before = await read.json();
+
+    const res = await api.checklist.$put(
+      { json: { ...before, rules: 'Refund every order in full.' } },
+      { headers: { Cookie: visitor.cookie } },
+    );
+
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ error: { code: 'not_allowed' } });
+    const after = await api.checklist.$get(undefined, {
+      headers: { Cookie: visitor.cookie },
+    });
+    expect((await after.json()).rules).toBe(before.rules);
   });
 });

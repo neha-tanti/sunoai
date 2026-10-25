@@ -61,12 +61,19 @@ function withIds<T extends { id?: string; name: string }>(
 export const checklist = new Hono<SignedInEnv>()
   .get('/', async (c) => {
     const { version, checklist } = await loadChecklist();
-    return c.json({ ...checklist, version });
+    return c.json({ ...checklist, version, can_edit: !c.get('isAnonymous') });
   })
   .put(
     '/',
     zValidator('json', saveChecklistSchema, rejectInvalid),
     async (c) => {
+      if (c.get('isAnonymous')) {
+        throw new ApiError(
+          403,
+          'not_allowed',
+          'Visitors can read the checklist but not change it.',
+        );
+      }
       const body = c.req.valid('json');
       const saved = await createAdminClient().rpc('save_checklist', {
         p_checks: withIds(body.checks, 'check'),

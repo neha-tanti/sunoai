@@ -172,7 +172,9 @@ function CallRow({ call }: { call: RecentCall }) {
         )}
       </TableCell>
       <TableCell className="text-right">
-        <DeleteCallButton id={call.id} title={call.title} />
+        {call.can_delete && (
+          <DeleteCallButton id={call.id} title={call.title} />
+        )}
       </TableCell>
     </TableRow>
   );
