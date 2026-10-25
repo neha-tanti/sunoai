@@ -1,5 +1,6 @@
-ignoredBuiltDependencies:
-  - sharp
-  - unrs-resolver
-onlyBuiltDependencies:
-  - supabase
+strictDepBuilds: true
+allowBuilds:
+  '@openrouter/sdk': false
+  esbuild: false
+  fsevents: false
+  unrs-resolver: false
