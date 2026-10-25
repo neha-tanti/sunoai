@@ -6,6 +6,7 @@ import { after } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import { createCallSchema } from '@/lib/call-upload';
 import { HANDOVER_CHECK_ID } from '@/lib/checklist';
+import { checkExampleSchema, exampleCall } from '@/lib/examples';
 import { analyzeCall } from './analysis';
 import type { SignedInEnv } from './auth';
 import type { Checklist } from './checklist';
@@ -36,9 +37,26 @@ type SavedReport = Pick<Report, ReportJsonColumn> & {
 
 const RECENT_CALLS = 10;
 const RECORDING_URL_SECONDS = 2 * 60 * 60;
+const DAY_MS = 24 * 60 * 60 * 1000;
+export const DAILY_CALL_LIMIT = 30;
 
 const alreadyChecked = () =>
   new ApiError(409, 'already_checked', 'This call has already been checked.');
+
+async function refuseOverDailyLimit() {
+  const checked = await createAdminClient()
+    .from('calls')
+    .select('id', { count: 'exact', head: true })
+    .gte('checked_at', new Date(Date.now() - DAY_MS).toISOString());
+  if (checked.error) throw checked.error;
+  if ((checked.count ?? 0) < DAILY_CALL_LIMIT) return;
+
+  throw new ApiError(
+    429,
+    'daily_limit',
+    `SunoAI has checked its ${DAILY_CALL_LIMIT} calls for today. Try again tomorrow.`,
+  );
+}
 
 function webhookUrl() {
   const url = new URL('/api/webhooks/gnani', requireEnv('APP_URL'));
@@ -233,6 +251,7 @@ async function reopenFailedAnalysis(id: string) {
 
 export const calls = new Hono<SignedInEnv>()
   .post('/', zValidator('json', createCallSchema, rejectInvalid), async (c) => {
+    await refuseOverDailyLimit();
     const body = c.req.valid('json');
     const id = randomUUID();
     const filePath = `${id}/recording.${body.extension}`;
@@ -261,6 +280,40 @@ export const calls = new Hono<SignedInEnv>()
       201,
     );
   })
+  .post(
+    '/examples',
+    zValidator('json', checkExampleSchema, rejectInvalid),
+    async (c) => {
+      await refuseOverDailyLimit();
+      const example = exampleCall(c.req.valid('json').example);
+      const id = randomUUID();
+      const filePath = `${id}/recording.wav`;
+      const supabase = createAdminClient();
+      const examples = supabase.storage.from('examples');
+
+      const file = await examples.info(`${example.id}.wav`);
+      if (file.error) throw file.error;
+      const copied = await examples.copy(`${example.id}.wav`, filePath, {
+        destinationBucket: 'calls',
+      });
+      if (copied.error) throw copied.error;
+
+      const inserted = await supabase.from('calls').insert({
+        id,
+        title: example.title,
+        file_path: filePath,
+        file_size_bytes: file.data.size ?? 0,
+        mime_type: 'audio/wav',
+        call_langs: ['hi-IN', 'en-IN'],
+        coaching_lang: 'hi-IN',
+        created_by: c.get('userId'),
+      });
+      if (inserted.error) throw inserted.error;
+
+      await startCheck(id);
+      return c.json({ id }, 201);
+    },
+  )
   .get('/', async (c) => c.json(await recentCalls()))
   .get('/:id', zValidator('param', callIdParam, rejectInvalid), async (c) => {
     const { id } = c.req.valid('param');

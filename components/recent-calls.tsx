@@ -53,7 +53,10 @@ export function RecentCalls() {
     return (
       <p className="text-muted-foreground">
         No calls checked yet.{' '}
-        <Link href="/" className="text-foreground underline underline-offset-4">
+        <Link
+          href="/check"
+          className="text-foreground underline underline-offset-4"
+        >
           Check a call
         </Link>
       </p>

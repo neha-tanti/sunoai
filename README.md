@@ -17,6 +17,8 @@ A team leader uploads a call recording and gets a report:
 - **AI fix notes** for the team that runs the AI agent
 - **Spoken coaching** for the human agent, in their own language
 
+There is no sign-up: **Try it** on the homepage opens the app, and visitors without a recording can check one of three made-up example calls.
+
 It works in Hindi, Bengali, Marathi, Tamil, Telugu, Kannada, Malayalam, Gujarati, Punjabi, English and Hinglish.
 
 ## Docs
@@ -73,7 +75,7 @@ The home page shows the answer from `GET /api/health`, fetched through the typed
 | `pnpm check:calls` | Runs the seven test calls in `scripts/calls/` through the real LLM and lists every difference from their expected results (see the TRD's [Testing](docs/TRD.md#testing)) |
 | `pnpm format` | Prettier |
 
-**Supabase.** Create a project at [supabase.com/dashboard](https://supabase.com/dashboard). From its **API Keys** page, put the project URL in `NEXT_PUBLIC_SUPABASE_URL`, the publishable key in `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` and the secret key in `SUPABASE_SECRET_KEY`. Then link the CLI with `pnpm supabase login` and `pnpm supabase link --project-ref <ref>`; `pnpm supabase db push` applies the migrations in `supabase/migrations`, and `pnpm supabase config push` applies the auth settings in `supabase/config.toml` (sign-up on, email confirmation off). This project is also production, so it only ever gets `db push`, never `db reset`: push a migration only once its PR merges, and write it to work with the code already on `main`. After a schema change, run `pnpm db:types` to regenerate `lib/database.types.ts`.
+**Supabase.** Create a project at [supabase.com/dashboard](https://supabase.com/dashboard). From its **API Keys** page, put the project URL in `NEXT_PUBLIC_SUPABASE_URL`, the publishable key in `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` and the secret key in `SUPABASE_SECRET_KEY`. Then link the CLI with `pnpm supabase login` and `pnpm supabase link --project-ref <ref>`; `pnpm supabase db push` applies the migrations in `supabase/migrations`, and `pnpm supabase config push` applies the auth settings in `supabase/config.toml` (anonymous sign-ins on, email confirmation off). This project is also production, so it only ever gets `db push`, never `db reset`: push a migration only once its PR merges, and write it to work with the code already on `main`. After a schema change, run `pnpm db:types` to regenerate `lib/database.types.ts`.
 
 **Test project.** API and end-to-end tests run against a second Supabase project, never the dev/production one. Create it, then put its URL and keys in `.env.test.local` under the same three names as above, plus `SUPABASE_TEST_DB_URL`: the **Session pooler** connection string from the project's **Connect** dialog, with the password filled in and percent-encoded. Apply the auth settings once with `pnpm supabase config push --project-ref <test ref>`, and run `pnpm db:reset:test` after every new migration. `pnpm test`, `pnpm test:e2e` and `pnpm dev:test` stop with a clear message if `.env.test.local` is missing or points at the dev/production project.
 
@@ -82,6 +84,7 @@ The home page shows the answer from `GET /api/health`, fetched through the typed
 1. Create the Vercel project from this GitHub repository, with Fluid compute on. Give Production and Preview every variable in `.env.example`: the dev project's Supabase keys, the same `GNANI_API_KEY` as `.env.local`, a fresh `GNANI_WEBHOOK_TOKEN` and `CRON_SECRET`, and `APP_URL` set to the production domain (`https://<project>.vercel.app`, no trailing slash).
 2. Once the production deployment is live, add the two secrets the cron job reads in the project's SQL editor: `select vault.create_secret('<APP_URL>', 'app_url');` and `select vault.create_secret('<CRON_SECRET>', 'cron_secret');`. Change one later with `select vault.update_secret((select id from vault.secrets where name = 'cron_secret'), '<new value>');`, and change `CRON_SECRET` in Vercel at the same time.
 3. Check that `curl -X POST <APP_URL>/api/jobs/poll` answers `401` from the API, not Vercel's login page. Within a few minutes, `select status, return_message from cron.job_run_details order by start_time desc limit 3` should show `succeeded`, and `select status_code, timed_out, error_msg from net._http_response order by created desc limit 3` should show `202` and no timeouts.
+4. Put the example calls the check page offers in the private `examples` bucket: voice them with `node --env-file=.env.local scripts/make-call.mjs --call <name>` if `test-calls/calls/` doesn't have them yet, then run `node --env-file=.env.local scripts/upload-examples.mjs`.
 
 **End-to-end tests.** `pnpm test:e2e` builds and starts the app (`pnpm build && pnpm start`) on the test project from `.env.test.local`, so run `pnpm db:reset:test` first after a new migration, and stop `pnpm dev` first, since the tests need port 3000. That build has the test project's URL compiled in, so run `pnpm build` again before a plain `pnpm start`. The tests under `e2e/signed-in/` create a team leader for the run, sign in, and delete the account and any calls they seeded when they finish. They never reach Gnani.
 

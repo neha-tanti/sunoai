@@ -32,7 +32,7 @@ export function CallView() {
         <p className="text-muted-foreground">
           This call doesn&apos;t exist or was deleted.
         </p>
-        <Link href="/" className="underline underline-offset-4">
+        <Link href="/check" className="underline underline-offset-4">
           Check a call
         </Link>
       </div>

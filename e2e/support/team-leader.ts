@@ -39,5 +39,5 @@ export async function signIn(
   await page.getByLabel('Work email').fill(email);
   await page.getByLabel('Password').fill(password);
   await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page).toHaveURL(/\/$/, { timeout: 30_000 });
+  await expect(page).toHaveURL(/\/check$/, { timeout: 30_000 });
 }

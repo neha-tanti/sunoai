@@ -16,7 +16,7 @@ The product is described in the [SunoAI Product Document](PRD.md). This document
 | Speech to text | Gnani Prisma v2.5 through the Batch API, for timestamps and speaker labels |
 | Coaching voice | Gnani Timbre v2.5 text-to-speech |
 | Analysis | A low-cost model on OpenRouter, paid per token from the account's credits, called with the OpenRouter TypeScript SDK |
-| Accounts | One team; everyone who signs in is a team leader |
+| Accounts | One team; anyone who presses Try it on the homepage is signed in anonymously as a team leader |
 | Live alerts | Not in the MVP; a design sketch is at the end |
 
 ## Scope
@@ -25,7 +25,7 @@ The MVP covers checking recorded calls end to end; anything live or multi-team c
 
 **In the MVP**
 
-- Sign in for team leaders.
+- A homepage with one-click anonymous entry, and email sign-in for the owner.
 - Upload a call recording, pick up to 3 possible call languages and one coaching language.
 - Transcription with timestamps and speaker labels, with optional noise removal.
 - The full report: Needs review, red flags, score, frustration timeline, summary, checklist with quotes, transcript, AI fix notes and coaching text.
@@ -54,7 +54,7 @@ flowchart LR
   timbre["Gnani Timbre<br/>Coaching voice"]
   openrouter["OpenRouter<br/>Qwen 3.8 Flash"]
   subgraph supabase["Supabase"]
-    auth["Auth<br/>Team leaders sign in with email and password"]
+    auth["Auth<br/>Visitors sign in anonymously; the owner with email and password"]
     storage["Storage<br/>Recordings and coaching audio"]
     postgres["Postgres<br/>Calls, transcripts, reports, checklist"]
     cron["Cron<br/>pg_cron and pg_net, every minute"]
@@ -70,7 +70,7 @@ flowchart LR
   batch -.->|reads the file by signed URL| storage
 ```
 
-The browser talks only to Hono, plus Supabase for sign-in and uploads. Gnani reads each recording from Storage by signed URL and reports back through the webhook, and the cron job catches any webhook that never arrives.
+The browser talks only to Hono, plus Supabase for sign-in (anonymous or password) and uploads. Gnani reads each recording from Storage by signed URL and reports back through the webhook, and the cron job catches any webhook that never arrives.
 
 ## Call processing pipeline
 
@@ -209,7 +209,7 @@ The prompt lives in `server/prompts/analyze.ts` with a `PROMPT_VERSION` constant
 
 ## Data model
 
-Six Postgres tables and two private Storage buckets; each report's detailed results are stored as JSON on one row, because nothing queries across them yet.
+Six Postgres tables and three private Storage buckets; each report's detailed results are stored as JSON on one row, because nothing queries across them yet.
 
 | Table | Main columns | Notes |
 | --- | --- | --- |
@@ -232,11 +232,12 @@ Six Postgres tables and two private Storage buckets; each report's detailed resu
 
 ## API
 
-Eleven Hono routes under `/api`: nine for the page, one for Gnani's webhook and one for the cron job.
+Twelve Hono routes under `/api`: ten for the page, one for Gnani's webhook and one for the cron job.
 
 | Route | Called by | What it does |
 | --- | --- | --- |
-| `POST /api/calls` | Page | Checks title, file name, size, type and languages; creates the call; returns its id and a signed upload URL |
+| `POST /api/calls` | Page | Checks the daily limit, then title, file name, size, type and languages; creates the call; returns its id and a signed upload URL |
+| `POST /api/calls/examples` | Page | Checks the daily limit, copies an example recording from the private `examples` bucket into a new call, starts its check like `POST /api/calls/:id/check`, and returns its id |
 | `POST /api/calls/:id/check` | Page | Confirms the file is in Storage, creates and starts the Gnani job, sets Transcribing |
 | `POST /api/calls/:id/analyze` | Page | Check again: sets Analysing only for a Failed call whose `error_code` is `analysis_failed`, clearing the error, and reruns only the analysis. Any other call gets a 409 with code `not_retryable` |
 | `GET /api/calls` | Page | The 10 newest checked calls (a check was started), newest first, with score, Needs review, peak frustration and status, plus the team average: the mean of their score percentages, leaving out calls with no checks applied |
@@ -263,9 +264,9 @@ Six Next.js routes built from shadcn/ui parts, with all server data going throug
 
 | Route | Screen |
 | --- | --- |
-| `/login` | Sign in with email and password |
-| `/signup` | Create an account with email and password |
-| `/` | Check a call: upload, call languages, coaching language, noise removal toggle, progress |
+| `/` | Homepage: what SunoAI does in a few words, and a Try it button that signs the visitor in anonymously and opens `/check` |
+| `/login` | Sign in with email and password, for the owner's account; not linked from any page |
+| `/check` | Check a call: pick an example call, or upload one with call languages, coaching language, noise removal toggle and progress |
 | `/calls` | Recent calls and the team average |
 | `/calls/[id]` | The call report |
 | `/checklist` | Checklist editor |
@@ -296,28 +297,31 @@ The signed-in pages sit in the `app/(app)` route group, whose layout adds `SiteN
 | `['call', id]` | `GET /api/calls/:id` | Refetches every 3 seconds while the status is not Ready or Failed, then stops |
 | `['checklist']` | `GET /api/checklist` | |
 | `useCheckCall` | `POST /api/calls`, upload to the signed URL, `POST /api/calls/:id/check` | Then opens `/calls/[id]` |
+| `useCheckExample` | `POST /api/calls/examples` | Then opens `/calls/[id]` |
 | `useCheckAgain` | `POST /api/calls/:id/analyze` | Invalidates `['call', id]`, which restarts its polling |
 | `useCoachingAudio` | `POST /api/calls/:id/coaching-audio` | Cached per call |
 | `useSaveChecklist` | `PUT /api/checklist` | Invalidates `['checklist']` |
 | `useDeleteCall` | `DELETE /api/calls/:id` | Invalidates `['calls']` |
 
-- The browser uses the Supabase client only to sign up, sign in and upload to a signed URL (`uploadToSignedUrl`). Everything else goes through Hono.
+- The browser uses the Supabase client only to sign in (anonymously or with a password) and upload to a signed URL (`uploadToSignedUrl`). Everything else goes through Hono.
 - Light and dark themes use shadcn's CSS variables, plus SunoAI's own tokens for calm, annoyed and angry.
 - Results always use words as well as colour (Passed, Missed, Angry), and the status line is announced to screen readers.
 
 ## Auth, security and privacy
 
-Anyone can create an account, the browser has no direct access to the database or Storage, and API keys never reach the browser.
+Anyone can get in with one click, the browser has no direct access to the database or Storage, and API keys never reach the browser.
 
-- **Sign-in:** Supabase Auth with email and password, from `/login` and `/signup` in the browser. Sign-up is open and email confirmation is off, so a new account is signed in at once and can see every call; the free plan doesn't allow custom email templates, and sending no email keeps sign-in simple for the demo. `proxy.ts` sends signed-out visitors to `/login`.
+- **Sign-in:** Try it on the homepage calls Supabase's anonymous sign-in, so a visitor gets a session with no email or password and can see and change every call. Supabase limits anonymous sign-ins to 30 an hour per IP address. The owner signs in with email and password at `/login`, which no page links to; there is no sign-up page. `proxy.ts` lets signed-out visitors see only `/` and `/login`, and sends them to `/` from any other page.
+- **Daily limit:** `POST /api/calls` and `POST /api/calls/examples` answer 429 `daily_limit` once 30 calls have been checked (`checked_at`) in the last 24 hours, so open entry can't use up the Gnani and OpenRouter credits.
+- **Example calls:** the check page offers three of the synthetic test calls in `scripts/calls/`. Their WAVs live in the private `examples` bucket, put there by hand with `scripts/upload-examples.mjs`, never committed.
 - **Database access:** only Hono reaches the database and Storage. Row-level security is on for every table with no policies, and the `authenticated` role has no table grants, so a signed-in browser's Supabase token can't read or write anything directly. Because there is one team, every signed-in user can see and change everything through Hono.
 - **Two Supabase clients in Hono:** the auth middleware reads the signed-in user's session only to check it and puts their user id on the request context as `userId`, which sub-apps built with `new Hono<SignedInEnv>()` read with `c.get('userId')`; every route then reads and writes with the secret key. Rows that record who did something, like `calls.created_by`, take that `userId`.
-- **Storage:** both buckets are private. Gnani gets a signed URL valid for 2 hours; the page gets coaching audio through a signed URL valid for 10 minutes.
+- **Storage:** all three buckets (`calls`, `coaching` and `examples`) are private. Gnani gets a signed URL valid for 2 hours; the page gets coaching audio through a signed URL valid for 10 minutes.
 - **Secrets:** Gnani, OpenRouter, the service-role key, the webhook token and the cron secret are server-only environment variables, never prefixed `NEXT_PUBLIC_`.
 - **Logs:** job ids, statuses and timings only. No transcript text, quotes or audio URLs.
 - **Test data:** synthetic calls made with Gnani Timbre where possible, otherwise our own acted recordings. The challenge rules allow no real customers, phone numbers, addresses, Aadhaar, PAN, payment details or real recorded calls.
 - **Deleting:** deleting a call removes its recording, coaching audio, transcript and report.
-- **OpenRouter:** prompts are not logged by default. Leave the account's data-training setting off. Sign-up is open and there is no daily limit, so the `OPENROUTER_API_KEY` key has a credit limit set in OpenRouter to cap spend.
+- **OpenRouter:** prompts are not logged by default. Leave the account's data-training setting off. Beside the daily limit, the `OPENROUTER_API_KEY` key has a credit limit set in OpenRouter to cap spend.
 
 ## Limits and error handling
 
@@ -357,7 +361,7 @@ The rules that make the report trustworthy are tested in code; Gnani and the LLM
 | --- | --- | --- |
 | Unit | Vitest | Score bands, quote matching, segment id to time, building frustration ranges from per-segment moods, the handover from speaker roles, the LLM output schema, parsing Gnani's transcript JSON |
 | API | Vitest with Hono's `app.request()` against the Supabase test project, Gnani and OpenRouter mocked, and `after` from `next/server` replaced with one that runs the work and lets the test await it | Every route, status changes, the webhook and cron arriving together (only one finishes the call and sends one LLM request), the cron job failing a call in Analysing for over 5 minutes but not a newer one, and Check again refusing a call that isn't Failed or failed before analysis |
-| End to end | Playwright, external services mocked | Sign in, upload, see the report, play coaching, edit the checklist, delete a call |
+| End to end | Playwright, external services mocked | Try it, sign in, pick an example, upload, see the report, play coaching, edit the checklist, delete a call |
 | Real services | A script run by hand | The 7 test calls through real Gnani and the LLMs in `LLM_MODELS`, compared with their expected results |
 
 - Expected results per test call are written down first: score, Needs review, red flags, peak frustration, the line where it turned and the mood of every customer line.
@@ -379,7 +383,7 @@ One Vercel project serves the page and the API; one Supabase project holds the d
 | Variable | Available to | Used for |
 | --- | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Browser and server | The Supabase project |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Browser and server | Sign-in and signed uploads (the anon key on older projects) |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Browser and server | Anonymous and password sign-in, and signed uploads (the anon key on older projects) |
 | `SUPABASE_SECRET_KEY` | Server | Every Hono route's database and Storage access (the service-role key on older projects) |
 | `GNANI_API_KEY` | Server | Batch speech-to-text and Timbre |
 | `GNANI_WEBHOOK_TOKEN` | Server | The secret in the callback URL |

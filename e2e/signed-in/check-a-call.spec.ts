@@ -32,7 +32,7 @@ function silentWav(seconds: number) {
 
 test.describe('choosing a recording', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/check');
   });
 
   test('a file that is not audio says which types work', async ({ page }) => {
@@ -77,6 +77,42 @@ test.describe('choosing a recording', () => {
   });
 });
 
+test.describe('example calls', () => {
+  test('picking an example opens its call', async ({ page }) => {
+    const id = randomUUID();
+    let picked: unknown;
+    await page.route('**/api/calls/examples', (route) => {
+      picked = route.request().postDataJSON();
+      return route.fulfill({ status: 201, json: { id } });
+    });
+    await page.goto('/check');
+
+    await page.getByRole('button', { name: /Order ID loop/ }).click();
+
+    await expect(page).toHaveURL(`/calls/${id}`);
+    expect(picked).toEqual({ example: 'order-id-loop' });
+  });
+
+  test('a day that has used up its checks says to come back tomorrow', async ({
+    page,
+  }) => {
+    const message =
+      'SunoAI has checked its 30 calls for today. Try again tomorrow.';
+    await page.route('**/api/calls/examples', (route) =>
+      route.fulfill({
+        status: 429,
+        json: { error: { code: 'daily_limit', message } },
+      }),
+    );
+    await page.goto('/check');
+
+    await page.getByRole('button', { name: /Late order/ }).click();
+
+    await expect(page.getByRole('main').getByRole('alert')).toHaveText(message);
+    await expect(page).toHaveURL(/\/check$/);
+  });
+});
+
 test.describe('uploading', () => {
   const title = `Missing raita, upload test ${randomUUID()}`;
 
@@ -94,7 +130,7 @@ test.describe('uploading', () => {
     await page.route('**/storage/v1/object/upload/sign/**', (route) =>
       route.abort('connectionfailed'),
     );
-    await page.goto('/');
+    await page.goto('/check');
 
     await page.getByLabel('Call recording').setInputFiles({
       name: 'missing-raita.mp3',
@@ -107,7 +143,7 @@ test.describe('uploading', () => {
     await expect(page.getByRole('main').getByRole('alert')).toHaveText(
       'Upload failed. Check your connection and try again.',
     );
-    await expect(page).toHaveURL(/\/$/);
+    await expect(page).toHaveURL(/\/check$/);
   });
 
   test('trying again after a failed upload keeps the same call', async ({
@@ -118,7 +154,7 @@ test.describe('uploading', () => {
       uploadUrls.push(route.request().url());
       return route.abort('connectionfailed');
     });
-    await page.goto('/');
+    await page.goto('/check');
 
     await page.getByLabel('Call recording').setInputFiles({
       name: 'missing-raita.mp3',
@@ -164,7 +200,7 @@ test.describe('uploading', () => {
         },
       });
     });
-    await page.goto('/');
+    await page.goto('/check');
 
     await page.getByLabel('Call recording').setInputFiles({
       name: 'missing-raita.mp3',
@@ -206,7 +242,7 @@ test.describe('uploading', () => {
         return route.abort('connectionfailed');
       });
       await page.clock.install();
-      await page.goto('/');
+      await page.goto('/check');
 
       await page.getByLabel('Call recording').setInputFiles({
         name: 'missing-raita.mp3',

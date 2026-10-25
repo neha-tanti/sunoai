@@ -14,6 +14,7 @@ import { MAX_FILE_BYTES, type CreateCall } from '@/lib/call-upload';
 import { analyzeCall } from './analysis';
 import type { Checklist } from './checklist';
 import { app } from './app';
+import { DAILY_CALL_LIMIT } from './calls';
 import { coachingAudioPath } from './coaching';
 import { createAdminClient } from './supabase';
 import { flushAfter } from './test/after';
@@ -212,6 +213,109 @@ describe('POST /api/calls', () => {
     expect(path.startsWith(`${id}/`)).toBe(true);
     expect(path).not.toContain('..');
     expect(path).toMatch(/\.wav$/);
+  });
+});
+
+describe('POST /api/calls/examples', () => {
+  const EXAMPLE_PATH = 'late-order.wav';
+
+  beforeAll(async () => {
+    const uploaded = await createAdminClient()
+      .storage.from('examples')
+      .upload(
+        EXAMPLE_PATH,
+        new Blob(['not really audio'], { type: 'audio/wav' }),
+        { upsert: true },
+      );
+    if (uploaded.error) throw uploaded.error;
+  });
+
+  afterAll(async () => {
+    const removed = await createAdminClient()
+      .storage.from('examples')
+      .remove([EXAMPLE_PATH]);
+    if (removed.error) throw removed.error;
+  });
+
+  beforeEach(() => {
+    vi.stubEnv('APP_URL', 'https://sunoai.test');
+    vi.stubEnv('GNANI_WEBHOOK_TOKEN', 'test-webhook-token');
+  });
+
+  async function checkExample(example: string) {
+    const res = await api.calls.examples.$post(
+      { json: { example: example as 'late-order' } },
+      { headers: { Cookie: session.cookie } },
+    );
+    if (res.status === 201) {
+      const created = (await res.clone().json()) as { id: string };
+      createdIds.push(created.id);
+    }
+    return res;
+  }
+
+  it("copies the example's recording into a new call and starts its check", async () => {
+    const res = await checkExample('late-order');
+
+    expect(res.status).toBe(201);
+    const { id } = (await res.json()) as { id: string };
+    const { call } = await readCall(id);
+    expect(call).toMatchObject({
+      title: 'Late order',
+      status: 'transcribing',
+      mime_type: 'audio/wav',
+    });
+    const copied = await createAdminClient()
+      .storage.from('calls')
+      .exists(call!.file_path);
+    expect(copied.data).toBe(true);
+    expect(gnani.jobs.size).toBe(1);
+  });
+
+  it('refuses an example that does not exist', async () => {
+    const res = await checkExample('cold-biryani');
+
+    expect(res.status).toBe(400);
+    expect(gnani.jobs.size).toBe(0);
+  });
+});
+
+describe('the daily limit', () => {
+  async function seedCheckedCalls(checkedAt: Date) {
+    await Promise.all(
+      Array.from({ length: DAILY_CALL_LIMIT }, () =>
+        seedCall({ checked_at: checkedAt.toISOString() }),
+      ),
+    );
+  }
+
+  it('refuses a new call once the last day has used up the limit', async () => {
+    await seedCheckedCalls(new Date());
+
+    const res = await createCall(LATE_ORDER_CALL);
+
+    expect(res.status).toBe(429);
+    expect(await res.json()).toMatchObject({ error: { code: 'daily_limit' } });
+  });
+
+  it('refuses an example call once the last day has used up the limit', async () => {
+    await seedCheckedCalls(new Date());
+
+    const res = await api.calls.examples.$post(
+      { json: { example: 'late-order' } },
+      { headers: { Cookie: session.cookie } },
+    );
+
+    expect(res.status).toBe(429);
+    expect(gnani.jobs.size).toBe(0);
+  });
+
+  it('does not count calls checked more than a day ago', async () => {
+    await seedCheckedCalls(new Date(Date.now() - 25 * 60 * 60 * 1000));
+
+    const res = await createCall(LATE_ORDER_CALL);
+
+    expect(res.status).toBe(201);
   });
 });
 

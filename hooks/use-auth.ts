@@ -10,10 +10,6 @@ type Credentials = { email: string; password: string };
 
 const AUTH_MESSAGES: Record<string, string> = {
   invalid_credentials: 'Wrong email or password.',
-  user_already_exists:
-    'An account with this email already exists. Sign in instead.',
-  email_exists: 'An account with this email already exists. Sign in instead.',
-  weak_password: 'Use a password of at least 8 characters.',
   over_request_rate_limit:
     'Too many attempts. Wait a few minutes and try again.',
 };
@@ -33,7 +29,7 @@ function toReadableError(error: AuthError) {
 function useOpenAppAfterAuth() {
   const router = useRouter();
   return () => {
-    router.replace('/');
+    router.replace('/check');
     router.refresh();
   };
 }
@@ -52,18 +48,16 @@ export function useSignIn() {
   });
 }
 
-export function useSignUp() {
+export function useTryIt() {
   const openApp = useOpenAppAfterAuth();
   return useMutation({
-    mutationFn: async (credentials: Credentials) => {
-      const { data, error } =
-        await createSupabaseBrowserClient().auth.signUp(credentials);
+    mutationFn: async () => {
+      const supabase = createSupabaseBrowserClient();
+      const { data } = await supabase.auth.getClaims();
+      if (data) return;
+
+      const { error } = await supabase.auth.signInAnonymously();
       if (error) throw toReadableError(error);
-      if (!data.session) {
-        throw new Error(
-          'Account created, but this Supabase project still asks for email confirmation. Turn it off (see README).',
-        );
-      }
     },
     onSuccess: openApp,
   });

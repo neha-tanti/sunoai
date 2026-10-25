@@ -1,0 +1,23 @@
+import { CheckCallForm } from '@/components/check-call-form';
+import { ExampleCalls } from '@/components/example-calls';
+
+export default function CheckPage() {
+  return (
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-10 px-6 py-16">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-3xl font-semibold tracking-tight">Check a call</h1>
+        <p className="text-muted-foreground">
+          Pick an example or upload a support call. SunoAI transcribes it, then
+          shows where the customer got frustrated and how the agents did.
+        </p>
+      </div>
+      <ExampleCalls />
+      <section aria-labelledby="upload-heading" className="flex flex-col gap-4">
+        <h2 id="upload-heading" className="font-medium">
+          Or upload your own
+        </h2>
+        <CheckCallForm />
+      </section>
+    </main>
+  );
+}

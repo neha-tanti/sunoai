@@ -1,10 +1,8 @@
-import Link from 'next/link';
 import { SignInForm } from '@/components/sign-in-form';
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
@@ -17,19 +15,11 @@ export default function LoginPage() {
           <CardTitle>
             <h1>Sign in to SunoAI</h1>
           </CardTitle>
-          <CardDescription>
-            Use the email and password you signed up with.
-          </CardDescription>
+          <CardDescription>Use your email and password.</CardDescription>
         </CardHeader>
         <CardContent>
           <SignInForm />
         </CardContent>
-        <CardFooter className="text-sm">
-          New to SunoAI?&nbsp;
-          <Link href="/signup" className="underline underline-offset-4">
-            Create an account
-          </Link>
-        </CardFooter>
       </Card>
     </main>
   );
