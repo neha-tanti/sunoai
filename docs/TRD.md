@@ -232,12 +232,13 @@ Six Postgres tables and three private Storage buckets; each report's detailed re
 
 ## API
 
-Twelve Hono routes under `/api`: ten for the page, one for Gnani's webhook and one for the cron job.
+Thirteen Hono routes under `/api`: eleven for the page, one for Gnani's webhook and one for the cron job.
 
 | Route | Called by | What it does |
 | --- | --- | --- |
 | `POST /api/calls` | Page | Checks the daily limit, then title, file name, size, type and languages; creates the call; returns its id and a signed upload URL |
 | `POST /api/calls/examples` | Page | Checks the daily limit, copies an example recording from the private `examples` bucket into a new call, starts its check like `POST /api/calls/:id/check`, and returns its id |
+| `GET /api/calls/examples/:example/audio` | Page | Returns a signed URL, valid 10 minutes, for an example call's recording, so a visitor can listen before checking it |
 | `POST /api/calls/:id/check` | Page | Confirms the file is in Storage, creates and starts the Gnani job, sets Transcribing |
 | `POST /api/calls/:id/analyze` | Page | Check again: sets Analysing only for a Failed call whose `error_code` is `analysis_failed`, clearing the error, and reruns only the analysis. Any other call gets a 409 with code `not_retryable` |
 | `GET /api/calls` | Page | The 10 newest checked calls (a check was started), newest first, with score, Needs review, peak frustration and status, plus the team average: the mean of their score percentages, leaving out calls with no checks applied |
@@ -266,7 +267,7 @@ Six Next.js routes built from shadcn/ui parts, with all server data going throug
 | --- | --- |
 | `/` | Homepage: what SunoAI does in a few words, and a Try it button that signs the visitor in anonymously and opens `/check` |
 | `/login` | Sign in with email and password, for the owner's account; not linked from any page |
-| `/check` | Check a call: pick an example call, or upload one with call languages, coaching language, noise removal toggle and progress |
+| `/check` | Check a call: listen to and pick an example call, or upload one with call languages, coaching language, noise removal toggle and progress |
 | `/calls` | Recent calls and the team average |
 | `/calls/[id]` | The call report |
 | `/checklist` | Checklist editor |
@@ -298,6 +299,7 @@ The signed-in pages sit in the `app/(app)` route group, whose layout adds `SiteN
 | `['checklist']` | `GET /api/checklist` | |
 | `useCheckCall` | `POST /api/calls`, upload to the signed URL, `POST /api/calls/:id/check` | Then opens `/calls/[id]` |
 | `useCheckExample` | `POST /api/calls/examples` | Then opens `/calls/[id]` |
+| `useExampleAudio` | `GET /api/calls/examples/:example/audio` | Fetched on Listen, cached per example |
 | `useCheckAgain` | `POST /api/calls/:id/analyze` | Invalidates `['call', id]`, which restarts its polling |
 | `useCoachingAudio` | `POST /api/calls/:id/coaching-audio` | Cached per call |
 | `useSaveChecklist` | `PUT /api/checklist` | Invalidates `['checklist']` |
@@ -316,7 +318,7 @@ Anyone can get in with one click, the browser has no direct access to the databa
 - **Example calls:** the check page offers three of the synthetic test calls in `scripts/calls/`. Their WAVs live in the private `examples` bucket, put there by hand with `scripts/upload-examples.mjs`, never committed.
 - **Database access:** only Hono reaches the database and Storage. Row-level security is on for every table with no policies, and the `authenticated` role has no table grants, so a signed-in browser's Supabase token can't read or write anything directly. Because there is one team, every signed-in user can see and change everything through Hono.
 - **Two Supabase clients in Hono:** the auth middleware reads the signed-in user's session only to check it and puts their user id on the request context as `userId`, which sub-apps built with `new Hono<SignedInEnv>()` read with `c.get('userId')`; every route then reads and writes with the secret key. Rows that record who did something, like `calls.created_by`, take that `userId`.
-- **Storage:** all three buckets (`calls`, `coaching` and `examples`) are private. Gnani gets a signed URL valid for 2 hours; the page gets coaching audio through a signed URL valid for 10 minutes.
+- **Storage:** all three buckets (`calls`, `coaching` and `examples`) are private. Gnani gets a signed URL valid for 2 hours; the page gets coaching audio and example recordings through signed URLs valid for 10 minutes.
 - **Secrets:** Gnani, OpenRouter, the service-role key, the webhook token and the cron secret are server-only environment variables, never prefixed `NEXT_PUBLIC_`.
 - **Logs:** job ids, statuses and timings only. No transcript text, quotes or audio URLs.
 - **Test data:** synthetic calls made with Gnani Timbre where possible, otherwise our own acted recordings. The challenge rules allow no real customers, phone numbers, addresses, Aadhaar, PAN, payment details or real recorded calls.

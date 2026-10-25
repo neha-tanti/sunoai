@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { CALL_ERROR_MESSAGES } from '@/lib/call-errors';
 import { UPLOAD_TOKEN_REUSE_MS } from '@/lib/call-upload';
 import type { Enums } from '@/lib/database.types';
@@ -78,6 +78,24 @@ test.describe('choosing a recording', () => {
 });
 
 test.describe('example calls', () => {
+  const exampleCard = (page: Page, title: string) =>
+    page.getByRole('listitem').filter({ hasText: title });
+
+  test('Listen plays the example recording in its card', async ({ page }) => {
+    await page.route('**/api/calls/examples/late-order/audio', (route) =>
+      route.fulfill({ json: { url: '/late-order-example.wav' } }),
+    );
+    await page.goto('/check');
+
+    await exampleCard(page, 'Late order')
+      .getByRole('button', { name: 'Listen' })
+      .click();
+
+    await expect(
+      exampleCard(page, 'Late order').getByLabel('Late order recording'),
+    ).toHaveAttribute('src', '/late-order-example.wav');
+  });
+
   test('picking an example opens its call', async ({ page }) => {
     const id = randomUUID();
     let picked: unknown;
@@ -87,7 +105,9 @@ test.describe('example calls', () => {
     });
     await page.goto('/check');
 
-    await page.getByRole('button', { name: /Order ID loop/ }).click();
+    await exampleCard(page, 'Order ID loop')
+      .getByRole('button', { name: 'Check this example' })
+      .click();
 
     await expect(page).toHaveURL(`/calls/${id}`);
     expect(picked).toEqual({ example: 'order-id-loop' });
@@ -106,7 +126,9 @@ test.describe('example calls', () => {
     );
     await page.goto('/check');
 
-    await page.getByRole('button', { name: /Late order/ }).click();
+    await exampleCard(page, 'Late order')
+      .getByRole('button', { name: 'Check this example' })
+      .click();
 
     await expect(page.getByRole('main').getByRole('alert')).toHaveText(message);
     await expect(page).toHaveURL(/\/check$/);

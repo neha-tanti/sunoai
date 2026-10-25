@@ -278,6 +278,27 @@ describe('POST /api/calls/examples', () => {
     expect(res.status).toBe(400);
     expect(gnani.jobs.size).toBe(0);
   });
+
+  it("returns a link that plays the example's recording", async () => {
+    const res = await api.calls.examples[':example'].audio.$get(
+      { param: { example: 'late-order' } },
+      { headers: { Cookie: session.cookie } },
+    );
+
+    expect(res.status).toBe(200);
+    const audio = await fetch((await res.json()).url);
+    expect(audio.ok).toBe(true);
+    expect(audio.headers.get('content-type')).toBe('audio/wav');
+  });
+
+  it('refuses a link to an example that does not exist', async () => {
+    const res = await api.calls.examples[':example'].audio.$get(
+      { param: { example: 'cold-biryani' as 'late-order' } },
+      { headers: { Cookie: session.cookie } },
+    );
+
+    expect(res.status).toBe(404);
+  });
 });
 
 describe('the daily limit', () => {

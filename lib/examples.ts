@@ -20,7 +20,7 @@ export const EXAMPLE_CALLS = [
 
 export type ExampleCallId = (typeof EXAMPLE_CALLS)[number]['id'];
 
-export const checkExampleSchema = z.object({
+export const exampleSchema = z.object({
   example: z.enum(
     EXAMPLE_CALLS.map((example) => example.id) as [
       ExampleCallId,

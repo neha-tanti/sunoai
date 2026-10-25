@@ -6,7 +6,7 @@ import { after } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import { createCallSchema } from '@/lib/call-upload';
 import { HANDOVER_CHECK_ID } from '@/lib/checklist';
-import { checkExampleSchema, exampleCall } from '@/lib/examples';
+import { exampleSchema, exampleCall } from '@/lib/examples';
 import { analyzeCall } from './analysis';
 import type { SignedInEnv } from './auth';
 import type { Checklist } from './checklist';
@@ -37,6 +37,7 @@ type SavedReport = Pick<Report, ReportJsonColumn> & {
 
 const RECENT_CALLS = 10;
 const RECORDING_URL_SECONDS = 2 * 60 * 60;
+const EXAMPLE_AUDIO_URL_SECONDS = 10 * 60;
 const DAY_MS = 24 * 60 * 60 * 1000;
 export const DAILY_CALL_LIMIT = 30;
 
@@ -282,7 +283,7 @@ export const calls = new Hono<SignedInEnv>()
   })
   .post(
     '/examples',
-    zValidator('json', checkExampleSchema, rejectInvalid),
+    zValidator('json', exampleSchema, rejectInvalid),
     async (c) => {
       await refuseOverDailyLimit();
       const example = exampleCall(c.req.valid('json').example);
@@ -312,6 +313,20 @@ export const calls = new Hono<SignedInEnv>()
 
       await startCheck(id);
       return c.json({ id }, 201);
+    },
+  )
+  .get(
+    '/examples/:example/audio',
+    zValidator('param', exampleSchema, rejectInvalid),
+    async (c) => {
+      const signed = await createAdminClient()
+        .storage.from('examples')
+        .createSignedUrl(
+          `${c.req.valid('param').example}.wav`,
+          EXAMPLE_AUDIO_URL_SECONDS,
+        );
+      if (signed.error) throw signed.error;
+      return c.json({ url: signed.data.signedUrl });
     },
   )
   .get('/', async (c) => c.json(await recentCalls()))
