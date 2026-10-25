@@ -2,4 +2,5 @@ strictDepBuilds: true
 allowBuilds:
   '@openrouter/sdk': false
   esbuild: false
+  fsevents: false
   unrs-resolver: false
