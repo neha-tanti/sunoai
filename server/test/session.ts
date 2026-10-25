@@ -27,7 +27,9 @@ async function signedInSession(
   if (signedIn.error) throw signedIn.error;
 
   const claims = await client.auth.getClaims();
-  if (claims.error || !claims.data) throw claims.error;
+  if (claims.error || !claims.data) {
+    throw claims.error ?? new Error('No session after sign-in');
+  }
 
   return {
     supabase: client,

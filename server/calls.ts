@@ -226,7 +226,7 @@ async function startCheck(id: string, isAnonymous: boolean) {
     fileUrl: signed.data.signedUrl,
     callbackUrl: webhookUrl(),
   }).catch(async (err: unknown) => {
-    await releaseCheckSlot(id);
+    if (isAnonymous) await releaseCheckSlot(id);
     throw err;
   });
 
@@ -242,6 +242,7 @@ async function startCheck(id: string, isAnonymous: boolean) {
     .select('id');
   if (updated.error) {
     await cancelOrLog(id, jobId);
+    if (isAnonymous) await releaseCheckSlot(id);
     throw updated.error;
   }
   if (updated.data.length > 0) return;
