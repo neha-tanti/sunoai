@@ -219,12 +219,13 @@ async function startCheck(id: string, isAnonymous: boolean) {
   );
   if (signed.error) throw signed.error;
 
+  const callbackUrl = webhookUrl();
   if (isAnonymous) await claimCheckSlot(id);
   const jobId = await createAndStartJob(id, {
     callLangs: call.data.call_langs,
     denoise: call.data.denoise,
     fileUrl: signed.data.signedUrl,
-    callbackUrl: webhookUrl(),
+    callbackUrl,
   }).catch(async (err: unknown) => {
     if (isAnonymous) await releaseCheckSlot(id);
     throw err;
