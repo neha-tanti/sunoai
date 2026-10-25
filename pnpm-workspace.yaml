@@ -1,6 +1,5 @@
+strictDepBuilds: true
 allowBuilds:
   '@openrouter/sdk': false
   esbuild: false
-  sharp: false
-  supabase: true
   unrs-resolver: false
