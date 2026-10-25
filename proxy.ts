@@ -1,7 +1,7 @@
 import { createServerClient, type SetAllCookies } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
-const PUBLIC_PAGES = ['/login', '/signup'];
+const PUBLIC_PAGES = ['/', '/login'];
 
 export async function proxy(request: NextRequest) {
   let refreshedCookies: Parameters<SetAllCookies>[0] = [];
@@ -27,7 +27,7 @@ export async function proxy(request: NextRequest) {
   const response =
     data || PUBLIC_PAGES.includes(request.nextUrl.pathname)
       ? NextResponse.next({ request })
-      : NextResponse.redirect(new URL('/login', request.url));
+      : NextResponse.redirect(new URL('/', request.url));
 
   for (const { name, value, options } of refreshedCookies) {
     response.cookies.set(name, value, options);

@@ -14,6 +14,7 @@ import { MAX_FILE_BYTES, type CreateCall } from '@/lib/call-upload';
 import { analyzeCall } from './analysis';
 import type { Checklist } from './checklist';
 import { app } from './app';
+import { DAILY_CALL_LIMIT } from './calls';
 import { coachingAudioPath } from './coaching';
 import { createAdminClient } from './supabase';
 import { flushAfter } from './test/after';
@@ -34,7 +35,7 @@ import {
   stubOpenRouter,
   type OpenRouterStub,
 } from './test/openrouter-stub';
-import { signInTeamLeader } from './test/session';
+import { signInTeamLeader, signInVisitor } from './test/session';
 
 vi.mock('next/server', async (importOriginal) => {
   const { collectAfter } = await import('./test/after');
@@ -56,16 +57,17 @@ const LATE_ORDER_CALL: CreateCall = {
 };
 
 let session: Awaited<ReturnType<typeof signInTeamLeader>>;
+let visitor: Awaited<ReturnType<typeof signInVisitor>>;
 let gnani: GnaniStub;
 let openRouter: OpenRouterStub;
 const createdIds: string[] = [];
 
 beforeAll(async () => {
-  session = await signInTeamLeader();
+  [session, visitor] = await Promise.all([signInTeamLeader(), signInVisitor()]);
 });
 
 afterAll(async () => {
-  await session?.deleteTeamLeader();
+  await Promise.all([session?.deleteTeamLeader(), visitor?.deleteVisitor()]);
 });
 
 beforeEach(() => {
@@ -84,15 +86,30 @@ afterEach(async () => {
   await deleteCalls(createdIds.splice(0));
 });
 
-async function createCall(body: Record<string, unknown>) {
+async function keepCreatedId(res: Response) {
+  if (res.status !== 201) return;
+  const created = (await res.clone().json()) as { id: string };
+  createdIds.push(created.id);
+}
+
+async function createCall(
+  body: Record<string, unknown>,
+  cookie = session.cookie,
+) {
   const res = await api.calls.$post(
     { json: body as CreateCall },
-    { headers: { Cookie: session.cookie } },
+    { headers: { Cookie: cookie } },
   );
-  if (res.status === 201) {
-    const created = (await res.clone().json()) as { id: string };
-    createdIds.push(created.id);
-  }
+  await keepCreatedId(res);
+  return res;
+}
+
+async function checkExample(example: string, cookie = session.cookie) {
+  const res = await api.calls.examples.$post(
+    { json: { example: example as 'late-order' } },
+    { headers: { Cookie: cookie } },
+  );
+  await keepCreatedId(res);
   return res;
 }
 
@@ -212,6 +229,206 @@ describe('POST /api/calls', () => {
     expect(path.startsWith(`${id}/`)).toBe(true);
     expect(path).not.toContain('..');
     expect(path).toMatch(/\.wav$/);
+  });
+});
+
+describe('example calls', () => {
+  const EXAMPLE_PATH = 'late-order.wav';
+
+  beforeAll(async () => {
+    const uploaded = await createAdminClient()
+      .storage.from('examples')
+      .upload(
+        EXAMPLE_PATH,
+        new Blob(['not really audio'], { type: 'audio/wav' }),
+        { upsert: true },
+      );
+    if (uploaded.error) throw uploaded.error;
+  });
+
+  afterAll(async () => {
+    const removed = await createAdminClient()
+      .storage.from('examples')
+      .remove([EXAMPLE_PATH]);
+    if (removed.error) throw removed.error;
+  });
+
+  beforeEach(() => {
+    vi.stubEnv('APP_URL', 'https://sunoai.test');
+    vi.stubEnv('GNANI_WEBHOOK_TOKEN', 'test-webhook-token');
+  });
+
+  describe('POST /api/calls/examples', () => {
+    it("copies the example's recording into a new call and starts its check", async () => {
+      const res = await checkExample('late-order');
+
+      expect(res.status).toBe(201);
+      const { id } = (await res.json()) as { id: string };
+      const { call } = await readCall(id);
+      expect(call).toMatchObject({
+        title: 'Late order',
+        status: 'transcribing',
+        mime_type: 'audio/wav',
+        file_size_bytes: 'not really audio'.length,
+      });
+      const copied = await createAdminClient()
+        .storage.from('calls')
+        .exists(call!.file_path);
+      expect(copied.data).toBe(true);
+      expect(gnani.jobs.size).toBe(1);
+    });
+
+    it('removes the new call when its check does not start', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      gnani.answers.create = 503;
+
+      const res = await checkExample('late-order');
+
+      expect(res.status).toBe(503);
+      const left = await createAdminClient()
+        .from('calls')
+        .select('id')
+        .eq('created_by', session.userId);
+      expect(left.data).toEqual([]);
+    });
+
+    it('refuses an example that does not exist', async () => {
+      const res = await checkExample('cold-biryani');
+
+      expect(res.status).toBe(400);
+      expect(gnani.jobs.size).toBe(0);
+    });
+  });
+
+  describe('GET /api/calls/examples/:example/audio', () => {
+    it("returns a link that plays the example's recording", async () => {
+      const res = await api.calls.examples[':example'].audio.$get(
+        { param: { example: 'late-order' } },
+        { headers: { Cookie: session.cookie } },
+      );
+
+      expect(res.status).toBe(200);
+      const audio = await fetch((await res.json()).url);
+      expect(audio.ok).toBe(true);
+      expect(audio.headers.get('content-type')).toBe('audio/wav');
+    });
+
+    it('refuses a link to an example that does not exist', async () => {
+      const res = await api.calls.examples[':example'].audio.$get(
+        { param: { example: 'cold-biryani' as 'late-order' } },
+        { headers: { Cookie: session.cookie } },
+      );
+
+      expect(res.status).toBe(404);
+    });
+  });
+
+  describe('the daily limit', () => {
+    async function seedCheckedCalls(count: number, checkedAt: Date) {
+      await Promise.all(
+        Array.from({ length: count }, () =>
+          seedCall({ checked_at: checkedAt.toISOString() }),
+        ),
+      );
+    }
+
+    async function seedVisitorUpload() {
+      const call = await seedCall({ created_by: visitor.userId });
+      await uploadRecording(call.file_path);
+      return call;
+    }
+
+    function checkAsVisitor(id: string) {
+      return api.calls[':id'].check.$post(
+        { param: { id } },
+        { headers: { Cookie: visitor.cookie } },
+      );
+    }
+
+    it("refuses a visitor's new call once the last day has used up the limit", async () => {
+      await seedCheckedCalls(DAILY_CALL_LIMIT, new Date());
+
+      const res = await createCall(LATE_ORDER_CALL, visitor.cookie);
+
+      expect(res.status).toBe(429);
+      expect(await res.json()).toMatchObject({
+        error: { code: 'daily_limit' },
+      });
+    });
+
+    it("refuses a visitor's check of a call made before the limit was used up", async () => {
+      const call = await seedVisitorUpload();
+      await seedCheckedCalls(DAILY_CALL_LIMIT, new Date());
+
+      const res = await checkAsVisitor(call.id);
+
+      expect(res.status).toBe(429);
+      expect(gnani.jobs.size).toBe(0);
+      expect((await readCall(call.id)).call).toMatchObject({
+        status: 'uploaded',
+        checked_at: null,
+      });
+    });
+
+    it('lets only one of two checks racing for the last slot through', async () => {
+      const calls = await Promise.all([
+        seedVisitorUpload(),
+        seedVisitorUpload(),
+      ]);
+      await seedCheckedCalls(DAILY_CALL_LIMIT - 1, new Date());
+
+      const responses = await Promise.all(
+        calls.map((call) => checkAsVisitor(call.id)),
+      );
+
+      expect(responses.map((res) => res.status).toSorted()).toEqual([200, 429]);
+      expect(gnani.jobs.size).toBe(1);
+    });
+
+    it("gives back a visitor's slot when the Gnani job does not start", async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      const call = await seedVisitorUpload();
+      await seedCheckedCalls(DAILY_CALL_LIMIT - 1, new Date());
+      gnani.answers.create = 503;
+
+      const res = await checkAsVisitor(call.id);
+
+      expect(res.status).toBe(503);
+      expect((await readCall(call.id)).call?.checked_at).toBeNull();
+    });
+
+    it("refuses a visitor's example call and leaves no call behind", async () => {
+      await seedCheckedCalls(DAILY_CALL_LIMIT, new Date());
+
+      const res = await checkExample('late-order', visitor.cookie);
+
+      expect(res.status).toBe(429);
+      expect(gnani.jobs.size).toBe(0);
+      const left = await createAdminClient()
+        .from('calls')
+        .select('id')
+        .eq('created_by', visitor.userId);
+      expect(left.data).toEqual([]);
+    });
+
+    it("never refuses the owner's calls", async () => {
+      await seedCheckedCalls(DAILY_CALL_LIMIT, new Date());
+
+      const res = await checkExample('late-order');
+
+      expect(res.status).toBe(201);
+    });
+
+    it('does not count calls checked more than a day ago', async () => {
+      await seedCheckedCalls(
+        DAILY_CALL_LIMIT,
+        new Date(Date.now() - 25 * 60 * 60 * 1000),
+      );
+
+      const res = await createCall(LATE_ORDER_CALL, visitor.cookie);
+
+      expect(res.status).toBe(201);
+    });
   });
 });
 
@@ -439,13 +656,25 @@ describe('GET /api/calls', () => {
     return call;
   }
 
-  async function readRecentCalls() {
+  async function readRecentCalls(cookie = session.cookie) {
     const res = await api.calls.$get(undefined, {
-      headers: { Cookie: session.cookie },
+      headers: { Cookie: cookie },
     });
     expect(res.status).toBe(200);
     return res.json();
   }
+
+  it('lets a visitor delete only the calls they checked', async () => {
+    const theirs = await seedCheckedCall(2, { created_by: visitor.userId });
+    const owners = await seedCheckedCall(1, { created_by: session.userId });
+
+    const body = await readRecentCalls(visitor.cookie);
+
+    expect(body.calls).toEqual([
+      expect.objectContaining({ id: owners.id, can_delete: false }),
+      expect.objectContaining({ id: theirs.id, can_delete: true }),
+    ]);
+  });
 
   it('has no average before any call is checked', async () => {
     expect(await readRecentCalls()).toEqual({ calls: [], average: null });
@@ -533,12 +762,31 @@ describe('GET /api/calls', () => {
 });
 
 describe('DELETE /api/calls/:id', () => {
-  async function deleteCall(id: string) {
+  async function deleteCall(id: string, cookie = session.cookie) {
     return api.calls[':id'].$delete(
       { param: { id } },
-      { headers: { Cookie: session.cookie } },
+      { headers: { Cookie: cookie } },
     );
   }
+
+  it("refuses a visitor's delete of a call someone else checked", async () => {
+    const call = await seedCall({ created_by: session.userId });
+
+    const res = await deleteCall(call.id, visitor.cookie);
+
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ error: { code: 'not_allowed' } });
+    expect((await readCall(call.id)).call).not.toBeNull();
+  });
+
+  it('lets a visitor delete a call they checked', async () => {
+    const call = await seedCall({ created_by: visitor.userId });
+
+    const res = await deleteCall(call.id, visitor.cookie);
+
+    expect(res.status).toBe(204);
+    expect((await readCall(call.id)).call).toBeNull();
+  });
 
   it('deletes an uploaded call and its recording', async () => {
     const call = await seedCall();

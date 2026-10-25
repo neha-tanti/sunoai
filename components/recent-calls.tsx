@@ -53,7 +53,10 @@ export function RecentCalls() {
     return (
       <p className="text-muted-foreground">
         No calls checked yet.{' '}
-        <Link href="/" className="text-foreground underline underline-offset-4">
+        <Link
+          href="/check"
+          className="text-foreground underline underline-offset-4"
+        >
           Check a call
         </Link>
       </p>
@@ -169,7 +172,9 @@ function CallRow({ call }: { call: RecentCall }) {
         )}
       </TableCell>
       <TableCell className="text-right">
-        <DeleteCallButton id={call.id} title={call.title} />
+        {call.can_delete && (
+          <DeleteCallButton id={call.id} title={call.title} />
+        )}
       </TableCell>
     </TableRow>
   );

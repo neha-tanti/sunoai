@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { CALL_ERROR_MESSAGES } from '@/lib/call-errors';
 import { UPLOAD_TOKEN_REUSE_MS } from '@/lib/call-upload';
 import type { Enums } from '@/lib/database.types';
@@ -32,7 +32,7 @@ function silentWav(seconds: number) {
 
 test.describe('choosing a recording', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/check');
   });
 
   test('a file that is not audio says which types work', async ({ page }) => {
@@ -77,6 +77,64 @@ test.describe('choosing a recording', () => {
   });
 });
 
+test.describe('example calls', () => {
+  const exampleCard = (page: Page, title: string) =>
+    page.getByRole('listitem').filter({ hasText: title });
+
+  test('Listen plays the example recording in its card', async ({ page }) => {
+    await page.route('**/api/calls/examples/late-order/audio', (route) =>
+      route.fulfill({ json: { url: '/late-order-example.wav' } }),
+    );
+    await page.goto('/check');
+
+    await exampleCard(page, 'Late order')
+      .getByRole('button', { name: 'Listen' })
+      .click();
+
+    await expect(
+      exampleCard(page, 'Late order').getByLabel('Late order recording'),
+    ).toHaveAttribute('src', '/late-order-example.wav');
+  });
+
+  test('picking an example opens its call', async ({ page }) => {
+    const id = randomUUID();
+    let picked: unknown;
+    await page.route('**/api/calls/examples', (route) => {
+      picked = route.request().postDataJSON();
+      return route.fulfill({ status: 201, json: { id } });
+    });
+    await page.goto('/check');
+
+    await exampleCard(page, 'Order ID loop')
+      .getByRole('button', { name: 'Check this example' })
+      .click();
+
+    await expect(page).toHaveURL(`/calls/${id}`);
+    expect(picked).toEqual({ example: 'order-id-loop' });
+  });
+
+  test('a day that has used up its checks says to come back tomorrow', async ({
+    page,
+  }) => {
+    const message =
+      'SunoAI has checked its 30 calls for today. Try again tomorrow.';
+    await page.route('**/api/calls/examples', (route) =>
+      route.fulfill({
+        status: 429,
+        json: { error: { code: 'daily_limit', message } },
+      }),
+    );
+    await page.goto('/check');
+
+    await exampleCard(page, 'Late order')
+      .getByRole('button', { name: 'Check this example' })
+      .click();
+
+    await expect(page.getByRole('main').getByRole('alert')).toHaveText(message);
+    await expect(page).toHaveURL(/\/check$/);
+  });
+});
+
 test.describe('uploading', () => {
   const title = `Missing raita, upload test ${randomUUID()}`;
 
@@ -94,7 +152,7 @@ test.describe('uploading', () => {
     await page.route('**/storage/v1/object/upload/sign/**', (route) =>
       route.abort('connectionfailed'),
     );
-    await page.goto('/');
+    await page.goto('/check');
 
     await page.getByLabel('Call recording').setInputFiles({
       name: 'missing-raita.mp3',
@@ -107,7 +165,7 @@ test.describe('uploading', () => {
     await expect(page.getByRole('main').getByRole('alert')).toHaveText(
       'Upload failed. Check your connection and try again.',
     );
-    await expect(page).toHaveURL(/\/$/);
+    await expect(page).toHaveURL(/\/check$/);
   });
 
   test('trying again after a failed upload keeps the same call', async ({
@@ -118,7 +176,7 @@ test.describe('uploading', () => {
       uploadUrls.push(route.request().url());
       return route.abort('connectionfailed');
     });
-    await page.goto('/');
+    await page.goto('/check');
 
     await page.getByLabel('Call recording').setInputFiles({
       name: 'missing-raita.mp3',
@@ -164,7 +222,7 @@ test.describe('uploading', () => {
         },
       });
     });
-    await page.goto('/');
+    await page.goto('/check');
 
     await page.getByLabel('Call recording').setInputFiles({
       name: 'missing-raita.mp3',
@@ -206,7 +264,7 @@ test.describe('uploading', () => {
         return route.abort('connectionfailed');
       });
       await page.clock.install();
-      await page.goto('/');
+      await page.goto('/check');
 
       await page.getByLabel('Call recording').setInputFiles({
         name: 'missing-raita.mp3',

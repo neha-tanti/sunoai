@@ -6,6 +6,7 @@ import { after } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import { createCallSchema } from '@/lib/call-upload';
 import { HANDOVER_CHECK_ID } from '@/lib/checklist';
+import { exampleSchema, exampleCall } from '@/lib/examples';
 import { analyzeCall } from './analysis';
 import type { SignedInEnv } from './auth';
 import type { Checklist } from './checklist';
@@ -36,9 +37,50 @@ type SavedReport = Pick<Report, ReportJsonColumn> & {
 
 const RECENT_CALLS = 10;
 const RECORDING_URL_SECONDS = 2 * 60 * 60;
+const EXAMPLE_AUDIO_URL_SECONDS = 10 * 60;
+const DAY_MS = 24 * 60 * 60 * 1000;
+export const DAILY_CALL_LIMIT = 30;
 
 const alreadyChecked = () =>
   new ApiError(409, 'already_checked', 'This call has already been checked.');
+
+const overDailyLimit = () =>
+  new ApiError(
+    429,
+    'daily_limit',
+    `SunoAI has checked its ${DAILY_CALL_LIMIT} calls for today. Try again tomorrow.`,
+  );
+
+async function refuseOverDailyLimit() {
+  const checked = await createAdminClient()
+    .from('calls')
+    .select('id', { count: 'exact', head: true })
+    .gte('checked_at', new Date(Date.now() - DAY_MS).toISOString());
+  if (checked.error) throw checked.error;
+  if ((checked.count ?? 0) >= DAILY_CALL_LIMIT) throw overDailyLimit();
+}
+
+async function claimCheckSlot(id: string) {
+  const claimed = await createAdminClient().rpc('claim_check_slot', {
+    p_call_id: id,
+    p_limit: DAILY_CALL_LIMIT,
+  });
+  if (claimed.error) throw claimed.error;
+  if (!claimed.data) throw overDailyLimit();
+}
+
+async function releaseCheckSlot(id: string) {
+  const released = await createAdminClient()
+    .from('calls')
+    .update({ checked_at: null })
+    .eq('id', id)
+    .eq('status', 'uploaded');
+  if (released.error) {
+    console.error(
+      `Releasing the check slot of call ${id} failed: ${loggableError(released.error)}`,
+    );
+  }
+}
 
 function webhookUrl() {
   const url = new URL('/api/webhooks/gnani', requireEnv('APP_URL'));
@@ -115,18 +157,24 @@ async function readReport(
   };
 }
 
-async function recentCalls() {
+async function recentCalls(userId: string, isAnonymous: boolean) {
   const recent = await createAdminClient()
     .from('calls')
     .select(
-      'id, title, status, error_code, created_at, report:reports(score_passed, score_total, needs_review, frustration_peak)',
+      'id, title, status, error_code, created_at, created_by, report:reports(score_passed, score_total, needs_review, frustration_peak)',
     )
     .not('checked_at', 'is', null)
     .order('created_at', { ascending: false })
     .limit(RECENT_CALLS);
   if (recent.error) throw recent.error;
 
-  return { calls: recent.data, average: teamAverage(recent.data) };
+  return {
+    calls: recent.data.map(({ created_by, ...call }) => ({
+      ...call,
+      can_delete: !isAnonymous || created_by === userId,
+    })),
+    average: teamAverage(recent.data),
+  };
 }
 
 type ScoredCall = {
@@ -145,7 +193,7 @@ function teamAverage(calls: ScoredCall[]) {
   return { percent: Math.round(mean * 100), calls: ratios.length };
 }
 
-async function startCheck(id: string) {
+async function startCheck(id: string, isAnonymous: boolean) {
   const supabase = createAdminClient();
   const call = await supabase
     .from('calls')
@@ -171,11 +219,16 @@ async function startCheck(id: string) {
   );
   if (signed.error) throw signed.error;
 
+  const callbackUrl = webhookUrl();
+  if (isAnonymous) await claimCheckSlot(id);
   const jobId = await createAndStartJob(id, {
     callLangs: call.data.call_langs,
     denoise: call.data.denoise,
     fileUrl: signed.data.signedUrl,
-    callbackUrl: webhookUrl(),
+    callbackUrl,
+  }).catch(async (err: unknown) => {
+    if (isAnonymous) await releaseCheckSlot(id);
+    throw err;
   });
 
   const updated = await supabase
@@ -190,6 +243,7 @@ async function startCheck(id: string) {
     .select('id');
   if (updated.error) {
     await cancelOrLog(id, jobId);
+    if (isAnonymous) await releaseCheckSlot(id);
     throw updated.error;
   }
   if (updated.data.length > 0) return;
@@ -203,6 +257,18 @@ async function startCheck(id: string) {
   if (stillThere.error) throw stillThere.error;
   if (!stillThere.data) throw new HTTPException(404);
   throw alreadyChecked();
+}
+
+async function discardExampleCall(id: string, filePath: string) {
+  const supabase = createAdminClient();
+  const deleted = await supabase.from('calls').delete().eq('id', id);
+  const removed = await supabase.storage.from('calls').remove([filePath]);
+  const error = deleted.error ?? removed.error;
+  if (error) {
+    console.error(
+      `Discarding example call ${id} failed: ${loggableError(error)}`,
+    );
+  }
 }
 
 async function reopenFailedAnalysis(id: string) {
@@ -233,6 +299,7 @@ async function reopenFailedAnalysis(id: string) {
 
 export const calls = new Hono<SignedInEnv>()
   .post('/', zValidator('json', createCallSchema, rejectInvalid), async (c) => {
+    if (c.get('isAnonymous')) await refuseOverDailyLimit();
     const body = c.req.valid('json');
     const id = randomUUID();
     const filePath = `${id}/recording.${body.extension}`;
@@ -261,7 +328,62 @@ export const calls = new Hono<SignedInEnv>()
       201,
     );
   })
-  .get('/', async (c) => c.json(await recentCalls()))
+  .post(
+    '/examples',
+    zValidator('json', exampleSchema, rejectInvalid),
+    async (c) => {
+      const example = exampleCall(c.req.valid('json').example);
+      const id = randomUUID();
+      const filePath = `${id}/recording.wav`;
+      const supabase = createAdminClient();
+      const examples = supabase.storage.from('examples');
+
+      const file = await examples.info(`${example.id}.wav`);
+      if (file.error) throw file.error;
+      if (file.data.size === undefined) {
+        throw new Error(`Example ${example.id} has no size`);
+      }
+      const copied = await examples.copy(`${example.id}.wav`, filePath, {
+        destinationBucket: 'calls',
+      });
+      if (copied.error) throw copied.error;
+
+      const inserted = await supabase.from('calls').insert({
+        id,
+        title: example.title,
+        file_path: filePath,
+        file_size_bytes: file.data.size,
+        mime_type: 'audio/wav',
+        call_langs: [...example.call_langs],
+        coaching_lang: example.coaching_lang,
+        created_by: c.get('userId'),
+      });
+      if (inserted.error) throw inserted.error;
+
+      await startCheck(id, c.get('isAnonymous')).catch(async (err: unknown) => {
+        await discardExampleCall(id, filePath);
+        throw err;
+      });
+      return c.json({ id }, 201);
+    },
+  )
+  .get(
+    '/examples/:example/audio',
+    zValidator('param', exampleSchema, rejectInvalid),
+    async (c) => {
+      const signed = await createAdminClient()
+        .storage.from('examples')
+        .createSignedUrl(
+          `${c.req.valid('param').example}.wav`,
+          EXAMPLE_AUDIO_URL_SECONDS,
+        );
+      if (signed.error) throw signed.error;
+      return c.json({ url: signed.data.signedUrl });
+    },
+  )
+  .get('/', async (c) =>
+    c.json(await recentCalls(c.get('userId'), c.get('isAnonymous'))),
+  )
   .get('/:id', zValidator('param', callIdParam, rejectInvalid), async (c) => {
     const { id } = c.req.valid('param');
     const supabase = createAdminClient();
@@ -293,7 +415,7 @@ export const calls = new Hono<SignedInEnv>()
     '/:id/check',
     zValidator('param', callIdParam, rejectInvalid),
     async (c) => {
-      await startCheck(c.req.valid('param').id);
+      await startCheck(c.req.valid('param').id, c.get('isAnonymous'));
       return c.json({ status: 'transcribing' as const });
     },
   )
@@ -325,11 +447,18 @@ export const calls = new Hono<SignedInEnv>()
       const supabase = createAdminClient();
       const call = await supabase
         .from('calls')
-        .select('status, gnani_job_id, file_path')
+        .select('status, gnani_job_id, file_path, created_by')
         .eq('id', id)
         .maybeSingle();
       if (call.error) throw call.error;
       if (!call.data) throw new HTTPException(404);
+      if (c.get('isAnonymous') && call.data.created_by !== c.get('userId')) {
+        throw new ApiError(
+          403,
+          'not_allowed',
+          'You can delete only the calls you checked.',
+        );
+      }
 
       const { status, gnani_job_id: jobId, file_path: filePath } = call.data;
       if (status === 'transcribing' && jobId) await cancelOrLog(id, jobId);

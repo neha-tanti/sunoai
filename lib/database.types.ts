@@ -260,6 +260,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_check_slot: {
+        Args: { p_call_id: string; p_limit: number }
+        Returns: boolean
+      }
       load_checklist: { Args: never; Returns: Json }
       save_checklist: {
         Args: {

@@ -88,6 +88,9 @@ export function CheckCallForm() {
         onAccept={acceptFile}
         onReject={rejectFile}
       />
+      <p className="text-muted-foreground -mt-3 text-xs">
+        Don&apos;t upload private calls. Other visitors can see them.
+      </p>
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="title">Call title</Label>

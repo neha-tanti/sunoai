@@ -12,6 +12,8 @@ export type ErrorCode =
   | 'checklist_changed'
   | 'no_coaching'
   | 'coaching_audio_failed'
+  | 'daily_limit'
+  | 'not_allowed'
   | 'internal_error';
 
 export async function apiError(res: { json(): Promise<unknown> }) {

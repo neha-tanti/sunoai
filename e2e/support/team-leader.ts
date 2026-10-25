@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { expect, type Page } from '@playwright/test';
+import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/database.types';
 
@@ -39,5 +40,22 @@ export async function signIn(
   await page.getByLabel('Work email').fill(email);
   await page.getByLabel('Password').fill(password);
   await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page).toHaveURL(/\/$/, { timeout: 30_000 });
+  await expect(page).toHaveURL(/\/check$/, { timeout: 30_000 });
+}
+
+export async function signedInUserId(page: Page) {
+  const cookies = await page.context().cookies();
+  const client = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+    {
+      cookies: {
+        getAll: () => cookies.map(({ name, value }) => ({ name, value })),
+        setAll: () => {},
+      },
+    },
+  );
+  const { data, error } = await client.auth.getClaims();
+  if (error || !data) throw error ?? new Error('The page has no session');
+  return data.claims.sub;
 }
