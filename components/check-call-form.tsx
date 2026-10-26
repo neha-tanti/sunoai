@@ -1,7 +1,9 @@
 'use client';
 
+import { EyeIcon } from 'lucide-react';
 import { useState } from 'react';
 import { UploadDropzone } from '@/components/upload-dropzone';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -65,6 +67,7 @@ export function CheckCallForm() {
   function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!file) return setFormError('Choose a call recording first.');
+    if (!title.trim()) return setFormError('Give the call a title.');
     if (callLangs.length === 0) {
       return setFormError('Pick at least one call language.');
     }
@@ -81,25 +84,38 @@ export function CheckCallForm() {
   const error = formError ?? checkCall.error?.message;
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
+      <Alert
+        role="note"
+        className="border-annoyed/60 bg-annoyed/10 text-foreground"
+      >
+        <EyeIcon className="text-annoyed-foreground dark:text-annoyed" />
+        <AlertTitle>Don&apos;t upload private calls</AlertTitle>
+        <AlertDescription className="text-foreground/80">
+          Other visitors can see every call you check, its recording and its
+          transcript. Use made-up calls only.
+        </AlertDescription>
+      </Alert>
       <UploadDropzone
         file={file}
         disabled={busy}
         onAccept={acceptFile}
         onReject={rejectFile}
       />
-      <p className="text-muted-foreground -mt-3 text-xs">
-        Don&apos;t upload private calls. Other visitors can see them.
-      </p>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="title">Call title</Label>
+        <Label htmlFor="title">
+          Call title
+          <span className="font-normal text-muted-foreground">
+            (filled in from the file name)
+          </span>
+        </Label>
         <Input
           id="title"
           value={title}
           onChange={(event) => setTitle(event.target.value)}
           maxLength={120}
-          required
+          aria-required
         />
       </div>
 
@@ -165,7 +181,7 @@ export function CheckCallForm() {
       </p>
 
       <div>
-        <Button type="submit" disabled={!hydrated || busy}>
+        <Button type="submit" size="lg" disabled={!hydrated || busy}>
           Check this call
         </Button>
       </div>

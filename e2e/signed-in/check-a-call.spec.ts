@@ -29,6 +29,16 @@ test.describe('choosing a recording', () => {
     );
   });
 
+  test('checking without a recording asks for one before the title', async ({
+    page,
+  }) => {
+    await page.getByRole('button', { name: 'Check this call' }).click();
+
+    await expect(page.getByRole('main').getByRole('alert')).toHaveText(
+      'Choose a call recording first.',
+    );
+  });
+
   test('a file over 50 MB says it is too big', async ({ page }, testInfo) => {
     const recording = testInfo.outputPath('long-escalation.mp3');
     writeFileSync(recording, Buffer.alloc(50 * 1024 * 1024 + 1));
