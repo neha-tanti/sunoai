@@ -1,7 +1,7 @@
 import 'server-only';
 import type { CoachingLanguage } from '@/lib/call-upload';
 import { HANDOVER_CHECK_ID } from '@/lib/checklist';
-import { formatTime } from '@/lib/report-labels';
+import { formatTime } from '@/lib/format-time';
 import type { Checklist } from './checklist';
 import type { TranscriptSegment } from './gnani';
 import { type LlmAnswer, type Mood, moodSchema } from './prompts/analyze';
@@ -130,7 +130,7 @@ export function buildReport(input: {
 }
 
 const SEGMENT_MENTION =
-  /\b(in |at )?(segments?) (\d+(?:(?:,? and |, | or )\d+)*)\b/gi;
+  /\b(in |at )?(segments?) (\d+(?:(?:,? and |, | or | to | ?[-–] ?)\d+)*)\b/gi;
 
 function mentionsAsTimes(
   text: string,
@@ -177,7 +177,11 @@ function withSegmentTimes(
     })),
     summary: times(answer.summary),
     coaching: answer.coaching
-      ? { ...answer.coaching, english: times(answer.coaching.english) }
+      ? {
+          ...answer.coaching,
+          text: times(answer.coaching.text),
+          english: times(answer.coaching.english),
+        }
       : null,
   };
 }

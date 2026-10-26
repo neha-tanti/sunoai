@@ -16,6 +16,7 @@ import type { SavedChecklist } from '@/hooks/use-checklist';
 import {
   DETAIL_MAX,
   HANDOVER_CHECK_ID,
+  NOT_TRANSFERRED_FLAG_ID,
   MAX_CHECKS,
   MAX_RED_FLAGS,
   NAME_MAX,
@@ -142,16 +143,13 @@ export function ChecklistEditor({
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-            {redFlags.length === 0 && (
-              <p className="text-sm text-muted-foreground">No red flags.</p>
-            )}
             {redFlags.map((flag, index) => (
               <ItemFields
                 key={flag.key}
                 legend={`Red flag ${index + 1}`}
                 detailLabel="Example"
                 item={flag}
-                removable
+                removable={flag.id !== NOT_TRANSFERRED_FLAG_ID}
                 onChange={(changed) =>
                   updateRedFlags(redFlags.with(index, changed))
                 }

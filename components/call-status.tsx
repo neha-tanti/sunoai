@@ -5,13 +5,19 @@ import { cn } from '@/lib/utils';
 const STEPS = ['Upload', 'Transcribe', 'Analyse', 'Report'];
 
 const CURRENT_STEP = {
-  uploaded: 0,
+  uploaded: 1,
   transcribing: 1,
   analyzing: 2,
 } as const;
 
 export function CallStatus({ status, errorCode }: CallState) {
-  if (status === 'ready') return null;
+  if (status === 'ready') {
+    return (
+      <p role="status" className="sr-only">
+        {statusText({ status, errorCode })}
+      </p>
+    );
+  }
   if (status === 'failed') {
     return (
       <p role="status" className="text-destructive">

@@ -227,7 +227,7 @@ Six Postgres tables and three private Storage buckets; each report's detailed re
 
 - Indexes: `calls (created_at desc)` for Recent calls, `calls (status, status_at)` for the cron job, and `transcript_segments (call_id, start_time)`.
 - Removed checks and red flags are set to `active = false` rather than deleted, so old snapshots still read correctly.
-- A check or red flag keeps its id when it is edited. A new one gets a slug of its name (`check` or `red_flag` when the name has no English letters), with `_2`, `_3` added if another item in the same save has it; a removed item added again under the same name gets its old row back. Smooth handover (`smooth_handover`) can be edited but not removed, because the Handover tile reads it: the editor turns off its Remove button and `PUT /api/checklist` rejects a save without it.
+- A check or red flag keeps its id when it is edited. A new one gets a slug of its name (`check` or `red_flag` when the name has no English letters), with `_2`, `_3` added if another item in the same save has it; a removed item added again under the same name gets its old row back. Smooth handover (`smooth_handover`) and the red flag Customer asked for a human and wasn't transferred (`human_not_transferred`) can be edited but not removed, because the Handover tile reads them: the editor turns off their Remove buttons and `PUT /api/checklist` rejects a save without either.
 - Schema changes are Supabase CLI migrations in `supabase/migrations`, and the default checklist is a seed file.
 
 ## API

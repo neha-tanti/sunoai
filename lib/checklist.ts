@@ -33,7 +33,10 @@ export const saveChecklistSchema = z.object({
   red_flags: z
     .array(z.object({ id: itemId, name, example: detail }))
     .max(MAX_RED_FLAGS)
-    .refine(uniqueIds),
+    .refine(uniqueIds)
+    .refine((flags) =>
+      flags.some((flag) => flag.id === NOT_TRANSFERRED_FLAG_ID),
+    ),
   rules: z.string().trim().max(RULES_MAX),
   version: checklistVersion,
 });

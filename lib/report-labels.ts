@@ -48,17 +48,19 @@ export const RESULT_TONE = {
   pass: 'calm',
   miss: 'angry',
   na: 'neutral',
-} as const satisfies Record<string, Tone>;
+} as const satisfies Record<keyof typeof RESULT_LABEL, Tone>;
 
-export function formatTime(seconds: number) {
-  const whole = Math.floor(seconds);
-  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
-}
+const SCRIPTS = COACHING_LANGUAGES.filter(
+  ({ script }) => script !== 'Latin',
+).map(({ code, script }) => ({
+  code,
+  pattern: new RegExp(`\\p{Script=${script}}`, 'u'),
+}));
 
-export function langOf(text: string) {
-  return COACHING_LANGUAGES.find(
-    ({ script }) =>
-      script !== 'Latin' && new RegExp(`\\p{Script=${script}}`, 'u').test(text),
+export function langOf(text: string | undefined, langs: string[]) {
+  if (!text) return undefined;
+  return SCRIPTS.find(
+    ({ code, pattern }) => langs.includes(code) && pattern.test(text),
   )?.code;
 }
 

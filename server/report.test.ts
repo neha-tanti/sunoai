@@ -224,12 +224,48 @@ describe('buildReport', () => {
       expect(report.coaching?.english).toBe('Arjun, at 0:25 you did well.');
     });
 
+    it('names the times at both ends of a range of segments', () => {
+      const { report } = build({
+        summary: 'The AI looped in segments 2-4 and again in segments 2 to 4.',
+      });
+
+      expect(report.summary).toBe(
+        'The AI looped at 0:10-0:20 and again at 0:10 to 0:20.',
+      );
+    });
+
+    it('rewrites the spoken English coaching the same as its English version', () => {
+      const { report } = build(
+        {
+          coaching: {
+            ...answer().coaching!,
+            text: 'Arjun, in segment 5 you did well.',
+            english: 'Arjun, in segment 5 you did well.',
+          },
+        },
+        { coachingLang: 'en-IN' },
+      );
+
+      expect(report.coaching?.text).toBe('Arjun, at 0:25 you did well.');
+      expect(report.coaching?.text).toBe(report.coaching?.english);
+    });
+
     it('leaves a segment number that is not in the transcript as written', () => {
       const { report } = build({
         summary: 'The customer hung up after segment 40.',
       });
 
       expect(report.summary).toBe('The customer hung up after segment 40.');
+    });
+
+    it('leaves a mention as written when one of its segments is not in the transcript', () => {
+      const { report } = build({
+        summary: 'The customer asked for a person in segments 3, 40.',
+      });
+
+      expect(report.summary).toBe(
+        'The customer asked for a person in segments 3, 40.',
+      );
     });
   });
 

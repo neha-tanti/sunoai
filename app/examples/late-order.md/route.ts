@@ -5,9 +5,9 @@ import {
   LATE_ORDER_REPORT as report,
   LATE_ORDER_SEGMENTS as segments,
 } from '@/lib/late-order-example';
+import { formatTime } from '@/lib/format-time';
 import {
   findSpeaker,
-  formatTime,
   MOOD_LABEL,
   RESULT_LABEL,
   SCORE_BAND_LABEL,

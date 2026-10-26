@@ -10,9 +10,9 @@ import {
 } from '@/components/ui/card';
 import type { ReportDetail, Segment } from '@/hooks/use-call';
 import { NOT_TRANSFERRED_FLAG_ID } from '@/lib/checklist';
+import { formatTime } from '@/lib/format-time';
 import {
   findSpeaker,
-  formatTime,
   langOf,
   MOOD_LABEL,
   RESULT_TONE,
@@ -26,12 +26,13 @@ const HANDOVER_LABEL = {
 } as const;
 
 type TilesProps = { report: ReportDetail; segments: Segment[] };
+type LangTilesProps = TilesProps & { langs: string[] };
 
-export function ReportTiles({ report, segments }: TilesProps) {
+export function ReportTiles({ report, segments, langs }: LangTilesProps) {
   return (
     <div className="grid gap-4 md:grid-cols-3">
       <ScoreTile report={report} />
-      <FrustrationTile report={report} segments={segments} />
+      <FrustrationTile report={report} segments={segments} langs={langs} />
       <HandoverTile report={report} segments={segments} />
     </div>
   );
@@ -79,7 +80,7 @@ function ScoreTile({ report }: { report: ReportDetail }) {
   );
 }
 
-function FrustrationTile({ report, segments }: TilesProps) {
+function FrustrationTile({ report, segments, langs }: LangTilesProps) {
   const peak = report.frustration_peak;
   const turn = report.frustration.turn;
   const turnText = turn
@@ -97,7 +98,7 @@ function FrustrationTile({ report, segments }: TilesProps) {
         {turn ? (
           <>
             Turned here:{' '}
-            <q lang={turnText && langOf(turnText)} className="italic">
+            <q lang={langOf(turnText, langs)} className="italic">
               {turnText}
             </q>
           </>
@@ -129,7 +130,7 @@ function HandoverTile({ report, segments }: TilesProps) {
         </ToneBadge>
       )}
       {check && <p className="text-sm text-muted-foreground">{check.reason}</p>}
-      {notTransferred && (
+      {handover && notTransferred && (
         <p className="flex gap-2 text-sm font-medium text-destructive">
           <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0" />
           <span>

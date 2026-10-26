@@ -6,12 +6,8 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import type { ReportDetail, Segment } from '@/hooks/use-call';
-import {
-  findSpeaker,
-  formatTime,
-  MOOD_CLASS,
-  MOOD_LABEL,
-} from '@/lib/report-labels';
+import { formatTime } from '@/lib/format-time';
+import { findSpeaker, MOOD_CLASS, MOOD_LABEL } from '@/lib/report-labels';
 import { cn } from '@/lib/utils';
 
 const TICK_STEPS = [10, 30, 60, 120, 300, 600];

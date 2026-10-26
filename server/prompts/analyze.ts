@@ -4,7 +4,7 @@ import { type CoachingLanguage, HINGLISH } from '@/lib/call-upload';
 import type { Checklist } from '../checklist';
 import type { TranscriptSegment } from '../gnani';
 
-export const PROMPT_VERSION = 'analyze-v4';
+export const PROMPT_VERSION = 'analyze-v5';
 
 const MOODS = ['calm', 'annoyed', 'angry'] as const;
 export const moodSchema = z.enum(MOODS);
@@ -76,7 +76,7 @@ ${JSON.stringify(ANSWER_JSON_SCHEMA)}
 
 Rules:
 - Speaker ids come from automatic diarization and can be wrong. Decide each speaker's role from what they say.
-- Refer to lines only by segment_id. Never give times.
+- Point at lines only through the segment_id fields. Written text (reasons, notes, titles, the summary and the coaching) describes a line by what was said in it and never gives a segment number or a time.
 - Every quote is the shortest phrase that proves the point, copied character for character from the segment it cites. Keep mixed Hindi and English exactly as written: never translate, transliterate or fix a word. A quote uses the same letters as its segment: when English words are written in Devanagari ("डिलीवरी बॉय"), the quote keeps them in Devanagari.
 - Checks apply to the whole call: a check passes when either the AI agent or the human agent does it.
 - A check is "pass" only with a quote that proves it. Without one it is "miss". Use "na" only when the check does not apply.

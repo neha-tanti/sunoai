@@ -7,7 +7,7 @@ import { CallStatus } from '@/components/call-status';
 import { CheckAgainButton } from '@/components/check-again-button';
 import { type CallDetail, useCall } from '@/hooks/use-call';
 import { CALL_LANGUAGES } from '@/lib/call-upload';
-import { formatTime } from '@/lib/report-labels';
+import { formatTime } from '@/lib/format-time';
 
 export function CallView() {
   const { id } = useParams<{ id: string }>();
@@ -55,7 +55,7 @@ export function CallView() {
         )}
       </div>
       {status === 'ready' && report && (
-        <CallReport callId={id} report={report} segments={segments} />
+        <CallReport call={detail} report={report} segments={segments} />
       )}
     </div>
   );

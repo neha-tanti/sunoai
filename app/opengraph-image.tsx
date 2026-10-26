@@ -4,7 +4,8 @@ import {
   LATE_ORDER_REPORT,
   LATE_ORDER_SECONDS,
 } from '@/lib/late-order-example';
-import { formatTime, MOOD_COLOR } from '@/lib/report-labels';
+import { formatTime } from '@/lib/format-time';
+import { MOOD_COLOR } from '@/lib/report-labels';
 import { SITE_URL } from '@/lib/site';
 
 export const alt =

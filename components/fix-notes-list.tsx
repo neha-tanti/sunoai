@@ -11,13 +11,15 @@ import { langOf } from '@/lib/report-labels';
 
 type FixNote = ReportDetail['fix_notes'][number];
 
-export function FixNotesList({ notes }: { notes: FixNote[] }) {
+type FixNotesListProps = { notes: FixNote[]; langs: string[] };
+
+export function FixNotesList({ notes, langs }: FixNotesListProps) {
   return (
     <Card
       id="ai-fixes"
       role="region"
       aria-label="AI fix notes"
-      className="scroll-mt-32 lg:scroll-mt-20"
+      className="scroll-below-jump-bar"
     >
       <CardHeader>
         <CardTitle>
@@ -37,6 +39,7 @@ export function FixNotesList({ notes }: { notes: FixNote[] }) {
                 key={`${note.segment_id}-${index}`}
                 note={note}
                 number={index + 1}
+                langs={langs}
               />
             ))}
           </ol>
@@ -46,7 +49,9 @@ export function FixNotesList({ notes }: { notes: FixNote[] }) {
   );
 }
 
-function FixNoteItem({ note, number }: { note: FixNote; number: number }) {
+type FixNoteItemProps = { note: FixNote; number: number; langs: string[] };
+
+function FixNoteItem({ note, number, langs }: FixNoteItemProps) {
   return (
     <li className="grid grid-cols-[1.75rem_minmax(0,1fr)] gap-x-2 py-2.5 first:pt-0">
       <span className="grid size-6 place-items-center rounded-full bg-muted font-mono text-xs">
@@ -61,7 +66,7 @@ function FixNoteItem({ note, number }: { note: FixNote; number: number }) {
           <span className="mr-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
             AI said
           </span>
-          <q lang={langOf(note.ai_said)} className="italic">
+          <q lang={langOf(note.ai_said, langs)} className="italic">
             {note.ai_said}
           </q>
         </p>

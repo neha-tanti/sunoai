@@ -10,9 +10,13 @@ import {
 } from '@/components/ui/card';
 import type { ReportDetail, Segment } from '@/hooks/use-call';
 
-type RedFlagsListProps = { report: ReportDetail; segments: Segment[] };
+type RedFlagsListProps = {
+  report: ReportDetail;
+  segments: Segment[];
+  langs: string[];
+};
 
-export function RedFlagsList({ report, segments }: RedFlagsListProps) {
+export function RedFlagsList({ report, segments, langs }: RedFlagsListProps) {
   if (report.red_flags.length === 0) return null;
 
   return (
@@ -20,7 +24,7 @@ export function RedFlagsList({ report, segments }: RedFlagsListProps) {
       id="red-flags"
       role="region"
       aria-label="Red flags"
-      className="scroll-mt-32 lg:scroll-mt-20"
+      className="scroll-below-jump-bar"
     >
       <CardHeader>
         <CardTitle>
@@ -51,7 +55,11 @@ export function RedFlagsList({ report, segments }: RedFlagsListProps) {
                     />
                   )}
                 </div>
-                <QuoteLink segmentId={flag.segment_id} quote={flag.quote} />
+                <QuoteLink
+                  segmentId={flag.segment_id}
+                  quote={flag.quote}
+                  langs={langs}
+                />
                 <p className="text-muted-foreground">{flag.note}</p>
               </li>
             );

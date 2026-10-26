@@ -1,4 +1,5 @@
-import { formatTime, langOf } from '@/lib/report-labels';
+import { formatTime } from '@/lib/format-time';
+import { langOf } from '@/lib/report-labels';
 
 type TimeLinkProps = { segmentId: number; time: number };
 
@@ -14,15 +15,15 @@ export function TimeLink({ segmentId, time }: TimeLinkProps) {
   );
 }
 
-type QuoteLinkProps = { segmentId: number; quote: string };
+type QuoteLinkProps = { segmentId: number; quote: string; langs: string[] };
 
-export function QuoteLink({ segmentId, quote }: QuoteLinkProps) {
+export function QuoteLink({ segmentId, quote, langs }: QuoteLinkProps) {
   return (
     <a
       href={`#segment-${segmentId}`}
       className="italic underline-offset-4 hover:underline"
     >
-      <q lang={langOf(quote)}>{quote}</q>
+      <q lang={langOf(quote, langs)}>{quote}</q>
     </a>
   );
 }
