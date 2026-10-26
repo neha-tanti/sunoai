@@ -4,6 +4,14 @@
 
 @custom-variant dark (&:is(.dark *));
 
+@utility scroll-below-jump-bar {
+  scroll-margin-top: --spacing(32);
+
+  @variant lg {
+    scroll-margin-top: --spacing(20);
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

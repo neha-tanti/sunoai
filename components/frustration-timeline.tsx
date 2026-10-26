@@ -6,12 +6,8 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import type { ReportDetail, Segment } from '@/hooks/use-call';
-import {
-  findSpeaker,
-  formatTime,
-  MOOD_CLASS,
-  MOOD_LABEL,
-} from '@/lib/report-labels';
+import { formatTime } from '@/lib/format-time';
+import { findSpeaker, MOOD_CLASS, MOOD_LABEL } from '@/lib/report-labels';
 import { cn } from '@/lib/utils';
 
 const TICK_STEPS = [10, 30, 60, 120, 300, 600];
@@ -42,21 +38,27 @@ export function FrustrationTimeline({ report, segments }: TimelineProps) {
         `${MOOD_LABEL[range.level]} from ${formatTime(range.start)} to ${formatTime(range.end)}`,
     )
     .join(', ');
+  const markers = timelineMarkers(report, segments);
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>How the customer felt during the call</CardTitle>
-        <CardDescription>Pick a label to jump to that moment</CardDescription>
+        <CardTitle>
+          <h2>How the customer felt during the call</h2>
+        </CardTitle>
+        <CardDescription>
+          Pick a moment to read it in the transcript
+        </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         <p className="sr-only">{description}.</p>
-        <div className="relative pt-14">
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-19">
-            {timelineMarkers(report, segments).map((marker, index) => (
+        <div className="relative pt-8 sm:pt-14">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-13 sm:h-19">
+            {markers.map((marker, index) => (
               <MarkerPin
                 key={marker.time}
                 marker={marker}
+                number={index + 1}
                 left={percent(marker.time)}
                 row={index % 2}
               />
@@ -76,6 +78,7 @@ export function FrustrationTimeline({ report, segments }: TimelineProps) {
           </div>
           <TimeAxis length={length} percent={percent} />
         </div>
+        <MarkerList markers={markers} />
         <Legend />
       </CardContent>
     </Card>
@@ -119,32 +122,57 @@ function timelineMarkers(report: ReportDetail, segments: Segment[]) {
   return [...markers.values()].sort((a, b) => a.time - b.time);
 }
 
-type MarkerPinProps = { marker: Marker; left: number; row: number };
-
-function MarkerPin({ marker, left, row }: MarkerPinProps) {
+function markerLabel(marker: Marker) {
   const names = marker.names.join(', ');
   const time = formatTime(marker.time);
   const label = marker.hasFlag
     ? `Red flag at ${time}: ${names}`
     : `${names} at ${time}`;
+  return `${label}. Show in the transcript`;
+}
+
+type MarkerPinProps = {
+  marker: Marker;
+  number: number;
+  left: number;
+  row: number;
+};
+
+function MarkerPin({ marker, number, left, row }: MarkerPinProps) {
+  const names = marker.names.join(', ');
 
   return (
     <div
-      className={cn('absolute bottom-0 flex flex-col', pinAlignment(left))}
-      style={{ left: `${left}%`, top: row === 0 ? 0 : '1.625rem' }}
+      className={cn(
+        'absolute top-0 bottom-0 flex flex-col',
+        row === 1 && 'sm:top-6.5',
+        pinAlignment(left),
+      )}
+      style={{ left: `${left}%` }}
     >
+      <span
+        aria-hidden
+        className={cn(
+          'grid size-5 place-items-center rounded-full font-mono text-xs font-semibold sm:hidden',
+          marker.hasFlag
+            ? 'bg-angry text-angry-foreground'
+            : 'bg-foreground text-background',
+        )}
+      >
+        {number}
+      </span>
       <a
         href={`#segment-${marker.segmentId}`}
-        aria-label={`${label}. Show in the transcript`}
+        aria-label={markerLabel(marker)}
         title={names}
         className={cn(
-          'pointer-events-auto flex max-w-48 gap-1 rounded-md border border-transparent px-1.5 text-xs font-semibold whitespace-nowrap hover:border-current',
+          'pointer-events-auto hidden max-w-48 gap-1 rounded-md border border-transparent px-1.5 text-xs font-semibold whitespace-nowrap hover:border-current sm:flex',
           marker.hasFlag
             ? 'bg-angry/15 text-destructive'
             : 'bg-secondary text-secondary-foreground',
         )}
       >
-        <span className="truncate">{names}</span>· {time}
+        <span className="truncate">{names}</span>· {formatTime(marker.time)}
       </a>
       <span
         className={cn(
@@ -153,6 +181,42 @@ function MarkerPin({ marker, left, row }: MarkerPinProps) {
         )}
       />
     </div>
+  );
+}
+
+function MarkerList({ markers }: { markers: Marker[] }) {
+  if (markers.length === 0) return null;
+
+  return (
+    <ol className="flex flex-col text-sm sm:hidden">
+      {markers.map((marker, index) => (
+        <li key={marker.time}>
+          <a
+            href={`#segment-${marker.segmentId}`}
+            aria-label={markerLabel(marker)}
+            className="flex min-h-11 items-center gap-2"
+          >
+            <span
+              aria-hidden
+              className={cn(
+                'grid size-5 shrink-0 place-items-center rounded-full font-mono text-xs font-semibold',
+                marker.hasFlag
+                  ? 'bg-angry text-angry-foreground'
+                  : 'bg-foreground text-background',
+              )}
+            >
+              {index + 1}
+            </span>
+            <span className={cn(marker.hasFlag && 'text-destructive')}>
+              {marker.names.join(', ')}
+            </span>
+            <span className="ml-auto font-mono text-xs text-muted-foreground">
+              {formatTime(marker.time)}
+            </span>
+          </a>
+        </li>
+      ))}
+    </ol>
   );
 }
 

@@ -147,7 +147,6 @@ export async function listFiles(jobId: string, signal: AbortSignal) {
 }
 
 const transcriptSchema = z.object({
-  language_code: z.string(),
   duration_seconds: z.number(),
   segments: z.array(
     z.object({
@@ -176,7 +175,6 @@ export function parseGnaniTranscript(json: unknown) {
     .map((segment, index) => ({ ...segment, segment_id: index }));
 
   return {
-    language: transcript.language_code,
     durationSeconds: transcript.duration_seconds,
     segments,
   };

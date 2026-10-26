@@ -1,5 +1,5 @@
 import { QuoteLink, TimeLink } from '@/components/time-link';
-import { Badge } from '@/components/ui/badge';
+import { ToneBadge } from '@/components/tone-badge';
 import {
   Card,
   CardContent,
@@ -8,21 +8,30 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import type { ReportDetail } from '@/hooks/use-call';
-import { RESULT_CLASS, RESULT_LABEL } from '@/lib/report-labels';
+import { RESULT_LABEL, RESULT_TONE } from '@/lib/report-labels';
 
 type Check = ReportDetail['checks'][number];
 
-export function ChecklistResults({ checks }: { checks: Check[] }) {
+type ChecklistResultsProps = { checks: Check[]; langs: string[] };
+
+export function ChecklistResults({ checks, langs }: ChecklistResultsProps) {
   return (
-    <Card role="region" aria-label="Agent checklist">
+    <Card
+      id="checklist"
+      role="region"
+      aria-label="Agent checklist"
+      className="scroll-below-jump-bar"
+    >
       <CardHeader>
-        <CardTitle>Agent checklist</CardTitle>
+        <CardTitle>
+          <h2>Agent checklist</h2>
+        </CardTitle>
         <CardDescription>No quote, no pass</CardDescription>
       </CardHeader>
       <CardContent>
         <ul className="flex flex-col divide-y">
           {checks.map((check) => (
-            <CheckRow key={check.check_id} check={check} />
+            <CheckRow key={check.check_id} check={check} langs={langs} />
           ))}
         </ul>
       </CardContent>
@@ -30,13 +39,13 @@ export function ChecklistResults({ checks }: { checks: Check[] }) {
   );
 }
 
-function CheckRow({ check }: { check: Check }) {
+function CheckRow({ check, langs }: { check: Check; langs: string[] }) {
   return (
     <li className="grid gap-x-3 gap-y-1 py-2.5 first:pt-0 sm:grid-cols-[6rem_minmax(0,1fr)]">
       <div>
-        <Badge className={RESULT_CLASS[check.result]}>
+        <ToneBadge tone={RESULT_TONE[check.result]}>
           {RESULT_LABEL[check.result]}
-        </Badge>
+        </ToneBadge>
       </div>
       <div className="flex flex-col gap-1">
         <p className="font-semibold">{check.name}</p>
@@ -44,7 +53,11 @@ function CheckRow({ check }: { check: Check }) {
         {check.segment_id !== null && check.time !== null && check.quote && (
           <p className="flex flex-wrap items-baseline gap-2">
             <TimeLink segmentId={check.segment_id} time={check.time} />
-            <QuoteLink segmentId={check.segment_id} quote={check.quote} />
+            <QuoteLink
+              segmentId={check.segment_id}
+              quote={check.quote}
+              langs={langs}
+            />
           </p>
         )}
         <p className="text-muted-foreground">{check.reason}</p>

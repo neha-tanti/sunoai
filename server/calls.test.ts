@@ -437,7 +437,6 @@ describe('GET /api/calls/:id', () => {
     const call = await seedCall({
       status: 'analyzing',
       gnani_job_id: randomUUID(),
-      detected_lang: 'hi-IN',
       duration_seconds: 19.4,
     });
     const inserted = await createAdminClient()

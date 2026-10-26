@@ -14,14 +14,6 @@ describe('parseGnaniTranscript', () => {
     expect(segments[3].text).toMatch(/insaan se baat/);
   });
 
-  it('keeps the language Gnani identified', () => {
-    const parsed = parseGnaniTranscript(
-      hinglishTranscript({ language_code: 'en-IN' }),
-    );
-
-    expect(parsed.language).toBe('en-IN');
-  });
-
   it('drops segments with no words', () => {
     const transcript = hinglishTranscript();
     transcript.segments[1].text = '   ';

@@ -15,38 +15,81 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import type { ReportDetail, Segment } from '@/hooks/use-call';
+import type { CallDetail, ReportDetail, Segment } from '@/hooks/use-call';
+import { langOf } from '@/lib/report-labels';
+
+type Call = CallDetail['call'];
 
 type CallReportProps = {
-  callId: string;
+  call: Call;
   report: ReportDetail;
   segments: Segment[];
 };
 
-export function CallReport({ callId, report, segments }: CallReportProps) {
+export function CallReport({ call, report, segments }: CallReportProps) {
+  const langs = call.call_langs;
+
   return (
     <article className="flex flex-col gap-4" aria-label="Call report">
+      <div className="sticky top-0 z-10 -mx-6 border-b bg-background/95 px-6 py-1.5 backdrop-blur">
+        <JumpLinks report={report} />
+      </div>
       <ReviewBanner redFlags={report.red_flags.length} />
-      <ReportTiles report={report} segments={segments} />
+      <ReportTiles report={report} segments={segments} langs={langs} />
       <FrustrationTimeline report={report} segments={segments} />
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:items-start">
         <div className="flex min-w-0 flex-col gap-4">
           <Card>
             <CardHeader>
-              <CardTitle>Summary</CardTitle>
+              <CardTitle>
+                <h2>Summary</h2>
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <p>{report.summary}</p>
             </CardContent>
           </Card>
-          <RedFlagsList report={report} segments={segments} />
-          <ChecklistResults checks={report.checks} />
-          <FixNotesList notes={report.fix_notes} />
-          <CoachingSection callId={callId} report={report} />
+          <RedFlagsList report={report} segments={segments} langs={langs} />
+          <CoachingSection call={call} report={report} />
+          <ChecklistResults checks={report.checks} langs={langs} />
+          <FixNotesList notes={report.fix_notes} langs={langs} />
         </div>
-        <TranscriptView report={report} segments={segments} />
+        <TranscriptView report={report} segments={segments} langs={langs} />
       </div>
     </article>
+  );
+}
+
+const hasCoachingSection = (report: ReportDetail) =>
+  report.coaching !== null || report.handover_segment_id !== null;
+
+function JumpLinks({ report }: { report: ReportDetail }) {
+  const sections = [
+    { id: 'red-flags', label: 'Red flags', shown: report.red_flags.length > 0 },
+    { id: 'coaching', label: 'Coaching', shown: hasCoachingSection(report) },
+    { id: 'checklist', label: 'Checklist', shown: true },
+    { id: 'ai-fixes', label: 'AI fixes', shown: true },
+    { id: 'transcript', label: 'Transcript', shown: true },
+  ].filter((section) => section.shown);
+
+  return (
+    <nav
+      aria-label="Report sections"
+      className="-mx-1.5 max-w-[calc(100%+0.75rem)] overflow-x-auto sm:-mx-2 sm:max-w-[calc(100%+1rem)]"
+    >
+      <ul className="flex text-sm">
+        {sections.map((section) => (
+          <li key={section.id}>
+            <a
+              href={`#${section.id}`}
+              className="inline-flex min-h-11 items-center px-1.5 whitespace-nowrap text-muted-foreground hover:text-foreground sm:px-2"
+            >
+              {section.label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
   );
 }
 
@@ -74,20 +117,20 @@ function ReviewBanner({ redFlags }: { redFlags: number }) {
       <AlertTitle>Needs review</AlertTitle>
       <AlertDescription>
         {redFlags === 1 ? '1 red flag' : `${redFlags} red flags`}. A person
-        should look at this call.
+        should look at this call, whatever its checklist score.
       </AlertDescription>
     </Alert>
   );
 }
 
 type CoachingSectionProps = {
-  callId: string;
+  call: Call;
   report: ReportDetail;
 };
 
-function CoachingSection({ callId, report }: CoachingSectionProps) {
+function CoachingSection({ call, report }: CoachingSectionProps) {
   const { coaching } = report;
-  if (!coaching && report.handover_segment_id === null) return null;
+  if (!hasCoachingSection(report)) return null;
   if (!coaching) {
     return (
       <CoachingFrame>
@@ -102,22 +145,33 @@ function CoachingSection({ callId, report }: CoachingSectionProps) {
     <CoachingFrame>
       <p className="flex flex-wrap items-baseline gap-2">
         <TimeLink segmentId={coaching.segment_id} time={coaching.time} />
-        <QuoteLink segmentId={coaching.segment_id} quote={coaching.quote} />
+        <QuoteLink
+          segmentId={coaching.segment_id}
+          quote={coaching.quote}
+          langs={call.call_langs}
+        />
       </p>
-      <p>{coaching.text}</p>
+      <p lang={langOf(coaching.text, [call.coaching_lang])}>{coaching.text}</p>
       {coaching.english !== coaching.text && (
         <p className="text-sm text-muted-foreground">{coaching.english}</p>
       )}
-      <CoachingPlayer callId={callId} />
+      <CoachingPlayer callId={call.id} />
     </CoachingFrame>
   );
 }
 
 function CoachingFrame({ children }: { children: React.ReactNode }) {
   return (
-    <Card role="region" aria-label="Coaching">
+    <Card
+      id="coaching"
+      role="region"
+      aria-label="Coaching"
+      className="scroll-below-jump-bar"
+    >
       <CardHeader>
-        <CardTitle>Coaching</CardTitle>
+        <CardTitle>
+          <h2>Coaching</h2>
+        </CardTitle>
         <CardDescription>For the human agent</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">{children}</CardContent>

@@ -7,18 +7,32 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import type { ReportDetail, Segment } from '@/hooks/use-call';
-import { findSpeaker, formatTime } from '@/lib/report-labels';
+import { formatTime } from '@/lib/format-time';
+import { findSpeaker, langOf } from '@/lib/report-labels';
 import { cn } from '@/lib/utils';
 
-type TranscriptViewProps = { report: ReportDetail; segments: Segment[] };
+type TranscriptViewProps = {
+  report: ReportDetail;
+  segments: Segment[];
+  langs: string[];
+};
 
-export function TranscriptView({ report, segments }: TranscriptViewProps) {
+export function TranscriptView({
+  report,
+  segments,
+  langs,
+}: TranscriptViewProps) {
   const turnSegmentId = report.frustration.turn?.segment_id;
 
   return (
-    <Card className="lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)]">
+    <Card
+      id="transcript"
+      className="scroll-below-jump-bar lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6rem)]"
+    >
       <CardHeader>
-        <CardTitle>Transcript</CardTitle>
+        <CardTitle>
+          <h2>Transcript</h2>
+        </CardTitle>
         <CardDescription>Who said what is a best guess</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-1 lg:min-h-0 lg:overflow-y-auto">
@@ -27,6 +41,7 @@ export function TranscriptView({ report, segments }: TranscriptViewProps) {
             key={segment.segment_id}
             report={report}
             segment={segment}
+            langs={langs}
             isTurn={segment.segment_id === turnSegmentId}
           />
         ))}
@@ -38,10 +53,16 @@ export function TranscriptView({ report, segments }: TranscriptViewProps) {
 type TranscriptLineProps = {
   report: ReportDetail;
   segment: Segment;
+  langs: string[];
   isTurn: boolean;
 };
 
-function TranscriptLine({ report, segment, isTurn }: TranscriptLineProps) {
+function TranscriptLine({
+  report,
+  segment,
+  langs,
+  isTurn,
+}: TranscriptLineProps) {
   const flags = report.red_flags.filter(
     (flag) => flag.segment_id === segment.segment_id,
   );
@@ -59,7 +80,7 @@ function TranscriptLine({ report, segment, isTurn }: TranscriptLineProps) {
       <div
         id={`segment-${segment.segment_id}`}
         className={cn(
-          'grid scroll-mt-4 grid-cols-[2.5rem_minmax(0,1fr)] gap-x-2 rounded-lg p-2 target:outline-2 target:-outline-offset-2 target:outline-ring',
+          'grid scroll-mt-32 grid-cols-[2.5rem_minmax(0,1fr)] gap-x-2 rounded-lg p-2 target:outline-2 target:-outline-offset-2 target:outline-ring lg:scroll-mt-4',
           flags.length > 0 && 'bg-angry/10',
           isTurn && 'shadow-[inset_3px_0_var(--annoyed)]',
         )}
@@ -72,7 +93,7 @@ function TranscriptLine({ report, segment, isTurn }: TranscriptLineProps) {
             speakers={report.speakers}
             speakerId={segment.speaker_id}
           />
-          <p>{segment.text}</p>
+          <p lang={langOf(segment.text, langs)}>{segment.text}</p>
           {flags.map((flag, index) => (
             <span
               key={`${flag.flag_id}-${index}`}

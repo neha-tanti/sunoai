@@ -1,6 +1,7 @@
 import 'server-only';
 import type { CoachingLanguage } from '@/lib/call-upload';
 import { HANDOVER_CHECK_ID } from '@/lib/checklist';
+import { formatTime } from '@/lib/format-time';
 import type { Checklist } from './checklist';
 import type { TranscriptSegment } from './gnani';
 import { type LlmAnswer, type Mood, moodSchema } from './prompts/analyze';
@@ -40,8 +41,9 @@ export function buildReport(input: {
   durationSeconds: number;
   coachingLanguage: CoachingLanguage;
 }) {
-  const { answer, segments, checklist } = input;
+  const { segments, checklist } = input;
   const segmentById = new Map(segments.map((s) => [s.segment_id, s]));
+  const answer = withSegmentTimes(input.answer, segmentById);
   const evidenceFor: EvidenceFor = (segmentId, quote) => {
     const segment = segmentId === null ? undefined : segmentById.get(segmentId);
     if (!segment || !quote || !quoteFound(segment.text, quote)) return null;
@@ -124,6 +126,63 @@ export function buildReport(input: {
       red_flags: knownFlags.length - redFlags.length,
       coaching: coaching.dropped,
     },
+  };
+}
+
+const SEGMENT_MENTION =
+  /\b(in |at )?(segments?) (\d+(?:(?:,? and |, | or | to | ?[-–] ?)\d+)*)\b/gi;
+
+function mentionsAsTimes(
+  text: string,
+  segmentById: Map<number, TranscriptSegment>,
+) {
+  return text.replace(
+    SEGMENT_MENTION,
+    (mention, preposition: string | undefined, noun: string, ids: string) => {
+      const known = (ids.match(/\d+/g) ?? []).every((id) =>
+        segmentById.has(Number(id)),
+      );
+      if (!known) return mention;
+
+      const times = ids.replace(/\d+/g, (id) =>
+        formatTime(segmentById.get(Number(id))!.start_time),
+      );
+      const capital = /^[A-Z]/.test(preposition ?? noun);
+      if (preposition) return `${capital ? 'At' : 'at'} ${times}`;
+      const lines = noun.toLowerCase() === 'segments' ? 'lines' : 'line';
+      return `${capital ? 'The' : 'the'} ${lines} at ${times}`;
+    },
+  );
+}
+
+function withSegmentTimes(
+  answer: LlmAnswer,
+  segmentById: Map<number, TranscriptSegment>,
+): LlmAnswer {
+  const times = (text: string) => mentionsAsTimes(text, segmentById);
+  return {
+    ...answer,
+    checks: answer.checks.map((check) => ({
+      ...check,
+      reason: times(check.reason),
+    })),
+    red_flags: answer.red_flags.map((flag) => ({
+      ...flag,
+      note: times(flag.note),
+    })),
+    fix_notes: answer.fix_notes.map((note) => ({
+      ...note,
+      title: times(note.title),
+      should_have: times(note.should_have),
+    })),
+    summary: times(answer.summary),
+    coaching: answer.coaching
+      ? {
+          ...answer.coaching,
+          text: times(answer.coaching.text),
+          english: times(answer.coaching.english),
+        }
+      : null,
   };
 }
 

@@ -181,6 +181,94 @@ describe('buildReport', () => {
     expect(report.fix_notes[0]).toMatchObject({ segment_id: 4, time: 20 });
   });
 
+  describe('segment numbers in the written text', () => {
+    it('names the time of a segment the model mentions by number', () => {
+      const { report } = build({
+        red_flags: [
+          {
+            flag_id: 'human_not_transferred',
+            segment_id: 4,
+            quote: 'Order ID bataiye please',
+            note: 'The customer asked for a person in segment 3, and the AI asked for the ID again in segments 2 and 4.',
+          },
+        ],
+        summary: 'Segment 5 is where Arjun took over.',
+      });
+
+      expect(report.red_flags[0].note).toBe(
+        'The customer asked for a person at 0:15, and the AI asked for the ID again at 0:10 and 0:20.',
+      );
+      expect(report.summary).toBe('The line at 0:25 is where Arjun took over.');
+    });
+
+    it('also rewrites check reasons, fix notes and the English coaching', () => {
+      const base = answer();
+      const { report } = build({
+        checks: base.checks.map((check) => ({
+          ...check,
+          reason: 'Not confirmed (segments 2, 4).',
+        })),
+        fix_notes: [
+          { ...base.fix_notes[0], should_have: 'Transfer at segment 3.' },
+        ],
+        coaching: {
+          ...base.coaching!,
+          english: 'Arjun, in segment 5 you did well.',
+        },
+      });
+
+      expect(checkOf(report, 'order_confirmed')?.reason).toBe(
+        'Not confirmed (the lines at 0:10, 0:20).',
+      );
+      expect(report.fix_notes[0].should_have).toBe('Transfer at 0:15.');
+      expect(report.coaching?.english).toBe('Arjun, at 0:25 you did well.');
+    });
+
+    it('names the times at both ends of a range of segments', () => {
+      const { report } = build({
+        summary: 'The AI looped in segments 2-4 and again in segments 2 to 4.',
+      });
+
+      expect(report.summary).toBe(
+        'The AI looped at 0:10-0:20 and again at 0:10 to 0:20.',
+      );
+    });
+
+    it('rewrites the spoken English coaching the same as its English version', () => {
+      const { report } = build(
+        {
+          coaching: {
+            ...answer().coaching!,
+            text: 'Arjun, in segment 5 you did well.',
+            english: 'Arjun, in segment 5 you did well.',
+          },
+        },
+        { coachingLang: 'en-IN' },
+      );
+
+      expect(report.coaching?.text).toBe('Arjun, at 0:25 you did well.');
+      expect(report.coaching?.text).toBe(report.coaching?.english);
+    });
+
+    it('leaves a segment number that is not in the transcript as written', () => {
+      const { report } = build({
+        summary: 'The customer hung up after segment 40.',
+      });
+
+      expect(report.summary).toBe('The customer hung up after segment 40.');
+    });
+
+    it('leaves a mention as written when one of its segments is not in the transcript', () => {
+      const { report } = build({
+        summary: 'The customer asked for a person in segments 3, 40.',
+      });
+
+      expect(report.summary).toBe(
+        'The customer asked for a person in segments 3, 40.',
+      );
+    });
+  });
+
   describe('checks', () => {
     it('saves a pass whose quote is not in its segment as a miss, without the quote', () => {
       const { report, rejected } = build({

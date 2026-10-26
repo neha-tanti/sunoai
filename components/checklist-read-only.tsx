@@ -47,9 +47,6 @@ export function ChecklistReadOnly({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {checklist.red_flags.length === 0 && (
-            <p className="text-sm text-muted-foreground">No red flags.</p>
-          )}
           <dl className="flex flex-col gap-3">
             {checklist.red_flags.map((flag) => (
               <div key={flag.id}>

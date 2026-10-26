@@ -48,7 +48,6 @@ describe('a signed-in browser going straight to Supabase', () => {
   it('cannot save a transcript', async () => {
     const { error } = await session.supabase.rpc('save_transcript', {
       p_call_id: randomUUID(),
-      p_detected_lang: 'hi-IN',
       p_duration_seconds: 42.5,
       p_segments: [],
     });

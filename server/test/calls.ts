@@ -33,7 +33,6 @@ export async function insertAnalyzingCall(
   const transcript = parseGnaniTranscript(hinglishTranscript());
   const call = await insertCall({
     status: 'analyzing',
-    detected_lang: transcript.language,
     duration_seconds: transcript.durationSeconds,
     ...overrides,
   });

@@ -10,15 +10,26 @@ import {
 } from '@/components/ui/card';
 import type { ReportDetail, Segment } from '@/hooks/use-call';
 
-type RedFlagsListProps = { report: ReportDetail; segments: Segment[] };
+type RedFlagsListProps = {
+  report: ReportDetail;
+  segments: Segment[];
+  langs: string[];
+};
 
-export function RedFlagsList({ report, segments }: RedFlagsListProps) {
+export function RedFlagsList({ report, segments, langs }: RedFlagsListProps) {
   if (report.red_flags.length === 0) return null;
 
   return (
-    <Card role="region" aria-label="Red flags">
+    <Card
+      id="red-flags"
+      role="region"
+      aria-label="Red flags"
+      className="scroll-below-jump-bar"
+    >
       <CardHeader>
-        <CardTitle>Red flags</CardTitle>
+        <CardTitle>
+          <h2>Red flags</h2>
+        </CardTitle>
         <CardAction>
           <Badge variant="destructive">{report.red_flags.length}</Badge>
         </CardAction>
@@ -44,7 +55,11 @@ export function RedFlagsList({ report, segments }: RedFlagsListProps) {
                     />
                   )}
                 </div>
-                <QuoteLink segmentId={flag.segment_id} quote={flag.quote} />
+                <QuoteLink
+                  segmentId={flag.segment_id}
+                  quote={flag.quote}
+                  langs={langs}
+                />
                 <p className="text-muted-foreground">{flag.note}</p>
               </li>
             );

@@ -11,6 +11,7 @@ import {
 let coldBiryani: string;
 let calmQuestion: string;
 let uncoached: string;
+let lateHandover: string;
 
 test.beforeAll(async () => {
   coldBiryani = await seedReadyCall(
@@ -28,10 +29,27 @@ test.beforeAll(async () => {
     COLD_BIRYANI_SEGMENTS,
     { ...COLD_BIRYANI_REPORT, coaching: null },
   );
+  lateHandover = await seedReadyCall(
+    'Cold biryani, AI ignored the first ask for a person',
+    COLD_BIRYANI_SEGMENTS,
+    {
+      ...COLD_BIRYANI_REPORT,
+      red_flags: [
+        ...COLD_BIRYANI_REPORT.red_flags,
+        {
+          flag_id: 'human_not_transferred',
+          segment_id: 5,
+          time: 26,
+          quote: 'Mujhe kisi insaan se baat karni hai',
+          note: 'The AI asked for the order ID instead of transferring.',
+        },
+      ],
+    },
+  );
 });
 
 test.afterAll(async () => {
-  await deleteCalls([coldBiryani, calmQuestion, uncoached]);
+  await deleteCalls([coldBiryani, calmQuestion, uncoached, lateHandover]);
 });
 
 test('a Ready report shows the verdict and the tiles in words', async ({
@@ -41,21 +59,74 @@ test('a Ready report shows the verdict and the tiles in words', async ({
   const main = page.getByRole('main');
 
   await expect(main.getByRole('status')).toHaveText('Ready.');
+  await expect(main.getByText('Hindi + English')).toBeVisible();
   await expect(main.getByRole('region', { name: 'Review' })).toContainText(
     'Needs review',
   );
   await expect(main.getByRole('region', { name: 'Review' })).toContainText(
     '2 red flags',
   );
-  await expect(main.getByRole('region', { name: 'Score' })).toContainText(
-    '83% · Good',
-  );
+  await expect(
+    main.getByRole('region', { name: 'Checklist score' }),
+  ).toContainText('83% · Good');
   await expect(
     main.getByRole('region', { name: 'Customer frustration' }),
   ).toContainText('Angry');
   await expect(main.getByRole('region', { name: 'Handover' })).toContainText(
     'AI to Kavya at 0:36',
   );
+});
+
+test('a handover after an ignored ask for a person says it was late', async ({
+  page,
+}) => {
+  await page.goto(`/calls/${lateHandover}`);
+  const handover = page.getByRole('region', { name: 'Handover' });
+
+  await expect(handover).toContainText(
+    'Late: the AI carried on after the first ask',
+  );
+  await expect(
+    handover.getByRole('link', { name: 'Show 0:26 in the transcript' }),
+  ).toHaveAttribute('href', '#segment-5');
+});
+
+test('a call still being checked shows which step it is on', async ({
+  page,
+}) => {
+  await page.route(`**/api/calls/${coldBiryani}`, async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    body.call = { ...body.call, status: 'uploaded' };
+    body.report = null;
+    await route.fulfill({ response, json: body });
+  });
+  await page.goto(`/calls/${coldBiryani}`);
+  const progress = page.getByRole('list', { name: 'Progress' });
+
+  await expect(progress.locator('[aria-current="step"]')).toHaveText(
+    /Transcribe/,
+  );
+  await expect(page.getByRole('main').getByRole('status')).toHaveText(
+    'Uploaded. The check hasn’t started yet.',
+  );
+});
+
+test('on a phone the timeline lists its markers and they jump', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`/calls/${coldBiryani}`);
+
+  await page
+    .getByRole('main')
+    .getByRole('link', {
+      name: 'Red flag at 0:21: Agent stuck in a loop, Wrong or made-up promise. Show in the transcript',
+    })
+    .click();
+
+  await expect(page.locator(':target')).toHaveAttribute('id', 'segment-4');
+  await expect(page.locator('#segment-4')).toBeInViewport();
 });
 
 test("the frustration turn's time jumps to its transcript line", async ({
@@ -94,6 +165,18 @@ test('the timeline describes the mood ranges and its markers jump', async ({
   await expect(line).toBeInViewport();
   await expect(line).toContainText('Red flag: Agent stuck in a loop');
   await expect(line).toContainText('Red flag: Wrong or made-up promise');
+});
+
+test('the section links jump to each part of the report', async ({ page }) => {
+  await page.goto(`/calls/${coldBiryani}`);
+  const sections = page.getByRole('navigation', { name: 'Report sections' });
+
+  await sections.getByRole('link', { name: 'AI fixes' }).click();
+
+  await expect(page.locator(':target')).toHaveAttribute('id', 'ai-fixes');
+  await expect(
+    page.getByRole('heading', { level: 2, name: 'AI fix notes' }),
+  ).toBeInViewport();
 });
 
 for (const viewport of [
@@ -146,9 +229,9 @@ test('a calm call with nothing to flag says so in each section', async ({
   await expect(main.getByRole('region', { name: 'Review' })).toContainText(
     'No red flags',
   );
-  await expect(main.getByRole('region', { name: 'Score' })).toContainText(
-    'No checks applied',
-  );
+  await expect(
+    main.getByRole('region', { name: 'Checklist score' }),
+  ).toContainText('No checks applied');
   await expect(
     main.getByRole('region', { name: 'Customer frustration' }),
   ).toContainText('The customer stayed calm for the whole call.');
@@ -243,7 +326,9 @@ test.describe('coaching', () => {
   }) => {
     await page.goto(`/calls/${calmQuestion}`);
 
-    await expect(page.getByRole('status')).toHaveText('Ready.');
+    await expect(
+      page.getByRole('article', { name: 'Call report' }),
+    ).toBeVisible();
     await expect(page.getByRole('region', { name: 'Coaching' })).toHaveCount(0);
   });
 });

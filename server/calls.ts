@@ -20,7 +20,7 @@ import { createAdminClient } from './supabase';
 import { callIdParam, rejectInvalid } from './validate';
 
 const CALL_COLUMNS =
-  'id, title, status, error_code, call_langs, coaching_lang, denoise, detected_lang, duration_seconds, file_size_bytes, mime_type, created_at, checked_at';
+  'id, title, status, error_code, call_langs, coaching_lang, denoise, duration_seconds, file_size_bytes, mime_type, created_at, checked_at';
 const REPORT_COLUMNS =
   'score_passed, score_total, needs_review, frustration_peak, frustration, speakers, handover_segment_id, checks, red_flags, fix_notes, summary, coaching, llm_model, prompt_version, checklist_snapshot, created_at';
 

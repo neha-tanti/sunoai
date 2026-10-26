@@ -194,7 +194,7 @@ Models that were tried and not used:
 **Rules enforced in code, not trusted to the model**
 
 1. The answer is parsed with Zod, with no retry: in the spike all 24 strict-schema answers were valid JSON. Every function that runs the analysis (the webhook, the cron job and Check again) sets a deadline 280 seconds after it starts, 20 seconds inside the 300-second function limit, and every outbound request it makes (the Gnani reads and the LLM request) is cancelled at that deadline. Invalid JSON or no answer by the deadline sets the call to `failed`, and Check again reruns only the analysis.
-2. The model returns segment ids, never times. Code turns them into `start_time`, so no timestamp is invented.
+2. The model returns segment ids, never times. Code turns them into `start_time`, so no timestamp is invented. When its written text (check reasons, red flag notes, fix notes, the summary and the English coaching) names a segment by number ("in segment 5"), code replaces that with the segment's time ("at 0:22"); a number that isn't a segment of this call is left as written.
 3. Every quote must appear in its segment's text after normalising case, spaces and punctuation. A pass without a valid quote becomes a miss; a red flag without one is dropped and logged.
 4. The score is passed checks divided by checks not marked `na`. 80% or more is Good, 50% to 79% Needs work, under 50% Poor.
 5. `needs_review` is true when at least one red flag survives step 3.
@@ -213,7 +213,7 @@ Six Postgres tables and three private Storage buckets; each report's detailed re
 
 | Table | Main columns | Notes |
 | --- | --- | --- |
-| `calls` | `id`, `title`, `file_path`, `file_size_bytes`, `mime_type`, `call_langs` (text[]), `coaching_lang`, `denoise`, `status`, `error_code`, `error`, `gnani_job_id`, `detected_lang`, `duration_seconds`, `created_by`, `created_at`, `checked_at`, `status_at`, `gnani_attempts` | `status` is a Postgres enum with the 5 pipeline statuses. `status_at` defaults to `now()` and a trigger resets it whenever `status` changes, so the cron job can find stuck calls. `error_code` is a Postgres enum: `file_rejected`, `transcription_failed`, `no_speech`, `too_long` or `analysis_failed`, and a check constraint keeps it set exactly when the call is Failed. `gnani_job_id` is unique, since the webhook finds its call by it. `gnani_attempts` counts Gnani 429 and 5xx answers for the call |
+| `calls` | `id`, `title`, `file_path`, `file_size_bytes`, `mime_type`, `call_langs` (text[]), `coaching_lang`, `denoise`, `status`, `error_code`, `error`, `gnani_job_id`, `duration_seconds`, `created_by`, `created_at`, `checked_at`, `status_at`, `gnani_attempts` | `status` is a Postgres enum with the 5 pipeline statuses. `status_at` defaults to `now()` and a trigger resets it whenever `status` changes, so the cron job can find stuck calls. `error_code` is a Postgres enum: `file_rejected`, `transcription_failed`, `no_speech`, `too_long` or `analysis_failed`, and a check constraint keeps it set exactly when the call is Failed. `gnani_job_id` is unique, since the webhook finds its call by it. `gnani_attempts` counts Gnani 429 and 5xx answers for the call |
 | `transcript_segments` | `id`, `call_id`, `segment_id`, `start_time`, `end_time`, `speaker_id`, `text` | Deleted with its call |
 | `reports` | `call_id`, `score_passed`, `score_total`, `needs_review`, `frustration_peak`, `frustration`, `speakers`, `handover_segment_id`, `checks`, `red_flags`, `fix_notes`, `summary`, `coaching`, `coaching_audio_path`, `llm_model`, `prompt_version`, `checklist_snapshot`, `created_at` | One row per call. Score, Needs review and peak are columns for the Recent calls list; the rest is JSON |
 | `checklist_checks` | `id` (slug), `name`, `rule`, `position`, `active` | Seeded with the 6 default checks |
@@ -227,7 +227,7 @@ Six Postgres tables and three private Storage buckets; each report's detailed re
 
 - Indexes: `calls (created_at desc)` for Recent calls, `calls (status, status_at)` for the cron job, and `transcript_segments (call_id, start_time)`.
 - Removed checks and red flags are set to `active = false` rather than deleted, so old snapshots still read correctly.
-- A check or red flag keeps its id when it is edited. A new one gets a slug of its name (`check` or `red_flag` when the name has no English letters), with `_2`, `_3` added if another item in the same save has it; a removed item added again under the same name gets its old row back. Smooth handover (`smooth_handover`) can be edited but not removed, because the Handover tile reads it: the editor turns off its Remove button and `PUT /api/checklist` rejects a save without it.
+- A check or red flag keeps its id when it is edited. A new one gets a slug of its name (`check` or `red_flag` when the name has no English letters), with `_2`, `_3` added if another item in the same save has it; a removed item added again under the same name gets its old row back. Smooth handover (`smooth_handover`) and the red flag Customer asked for a human and wasn't transferred (`human_not_transferred`) can be edited but not removed, because the Handover tile reads them: the editor turns off their Remove buttons and `PUT /api/checklist` rejects a save without either.
 - Schema changes are Supabase CLI migrations in `supabase/migrations`, and the default checklist is a seed file.
 
 ## API

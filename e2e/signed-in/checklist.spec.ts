@@ -101,6 +101,20 @@ test('the Smooth handover check cannot be removed', async ({ page }) => {
   ).toBeDisabled();
 });
 
+test('the red flag for a customer who was not transferred cannot be removed', async ({
+  page,
+}) => {
+  await page.goto('/checklist');
+  const notTransferred = page.getByRole('group', { name: 'Red flag 1' });
+
+  await expect(notTransferred.getByLabel('Name')).toHaveValue(
+    "Customer asked for a human and wasn't transferred",
+  );
+  await expect(
+    notTransferred.getByRole('button', { name: 'Remove red flag 1' }),
+  ).toBeDisabled();
+});
+
 test('Saved goes away once the checklist is changed again', async ({
   page,
 }) => {

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { statusText } from '@/lib/call-status';
 import { ScoreBadge } from '@/components/score-badge';
+import { ToneBadge } from '@/components/tone-badge';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,7 +34,7 @@ import {
 } from '@/components/ui/table';
 import { type RecentCall, type RecentCalls, useCalls } from '@/hooks/use-calls';
 import { useDeleteCall } from '@/hooks/use-delete-call';
-import { MOOD_CLASS, MOOD_LABEL } from '@/lib/report-labels';
+import { MOOD_LABEL } from '@/lib/report-labels';
 import { scorePercent } from '@/lib/score-band';
 
 export function RecentCalls() {
@@ -158,9 +159,9 @@ function CallRow({ call }: { call: RecentCall }) {
       </TableCell>
       <TableCell>
         {report && (
-          <Badge className={MOOD_CLASS[report.frustration_peak]}>
+          <ToneBadge tone={report.frustration_peak}>
             {MOOD_LABEL[report.frustration_peak]}
-          </Badge>
+          </ToneBadge>
         )}
       </TableCell>
       <TableCell>

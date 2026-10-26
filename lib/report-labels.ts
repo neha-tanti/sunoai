@@ -1,9 +1,12 @@
 import type { ReportDetail } from '@/hooks/use-call';
+import { COACHING_LANGUAGES } from '@/lib/call-upload';
 import type { Enums } from '@/lib/database.types';
 import type { ScoreBand } from '@/lib/score-band';
 
 type Mood = Enums<'mood'>;
 type Speaker = ReportDetail['speakers'][number];
+
+export type Tone = Mood | 'neutral';
 
 export const MOOD_LABEL: Record<Mood, string> = {
   calm: 'Calm',
@@ -29,10 +32,10 @@ export const SCORE_BAND_LABEL: Record<ScoreBand, string> = {
   poor: 'Poor',
 };
 
-export const SCORE_BAND_CLASS: Record<ScoreBand, string> = {
-  good: MOOD_CLASS.calm,
-  needs_work: MOOD_CLASS.annoyed,
-  poor: MOOD_CLASS.angry,
+export const SCORE_BAND_TONE: Record<ScoreBand, Tone> = {
+  good: 'calm',
+  needs_work: 'annoyed',
+  poor: 'angry',
 };
 
 export const RESULT_LABEL = {
@@ -41,15 +44,24 @@ export const RESULT_LABEL = {
   na: 'Not needed',
 } as const;
 
-export const RESULT_CLASS = {
-  pass: MOOD_CLASS.calm,
-  miss: MOOD_CLASS.angry,
-  na: 'bg-secondary text-secondary-foreground',
-} as const;
+export const RESULT_TONE = {
+  pass: 'calm',
+  miss: 'angry',
+  na: 'neutral',
+} as const satisfies Record<keyof typeof RESULT_LABEL, Tone>;
 
-export function formatTime(seconds: number) {
-  const whole = Math.floor(seconds);
-  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
+const SCRIPTS = COACHING_LANGUAGES.filter(
+  ({ script }) => script !== 'Latin',
+).map(({ code, script }) => ({
+  code,
+  pattern: new RegExp(`\\p{Script=${script}}`, 'u'),
+}));
+
+export function langOf(text: string | undefined, langs: string[]) {
+  if (!text) return undefined;
+  return SCRIPTS.find(
+    ({ code, pattern }) => langs.includes(code) && pattern.test(text),
+  )?.code;
 }
 
 export function findSpeaker(speakers: Speaker[], speakerId: number) {

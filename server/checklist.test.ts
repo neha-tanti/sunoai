@@ -356,6 +356,7 @@ describe('PUT /api/checklist', () => {
         ],
       },
     ],
+    ['no red flag for a customer who was not transferred', { red_flags: [] }],
   ])('rejects %s and changes nothing', async (_, change) => {
     const before = await readChecklist();
 

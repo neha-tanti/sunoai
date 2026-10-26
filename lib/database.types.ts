@@ -22,7 +22,6 @@ export type Database = {
           created_at: string
           created_by: string | null
           denoise: boolean
-          detected_lang: string | null
           duration_seconds: number | null
           error: string | null
           error_code: Database["public"]["Enums"]["call_error_code"] | null
@@ -43,7 +42,6 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           denoise?: boolean
-          detected_lang?: string | null
           duration_seconds?: number | null
           error?: string | null
           error_code?: Database["public"]["Enums"]["call_error_code"] | null
@@ -64,7 +62,6 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           denoise?: boolean
-          detected_lang?: string | null
           duration_seconds?: number | null
           error?: string | null
           error_code?: Database["public"]["Enums"]["call_error_code"] | null
@@ -281,7 +278,6 @@ export type Database = {
       save_transcript: {
         Args: {
           p_call_id: string
-          p_detected_lang: string
           p_duration_seconds: number
           p_segments: Json
         }

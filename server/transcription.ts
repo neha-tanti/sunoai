@@ -89,7 +89,6 @@ async function finish(
 
   const saved = await createAdminClient().rpc('save_transcript', {
     p_call_id: call.id,
-    p_detected_lang: transcript.language,
     p_duration_seconds: transcript.durationSeconds,
     p_segments: transcript.segments,
   });
