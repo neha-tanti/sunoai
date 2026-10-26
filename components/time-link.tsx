@@ -1,4 +1,4 @@
-import { formatTime } from '@/lib/report-labels';
+import { formatTime, langOf } from '@/lib/report-labels';
 
 type TimeLinkProps = { segmentId: number; time: number };
 
@@ -7,7 +7,7 @@ export function TimeLink({ segmentId, time }: TimeLinkProps) {
     <a
       href={`#segment-${segmentId}`}
       aria-label={`Show ${formatTime(time)} in the transcript`}
-      className="rounded-md border bg-muted px-1.5 font-mono text-xs leading-relaxed tabular-nums hover:border-ring"
+      className="relative rounded-md border bg-muted px-1.5 font-mono text-xs leading-relaxed tabular-nums after:absolute after:-inset-x-1 after:-inset-y-3 hover:border-ring"
     >
       {formatTime(time)}
     </a>
@@ -22,7 +22,7 @@ export function QuoteLink({ segmentId, quote }: QuoteLinkProps) {
       href={`#segment-${segmentId}`}
       className="italic underline-offset-4 hover:underline"
     >
-      <q>{quote}</q>
+      <q lang={langOf(quote)}>{quote}</q>
     </a>
   );
 }

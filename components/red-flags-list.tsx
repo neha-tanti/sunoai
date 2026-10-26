@@ -16,9 +16,16 @@ export function RedFlagsList({ report, segments }: RedFlagsListProps) {
   if (report.red_flags.length === 0) return null;
 
   return (
-    <Card role="region" aria-label="Red flags">
+    <Card
+      id="red-flags"
+      role="region"
+      aria-label="Red flags"
+      className="scroll-mt-32 lg:scroll-mt-20"
+    >
       <CardHeader>
-        <CardTitle>Red flags</CardTitle>
+        <CardTitle>
+          <h2>Red flags</h2>
+        </CardTitle>
         <CardAction>
           <Badge variant="destructive">{report.red_flags.length}</Badge>
         </CardAction>

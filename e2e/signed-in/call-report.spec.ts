@@ -40,16 +40,16 @@ test('a Ready report shows the verdict and the tiles in words', async ({
   await page.goto(`/calls/${coldBiryani}`);
   const main = page.getByRole('main');
 
-  await expect(main.getByRole('status')).toHaveText('Ready.');
+  await expect(main.getByRole('status')).toHaveCount(0);
   await expect(main.getByRole('region', { name: 'Review' })).toContainText(
     'Needs review',
   );
   await expect(main.getByRole('region', { name: 'Review' })).toContainText(
     '2 red flags',
   );
-  await expect(main.getByRole('region', { name: 'Score' })).toContainText(
-    '83% · Good',
-  );
+  await expect(
+    main.getByRole('region', { name: 'Checklist score' }),
+  ).toContainText('83% · Good');
   await expect(
     main.getByRole('region', { name: 'Customer frustration' }),
   ).toContainText('Angry');
@@ -94,6 +94,18 @@ test('the timeline describes the mood ranges and its markers jump', async ({
   await expect(line).toBeInViewport();
   await expect(line).toContainText('Red flag: Agent stuck in a loop');
   await expect(line).toContainText('Red flag: Wrong or made-up promise');
+});
+
+test('the section links jump to each part of the report', async ({ page }) => {
+  await page.goto(`/calls/${coldBiryani}`);
+  const sections = page.getByRole('navigation', { name: 'Report sections' });
+
+  await sections.getByRole('link', { name: 'AI fixes' }).click();
+
+  await expect(page.locator(':target')).toHaveAttribute('id', 'ai-fixes');
+  await expect(
+    page.getByRole('heading', { level: 2, name: 'AI fix notes' }),
+  ).toBeInViewport();
 });
 
 for (const viewport of [
@@ -146,9 +158,9 @@ test('a calm call with nothing to flag says so in each section', async ({
   await expect(main.getByRole('region', { name: 'Review' })).toContainText(
     'No red flags',
   );
-  await expect(main.getByRole('region', { name: 'Score' })).toContainText(
-    'No checks applied',
-  );
+  await expect(
+    main.getByRole('region', { name: 'Checklist score' }),
+  ).toContainText('No checks applied');
   await expect(
     main.getByRole('region', { name: 'Customer frustration' }),
   ).toContainText('The customer stayed calm for the whole call.');
@@ -243,7 +255,9 @@ test.describe('coaching', () => {
   }) => {
     await page.goto(`/calls/${calmQuestion}`);
 
-    await expect(page.getByRole('status')).toHaveText('Ready.');
+    await expect(
+      page.getByRole('article', { name: 'Call report' }),
+    ).toBeVisible();
     await expect(page.getByRole('region', { name: 'Coaching' })).toHaveCount(0);
   });
 });

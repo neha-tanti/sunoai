@@ -7,14 +7,22 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import type { ReportDetail } from '@/hooks/use-call';
+import { langOf } from '@/lib/report-labels';
 
 type FixNote = ReportDetail['fix_notes'][number];
 
 export function FixNotesList({ notes }: { notes: FixNote[] }) {
   return (
-    <Card role="region" aria-label="AI fix notes">
+    <Card
+      id="ai-fixes"
+      role="region"
+      aria-label="AI fix notes"
+      className="scroll-mt-32 lg:scroll-mt-20"
+    >
       <CardHeader>
-        <CardTitle>AI fix notes</CardTitle>
+        <CardTitle>
+          <h2>AI fix notes</h2>
+        </CardTitle>
         <CardDescription>For the AI team</CardDescription>
       </CardHeader>
       <CardContent>
@@ -53,7 +61,9 @@ function FixNoteItem({ note, number }: { note: FixNote; number: number }) {
           <span className="mr-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
             AI said
           </span>
-          <q className="italic">{note.ai_said}</q>
+          <q lang={langOf(note.ai_said)} className="italic">
+            {note.ai_said}
+          </q>
         </p>
         <p>
           <span className="mr-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">

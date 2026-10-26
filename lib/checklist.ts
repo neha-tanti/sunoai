@@ -7,6 +7,7 @@ export const DETAIL_MAX = 300;
 export const RULES_MAX = 2000;
 export const ID_MAX = 64;
 export const HANDOVER_CHECK_ID = 'smooth_handover';
+export const NOT_TRANSFERRED_FLAG_ID = 'human_not_transferred';
 
 const itemId = z
   .string()

@@ -6,7 +6,7 @@ import { CallReport } from '@/components/call-report';
 import { CallStatus } from '@/components/call-status';
 import { CheckAgainButton } from '@/components/check-again-button';
 import { type CallDetail, useCall } from '@/hooks/use-call';
-import { COACHING_LANGUAGES } from '@/lib/call-upload';
+import { CALL_LANGUAGES } from '@/lib/call-upload';
 import { formatTime } from '@/lib/report-labels';
 
 export function CallView() {
@@ -64,22 +64,23 @@ export function CallView() {
 type CallMetaProps = { call: CallDetail['call']; checkedAt: string };
 
 function CallMeta({ call, checkedAt }: CallMetaProps) {
-  const language = COACHING_LANGUAGES.find(
-    (lang) => lang.code === call.detected_lang,
-  );
+  const languages = call.call_langs
+    .map(
+      (code) =>
+        CALL_LANGUAGES.find((lang) => lang.code === code)?.label ?? code,
+    )
+    .join(' + ');
   const checked = new Date(checkedAt).toLocaleString('en-IN', {
     dateStyle: 'medium',
     timeStyle: 'short',
   });
 
   return (
-    <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+    <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
       {call.duration_seconds !== null && (
         <span className="font-mono">{formatTime(call.duration_seconds)}</span>
       )}
-      {call.detected_lang && (
-        <span>{language?.label ?? call.detected_lang}</span>
-      )}
+      <span>{languages}</span>
       <span>Checked {checked}</span>
     </p>
   );

@@ -194,7 +194,7 @@ Models that were tried and not used:
 **Rules enforced in code, not trusted to the model**
 
 1. The answer is parsed with Zod, with no retry: in the spike all 24 strict-schema answers were valid JSON. Every function that runs the analysis (the webhook, the cron job and Check again) sets a deadline 280 seconds after it starts, 20 seconds inside the 300-second function limit, and every outbound request it makes (the Gnani reads and the LLM request) is cancelled at that deadline. Invalid JSON or no answer by the deadline sets the call to `failed`, and Check again reruns only the analysis.
-2. The model returns segment ids, never times. Code turns them into `start_time`, so no timestamp is invented.
+2. The model returns segment ids, never times. Code turns them into `start_time`, so no timestamp is invented. When its written text (check reasons, red flag notes, fix notes, the summary and the English coaching) names a segment by number ("in segment 5"), code replaces that with the segment's time ("at 0:22"); a number that isn't a segment of this call is left as written.
 3. Every quote must appear in its segment's text after normalising case, spaces and punctuation. A pass without a valid quote becomes a miss; a red flag without one is dropped and logged.
 4. The score is passed checks divided by checks not marked `na`. 80% or more is Good, 50% to 79% Needs work, under 50% Poor.
 5. `needs_review` is true when at least one red flag survives step 3.
