@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { fulfillWithRanges, silentWav } from '../support/audio';
 import {
   CALM_QUESTION_REPORT,
   CALM_QUESTION_SEGMENTS,
@@ -7,6 +8,8 @@ import {
   deleteCalls,
   seedReadyCall,
 } from '../support/ready-call';
+
+const CALL_RECORDING_URL = '/call-recording-test.wav';
 
 let coldBiryani: string;
 let calmQuestion: string;
@@ -165,6 +168,43 @@ test('the timeline describes the mood ranges and its markers jump', async ({
   await expect(line).toBeInViewport();
   await expect(line).toContainText('Red flag: Agent stuck in a loop');
   await expect(line).toContainText('Red flag: Wrong or made-up promise');
+});
+
+test('picking a time plays the recording from that moment', async ({
+  page,
+}) => {
+  await page.route(`**/api/calls/${coldBiryani}/recording`, (route) =>
+    route.fulfill({ json: { url: CALL_RECORDING_URL } }),
+  );
+  const wav = silentWav(60);
+  await page.route(`**${CALL_RECORDING_URL}`, (route) =>
+    fulfillWithRanges(route, wav),
+  );
+  await page.goto(`/calls/${coldBiryani}`);
+  const recording = page.locator('audio[aria-label="Call recording"]');
+  await expect(recording).toHaveAttribute('src', CALL_RECORDING_URL);
+
+  await page.getByRole('link', { name: 'Show 0:26 in the transcript' }).click();
+
+  await expect
+    .poll(() =>
+      recording.evaluate((audio: HTMLAudioElement) => audio.currentTime),
+    )
+    .toBeGreaterThanOrEqual(26);
+  await expect(
+    page.getByRole('button', { name: 'Pause Call recording' }),
+  ).toBeVisible();
+});
+
+test('a call whose recording is gone says so and keeps the report', async ({
+  page,
+}) => {
+  await page.goto(`/calls/${coldBiryani}`);
+
+  await expect(
+    page.getByText("This call's recording isn't available."),
+  ).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Red flags' })).toBeVisible();
 });
 
 test('the section links jump to each part of the report', async ({ page }) => {

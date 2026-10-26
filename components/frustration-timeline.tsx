@@ -47,7 +47,7 @@ export function FrustrationTimeline({ report, segments }: TimelineProps) {
           <h2>How the customer felt during the call</h2>
         </CardTitle>
         <CardDescription>
-          Pick a moment to read it in the transcript
+          Pick a moment to hear it and read it in the transcript
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">

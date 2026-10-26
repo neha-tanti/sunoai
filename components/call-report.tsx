@@ -1,4 +1,5 @@
 import { CircleCheckIcon, TriangleAlertIcon } from 'lucide-react';
+import { CallPlayer } from '@/components/call-player';
 import { ChecklistResults } from '@/components/checklist-results';
 import { CoachingPlayer } from '@/components/coaching-player';
 import { FixNotesList } from '@/components/fix-notes-list';
@@ -31,7 +32,10 @@ export function CallReport({ call, report, segments }: CallReportProps) {
 
   return (
     <article className="flex flex-col gap-4" aria-label="Call report">
-      <div className="sticky top-0 z-10 -mx-6 border-b bg-background/95 px-6 py-1.5 backdrop-blur">
+      <div className="sticky top-0 z-10 -mx-6 flex flex-wrap items-center gap-x-6 border-b bg-background/95 px-6 py-1.5 backdrop-blur">
+        <div className="flex min-w-64 flex-1 sm:max-w-md">
+          <CallPlayer callId={call.id} segments={segments} />
+        </div>
         <JumpLinks report={report} />
       </div>
       <ReviewBanner redFlags={report.red_flags.length} />

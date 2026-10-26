@@ -917,6 +917,47 @@ async function coachingAudioExists(callId: string) {
   return exists.data;
 }
 
+describe('GET /api/calls/:id/recording', () => {
+  async function readRecording(id: string) {
+    return api.calls[':id'].recording.$get(
+      { param: { id } },
+      { headers: { Cookie: session.cookie } },
+    );
+  }
+
+  it("returns a link that plays the call's recording", async () => {
+    const call = await seedCall({ status: 'ready' });
+    await uploadRecording(call.file_path);
+
+    const res = await readRecording(call.id);
+
+    expect(res.status).toBe(200);
+    const audio = await fetch((await res.json()).url);
+    expect(audio.ok).toBe(true);
+    expect(await audio.text()).toBe('not really audio');
+  });
+
+  it('says the recording is not available when its file is gone', async () => {
+    const call = await seedCall({ status: 'ready' });
+
+    const res = await readRecording(call.id);
+
+    expect(res.status).toBe(404);
+    expect(await res.json()).toMatchObject({
+      error: {
+        code: 'not_found',
+        message: "This call's recording isn't available.",
+      },
+    });
+  });
+
+  it('answers 404 for a call that does not exist', async () => {
+    const res = await readRecording(randomUUID());
+
+    expect(res.status).toBe(404);
+  });
+});
+
 describe('POST /api/calls/:id/coaching-audio', () => {
   it.each([
     ['Hindi', 'hi-IN', 'Nalini'],

@@ -2,6 +2,7 @@
 
 import { PlayIcon } from 'lucide-react';
 import { useState } from 'react';
+import { AudioPlayer } from '@/components/audio-player';
 import { Button } from '@/components/ui/button';
 import { useCheckExample } from '@/hooks/use-check-example';
 import { useExampleAudio } from '@/hooks/use-example-audio';
@@ -32,12 +33,10 @@ function ExampleCard({ example, disabled, onCheck }: ExampleCardProps) {
         <p className="text-muted-foreground text-sm">{example.about}</p>
       </div>
       {listening && audio.data ? (
-        <audio
-          controls
-          autoPlay
+        <AudioPlayer
           src={audio.data}
-          aria-label={`${example.title} recording`}
-          className="w-full"
+          label={`${example.title} recording`}
+          autoPlay
         />
       ) : (
         <Button
