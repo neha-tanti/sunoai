@@ -232,7 +232,7 @@ Six Postgres tables and three private Storage buckets; each report's detailed re
 
 ## API
 
-Thirteen Hono routes under `/api`: eleven for the page, one for Gnani's webhook and one for the cron job.
+Fourteen Hono routes under `/api`: eleven for the page, one public Markdown page, one for Gnani's webhook and one for the cron job.
 
 | Route | Called by | What it does |
 | --- | --- | --- |
@@ -247,6 +247,7 @@ Thirteen Hono routes under `/api`: eleven for the page, one for Gnani's webhook 
 | `DELETE /api/calls/:id` | Page | Cancels a running Gnani job, then deletes the files and rows. Answers 403 `not_allowed` to a visitor deleting a call someone else checked |
 | `GET /api/checklist` | Page | Active checks, red flags and rules, plus a `version` (the rules' `updated_at`), read in one statement by the `load_checklist` Postgres function so a report snapshot matches one save, plus `can_edit`, false for visitors |
 | `PUT /api/checklist` | Page | Saves checks, red flags and rules in one transaction, through the `save_checklist` Postgres function called with `.rpc()`; it locks the checklist tables so two saves run one after another, and answers 409 `checklist_changed` when the `version` sent is no longer the latest, so a save from an out-of-date page never overwrites a newer one. Answers 403 `not_allowed` to visitors |
+| `GET /api/checklist.md` | Anyone, at `/checklist.md` | The live checklist as Markdown for AI assistants, without a session; `app/checklist.md/route.ts` passes `/checklist.md` straight to it, and the CDN caches it for 5 minutes |
 | `POST /api/webhooks/gnani` | Gnani | Checks the token, then finishes the call (save transcript, analyse) |
 | `POST /api/jobs/poll` | Supabase Cron | Checks `CRON_SECRET` and sets calls in Analysing for over 5 minutes to Failed ("Analysis failed."), since their function was stopped. Then it asks Gnani about calls in Transcribing for over a minute, fewest busy answers first and then oldest, and finishes the first one that is done; the rest wait for the next run. It also stops at the first 429 or 5xx from Gnani, so the calls after it don't use up their attempts, and the busy call moves behind them for the next run |
 
@@ -254,14 +255,14 @@ Thirteen Hono routes under `/api`: eleven for the page, one for Gnani's webhook 
 - **Mounting:** the Hono app lives in `server/app.ts` with `basePath('/api')`, and `app/api/[[...route]]/route.ts` exports `GET`, `POST`, `PUT` and `DELETE` from `handle(app)` in `@hono/vercel`. It runs on the Node.js runtime (the only runtime Cache Components allows, so the route sets no `runtime`) with `maxDuration` set to 300 seconds, the Hobby plan's maximum with Fluid compute, so the analysis step has time.
 - **Background work:** the webhook, cron and Check again routes check their input, respond at once, and do the rest in Next.js `after()`, which runs within the same `maxDuration`. Neither Gnani, `pg_net` (10-second timeout) nor the page waits on the analysis. An error thrown in that work sets the call to Failed with a conditional update from the status it was in: `transcription_failed` from Transcribing and `analysis_failed` from Analysing. Only a Gnani 429 or 5xx leaves a Transcribing call for the next cron run (see the failure table); the cron job's 5-minute sweep only catches functions that were stopped.
 - **Validation:** Zod schemas with `@hono/zod-validator` on every body and parameter.
-- **Auth:** middleware reads the Supabase session cookie with `@supabase/ssr` and returns 401 without one. It runs on every route except the ones listed beside it in `server/app.ts`: the health check, and the webhook and poll routes, which check their own secrets instead.
+- **Auth:** middleware reads the Supabase session cookie with `@supabase/ssr` and returns 401 without one. It runs on every route except the ones listed beside it in `server/app.ts`: the health check, `/api/checklist.md`, and the webhook and poll routes, which check their own secrets instead.
 - **Typed client:** the app's route type is exported as `AppType`, and the frontend calls the API through `hc<AppType>('/')` from `hono/client` (as `api.api.health.$get()`, since `basePath('/api')` is part of the route type), so requests and responses are typed end to end.
 - **Errors:** every error is `{ "error": { "code", "message" } }` with a message a person can act on. Upstream error details are logged, never returned.
 - **Webhook security:** Gnani's docs show no signature, so the callback URL carries a secret `token`, compared in constant time.
 
 ## Frontend
 
-Six Next.js routes built from shadcn/ui parts, with all server data going through TanStack Query and the typed Hono client. The [SunoAI Prototype](https://claude.ai/artifact/MtyZJxoHXg5a61X6216nTk) is the visual reference.
+Six Next.js pages built from shadcn/ui parts, plus public Markdown pages, with all server data going through TanStack Query and the typed Hono client. The [SunoAI Prototype](https://claude.ai/artifact/MtyZJxoHXg5a61X6216nTk) is the visual reference.
 
 | Route | Screen |
 | --- | --- |
@@ -270,6 +271,7 @@ Six Next.js routes built from shadcn/ui parts, with all server data going throug
 | `/check` | Check a call: listen to and pick an example call, or upload one with call languages, coaching language, noise removal toggle and progress |
 | `/calls` | Recent calls and the team average |
 | `/calls/[id]` | The call report |
+| `/llms.txt`, `/how-it-works.md`, `/checklist.md`, `/examples/late-order.md` | Public Markdown for AI assistants: static files in `public/`, the checklist through Hono, and the Late order example built from `lib/late-order-example.ts` |
 | `/checklist` | Checklist editor |
 
 **shadcn/ui parts:** Button, Card, Badge, Select, Switch, Table, Input, Textarea, Alert (for Needs review), AlertDialog (to confirm deleting a call), Progress, Skeleton, Tooltip, ScrollArea and Sonner for toasts.
@@ -313,7 +315,7 @@ The signed-in pages sit in the `app/(app)` route group, whose layout adds `SiteN
 
 Anyone can get in with one click, the browser has no direct access to the database or Storage, and API keys never reach the browser.
 
-- **Sign-in:** Try it on the homepage calls Supabase's anonymous sign-in, so a visitor gets a session with no email or password. A visitor can see every call and the checklist, but can delete only the calls they checked and can't change the checklist; Hono reads the session's `is_anonymous` claim for this. Supabase limits anonymous sign-ins to 30 an hour per IP address, and a pg_cron job deletes anonymous users more than 30 days old. The owner signs in with email and password at `/login`, which no page links to; there is no sign-up page. `proxy.ts` lets signed-out visitors see only `/` and `/login`, and sends them to `/` from any other page.
+- **Sign-in:** Try it on the homepage calls Supabase's anonymous sign-in, so a visitor gets a session with no email or password. A visitor can see every call and the checklist, but can delete only the calls they checked and can't change the checklist; Hono reads the session's `is_anonymous` claim for this. Supabase limits anonymous sign-ins to 30 an hour per IP address, and a pg_cron job deletes anonymous users more than 30 days old. The owner signs in with email and password at `/login`, which no page links to; there is no sign-up page. `proxy.ts` only redirects: it sends a signed-out visitor from `/check`, `/calls` or `/checklist` to `/`, carrying a report link as `/?next=/calls/<id>` so Try it opens that report. Every other page is public, and no page reads the database, so the proxy guards nothing on its own; Hono checks the session on every `/api` route.
 - **Daily limit:** once 30 calls have been checked (`checked_at`) in the last 24 hours, a visitor's check answers 429 `daily_limit`, so open entry can't use up the Gnani and OpenRouter credits. The `claim_check_slot` Postgres function counts and sets `checked_at` under an advisory lock just before the Gnani job starts, so parallel checks can't all pass, and the slot is released if the job doesn't start. `POST /api/calls` refuses at the limit too, before the recording is uploaded. The owner's checks count but are never refused.
 - **Example calls:** the check page offers three of the synthetic test calls in `scripts/calls/`. Their WAVs live in the private `examples` bucket, put there by hand with `scripts/upload-examples.mts`, never committed.
 - **Database access:** only Hono reaches the database and Storage. Row-level security is on for every table with no policies, and the `authenticated` role has no table grants, so a signed-in browser's Supabase token can't read or write anything directly. Because there is one team, every signed-in user can see everything through Hono, and the owner can change everything.

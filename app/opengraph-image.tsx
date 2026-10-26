@@ -1,18 +1,14 @@
 import { ImageResponse } from 'next/og';
-import { LOGO_BARS, LOGO_TILE } from '@/components/logo';
+import { MOOD_COLOR } from '@/components/logo';
+import { LogoImage } from '@/components/logo-image';
 import { LATE_ORDER_REPORT } from '@/lib/late-order-example';
 import { formatTime } from '@/lib/report-labels';
+import { SITE_URL } from '@/lib/site';
 
 export const alt =
   'SunoAI: hear where a support call went wrong. Powered by Gnani.ai.';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
-
-const MOOD_COLOR = {
-  calm: LOGO_BARS[0].color,
-  annoyed: LOGO_BARS[2].color,
-  angry: LOGO_BARS[3].color,
-};
 
 export default function OpenGraphImage() {
   const { ranges } = LATE_ORDER_REPORT.frustration;
@@ -33,30 +29,7 @@ export default function OpenGraphImage() {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-        <div
-          style={{
-            width: 64,
-            height: 64,
-            borderRadius: 16,
-            background: LOGO_TILE,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 4,
-          }}
-        >
-          {LOGO_BARS.map((bar, index) => (
-            <div
-              key={index}
-              style={{
-                width: 6,
-                height: bar.height * 2,
-                borderRadius: 3,
-                background: bar.color,
-              }}
-            />
-          ))}
-        </div>
+        <LogoImage size={64} />
         <div style={{ fontSize: 40, fontWeight: 700 }}>SunoAI</div>
       </div>
 
@@ -75,7 +48,7 @@ export default function OpenGraphImage() {
           style={{
             display: 'flex',
             position: 'relative',
-            paddingTop: 64,
+            paddingTop: 96,
           }}
         >
           <div
@@ -101,6 +74,7 @@ export default function OpenGraphImage() {
             style={{
               position: 'absolute',
               left: `${(flag.time / length) * 100}%`,
+              right: 0,
               top: 0,
               bottom: 0,
               display: 'flex',
@@ -118,7 +92,7 @@ export default function OpenGraphImage() {
                 padding: '4px 12px',
               }}
             >
-              {`Red flag · ${formatTime(flag.time)} · asked for a person, AI carried on`}
+              {`Red flag · ${formatTime(flag.time)} · ${flag.name}`}
             </div>
             <div style={{ width: 4, flexGrow: 1, background: '#b91c1c' }} />
           </div>
@@ -131,7 +105,7 @@ export default function OpenGraphImage() {
             color: '#525252',
           }}
         >
-          <div>suno-ai.vercel.app</div>
+          <div>{new URL(SITE_URL).host}</div>
           <div style={{ fontWeight: 600, color: '#0a0a0a' }}>
             Powered by Gnani.ai
           </div>

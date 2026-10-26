@@ -1,14 +1,6 @@
 import type { ReportDetail, Segment } from '@/hooks/use-call';
 
-export const LATE_ORDER = {
-  title: 'Late order',
-  durationSeconds: 65.1,
-  language: 'hi-IN',
-  callLangs: ['hi-IN', 'en-IN'],
-  coachingLang: 'hi-IN',
-  rules:
-    'Late delivery over 45 minutes: a coupon of up to ₹50. Refunds only for missing, wrong or damaged items, after the customer sends a photo. No cash compensation.',
-};
+export const LATE_ORDER_SECONDS = 65.1;
 
 export const LATE_ORDER_SEGMENTS: Segment[] = [
   {

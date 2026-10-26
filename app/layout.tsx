@@ -22,7 +22,6 @@ export const metadata: Metadata = {
   openGraph: {
     title: SITE_TITLE,
     description: SITE_DESCRIPTION,
-    url: '/',
     siteName: 'SunoAI',
     locale: 'en_IN',
     type: 'website',

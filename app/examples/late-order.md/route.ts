@@ -1,6 +1,7 @@
-import { CALL_LANGUAGES } from '@/lib/call-upload';
+import { callLanguage } from '@/lib/call-upload';
+import { exampleCall } from '@/lib/examples';
 import {
-  LATE_ORDER,
+  LATE_ORDER_SECONDS,
   LATE_ORDER_REPORT as report,
   LATE_ORDER_SEGMENTS as segments,
 } from '@/lib/late-order-example';
@@ -23,8 +24,9 @@ export function GET() {
 
 function lateOrderMarkdown() {
   const percent = scorePercent(report.score_passed, report.score_total) ?? 0;
-  const languages = LATE_ORDER.callLangs
-    .map((code) => CALL_LANGUAGES.find((lang) => lang.code === code)?.label)
+  const example = exampleCall('late-order');
+  const languages = example.call_langs
+    .map((code) => callLanguage(code).label)
     .join(' + ');
   const handover = segments.find(
     (segment) => segment.segment_id === report.handover_segment_id,
@@ -32,9 +34,9 @@ function lateOrderMarkdown() {
   const speaker = (speakerId: number) => speakerLabel(report.speakers, speakerId);
 
   return [
-    `# Example report: ${LATE_ORDER.title}`,
+    `# Example report: ${example.title}`,
     '',
-    `> A made-up food delivery support call, voiced with Gnani Timbre and checked by SunoAI. ${formatTime(LATE_ORDER.durationSeconds)} long, in ${languages}. Open it in the app: ${SITE_URL} (Try an example call, then Late order).`,
+    `> A made-up food delivery support call, voiced with Gnani Timbre and checked by SunoAI. ${formatTime(LATE_ORDER_SECONDS)} long, in ${languages}. Open it in the app: ${SITE_URL} (Try an example call, then Late order).`,
     '',
     `- **Review:** ${report.needs_review ? `Needs review, red flags: ${report.red_flags.length}` : 'No red flags'}`,
     `- **Checklist score:** ${report.score_passed} / ${report.score_total} (${percent}%, ${SCORE_BAND_LABEL[scoreBand(percent)]}). Red flags are counted apart from the score.`,

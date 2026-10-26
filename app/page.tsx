@@ -34,7 +34,7 @@ export default function HomePage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(JSON_LD).replace(/</g, '\u003c'),
+          __html: JSON.stringify(JSON_LD).replace(/</g, '\\u003c'),
         }}
       />
       <div className="flex flex-col gap-5">

@@ -48,7 +48,7 @@ export function useSignIn() {
   });
 }
 
-export function useTryIt(destination: string) {
+export function useTryIt(destination?: string) {
   const openApp = useOpenAppAfterAuth(destination);
   return useMutation({
     mutationFn: async () => {

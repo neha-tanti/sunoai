@@ -6,9 +6,9 @@ import { useTryIt } from '@/hooks/use-auth';
 import { useHydrated } from '@/hooks/use-hydrated';
 import { isSharedReport } from '@/lib/site';
 
-export function TryItButton({ report = null }: { report?: string | null }) {
+export function TryItButton({ report }: { report?: string }) {
   const hydrated = useHydrated();
-  const tryIt = useTryIt(report ?? '/check');
+  const tryIt = useTryIt(report);
   const busy = tryIt.isPending || tryIt.isSuccess;
 
   return (
@@ -43,5 +43,5 @@ export function TryItButton({ report = null }: { report?: string | null }) {
 
 export function TryItFromLink() {
   const next = useSearchParams().get('next');
-  return <TryItButton report={isSharedReport(next) ? next : null} />;
+  return <TryItButton report={isSharedReport(next) ? next : undefined} />;
 }

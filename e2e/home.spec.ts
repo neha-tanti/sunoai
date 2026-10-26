@@ -35,6 +35,17 @@ test('a signed-out visitor to a report link is offered that report', async ({
   ).toBeVisible();
 });
 
+test('a next link that is not a report is ignored', async ({ page }) => {
+  await page.goto('/?next=//evil.example');
+
+  await expect(
+    page.getByRole('button', { name: 'Try an example call' }),
+  ).toBeVisible();
+  await expect(
+    page.getByText('Someone shared a SunoAI report with you.'),
+  ).toHaveCount(0);
+});
+
 test('a signed-out visitor to another app page is sent to the homepage', async ({
   page,
 }) => {
