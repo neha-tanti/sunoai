@@ -32,10 +32,12 @@ describe('the published Late order report', () => {
     );
 
     for (const flag of report.red_flags) {
-      expect(flag.segment_id).toBeGreaterThanOrEqual(
+      expect(flag.segment_id, flag.flag_id).toBeGreaterThanOrEqual(
         expectedSegment.get(flag.flag_id) ?? Infinity,
       );
-      expect(flag.segment_id).toBeLessThan(EXPECTED.segments.handover);
+      expect(flag.segment_id, flag.flag_id).toBeLessThan(
+        EXPECTED.segments.handover,
+      );
     }
   });
 });
