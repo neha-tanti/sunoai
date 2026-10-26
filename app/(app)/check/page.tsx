@@ -1,5 +1,8 @@
+import type { Metadata } from 'next';
 import { CheckCallForm } from '@/components/check-call-form';
 import { ExampleCalls } from '@/components/example-calls';
+
+export const metadata: Metadata = { title: 'Check a call' };
 
 export default function CheckPage() {
   return (

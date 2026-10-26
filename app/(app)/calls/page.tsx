@@ -1,4 +1,7 @@
+import type { Metadata } from 'next';
 import { RecentCalls } from '@/components/recent-calls';
+
+export const metadata: Metadata = { title: 'Recent calls' };
 
 export default function RecentCallsPage() {
   return (

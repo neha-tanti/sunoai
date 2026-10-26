@@ -32,6 +32,35 @@ export async function loadChecklist() {
   return { version, checklist };
 }
 
+async function loadChecklistMarkdown() {
+  const { checklist } = await loadChecklist();
+
+  return [
+    '# SunoAI checklist',
+    '',
+    'What SunoAI checks on every call. The team leader can change it; each report keeps the checklist it was made with.',
+    '',
+    '## Checks',
+    '',
+    'Each check is marked Passed, Missed or Not needed. A check passes only with a quote from the call as proof ("no quote, no pass"). The score is passed checks divided by the checks that apply.',
+    '',
+    ...checklist.checks.map((check) => `- **${check.name}:** ${check.rule}`),
+    '',
+    '## Red flags',
+    '',
+    'Any one of these marks the call Needs review, whatever its score.',
+    '',
+    ...checklist.red_flags.map((flag) => `- **${flag.name}:** ${flag.example}`),
+    '',
+    '## Refund and compensation rules',
+    '',
+    'SunoAI flags a promise that breaks these as a wrong promise.',
+    '',
+    checklist.rules,
+    '',
+  ].join('\n');
+}
+
 function slugify(name: string) {
   return name
     .normalize('NFKD')
@@ -57,6 +86,16 @@ function withIds<T extends { id?: string; name: string }>(
     return { ...item, id };
   });
 }
+
+export const checklistMarkdown = new Hono().get('/', async (c) => {
+  if (new URL(c.req.url).search) return c.redirect('/checklist.md', 301);
+
+  const markdown = await loadChecklistMarkdown();
+  return c.body(markdown, 200, {
+    'Content-Type': 'text/markdown; charset=utf-8',
+    'Cache-Control': 'public, s-maxage=300',
+  });
+});
 
 export const checklist = new Hono<SignedInEnv>()
   .get('/', async (c) => {

@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { SignInForm } from '@/components/sign-in-form';
 import {
   Card,
@@ -6,6 +7,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+
+export const metadata: Metadata = { title: 'Sign in' };
 
 export default function LoginPage() {
   return (

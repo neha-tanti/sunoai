@@ -38,6 +38,12 @@ export const CALL_LANGUAGES = [
   { code: 'ml-IN', label: 'Malayalam' },
 ] as const;
 
+export function callLanguage(code: string) {
+  const language = CALL_LANGUAGES.find((lang) => lang.code === code);
+  if (!language) throw new Error(`Unknown call language ${code}`);
+  return language;
+}
+
 export const COACHING_LANGUAGES = [
   { code: 'hi-IN', label: 'Hindi', script: 'Devanagari' },
   { code: 'hi-en', label: 'Hinglish', script: 'Latin' },

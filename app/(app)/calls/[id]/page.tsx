@@ -1,5 +1,8 @@
+import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { CallView } from '@/components/call-view';
+
+export const metadata: Metadata = { title: 'Call report' };
 
 export default function CallPage() {
   return (

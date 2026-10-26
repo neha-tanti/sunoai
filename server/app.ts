@@ -5,7 +5,7 @@ import { HTTPException } from 'hono/http-exception';
 import type { ErrorCode } from '@/lib/api-errors';
 import { requireUser } from './auth';
 import { calls } from './calls';
-import { checklist } from './checklist';
+import { checklist, checklistMarkdown } from './checklist';
 import { ApiError, apiError, loggableError } from './errors';
 import { jobs } from './jobs';
 import { webhooks } from './webhooks';
@@ -16,11 +16,17 @@ export const app = new Hono()
   .basePath('/api')
   .use(
     except(
-      ['/api/health', '/api/webhooks/gnani', '/api/jobs/poll'],
+      [
+        '/api/health',
+        '/api/checklist.md',
+        '/api/webhooks/gnani',
+        '/api/jobs/poll',
+      ],
       requireUser,
     ),
   )
   .get('/health', (c) => c.json({ status: 'ok' as const }))
+  .route('/checklist.md', checklistMarkdown)
   .route('/calls', calls)
   .route('/checklist', checklist)
   .route('/webhooks', webhooks)
