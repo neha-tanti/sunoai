@@ -25,6 +25,7 @@ export type Database = {
           duration_seconds: number | null
           error: string | null
           error_code: Database["public"]["Enums"]["call_error_code"] | null
+          example_id: string | null
           file_path: string
           file_size_bytes: number
           gnani_attempts: number
@@ -45,6 +46,7 @@ export type Database = {
           duration_seconds?: number | null
           error?: string | null
           error_code?: Database["public"]["Enums"]["call_error_code"] | null
+          example_id?: string | null
           file_path: string
           file_size_bytes: number
           gnani_attempts?: number
@@ -65,6 +67,7 @@ export type Database = {
           duration_seconds?: number | null
           error?: string | null
           error_code?: Database["public"]["Enums"]["call_error_code"] | null
+          example_id?: string | null
           file_path?: string
           file_size_bytes?: number
           gnani_attempts?: number

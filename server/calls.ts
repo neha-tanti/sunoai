@@ -20,7 +20,7 @@ import { createAdminClient } from './supabase';
 import { callIdParam, rejectInvalid } from './validate';
 
 const CALL_COLUMNS =
-  'id, title, status, error_code, call_langs, coaching_lang, denoise, duration_seconds, file_size_bytes, mime_type, created_at, checked_at';
+  'id, title, status, error_code, example_id, call_langs, coaching_lang, denoise, duration_seconds, file_size_bytes, mime_type, created_at, checked_at';
 const REPORT_COLUMNS =
   'score_passed, score_total, needs_review, frustration_peak, frustration, speakers, handover_segment_id, checks, red_flags, fix_notes, summary, coaching, llm_model, prompt_version, checklist_snapshot, created_at';
 
@@ -157,23 +157,44 @@ async function readReport(
   };
 }
 
+type RecentReport = {
+  score_passed: number;
+  score_total: number;
+  needs_review: boolean;
+  frustration: Report['frustration'];
+};
+
 async function recentCalls(userId: string, isAnonymous: boolean) {
   const recent = await createAdminClient()
     .from('calls')
     .select(
-      'id, title, status, error_code, created_at, created_by, report:reports(score_passed, score_total, needs_review, frustration_peak)',
+      'id, title, status, error_code, example_id, duration_seconds, created_at, created_by, report:reports(score_passed, score_total, needs_review, frustration)',
     )
     .not('checked_at', 'is', null)
     .order('created_at', { ascending: false })
-    .limit(RECENT_CALLS);
+    .limit(RECENT_CALLS)
+    .overrideTypes<{ report: RecentReport | null }[]>();
   if (recent.error) throw recent.error;
 
   return {
-    calls: recent.data.map(({ created_by, ...call }) => ({
+    calls: recent.data.map(({ created_by, report, ...call }) => ({
       ...call,
+      report: listedReport(report),
       can_delete: !isAnonymous || created_by === userId,
     })),
-    average: teamAverage(recent.data),
+    average: teamAverage(
+      recent.data.filter((call) => call.example_id === null),
+    ),
+  };
+}
+
+function listedReport(report: RecentReport | null) {
+  if (!report) return null;
+  return {
+    score_passed: report.score_passed,
+    score_total: report.score_total,
+    needs_review: report.needs_review,
+    ended_mood: report.frustration.ranges.at(-1)?.level ?? null,
   };
 }
 
@@ -356,6 +377,7 @@ export const calls = new Hono<SignedInEnv>()
         mime_type: 'audio/wav',
         call_langs: [...example.call_langs],
         coaching_lang: example.coaching_lang,
+        example_id: example.id,
         created_by: c.get('userId'),
       });
       if (inserted.error) throw inserted.error;

@@ -16,6 +16,7 @@ import type { Checklist } from './checklist';
 import { app } from './app';
 import { DAILY_CALL_LIMIT } from './calls';
 import { coachingAudioPath } from './coaching';
+import type { Report } from './report';
 import { createAdminClient } from './supabase';
 import { flushAfter } from './test/after';
 import { keepChecklist } from './test/checklist';
@@ -267,6 +268,7 @@ describe('example calls', () => {
       const { call } = await readCall(id);
       expect(call).toMatchObject({
         title: 'Late order',
+        example_id: 'late-order',
         status: 'transcribing',
         mime_type: 'audio/wav',
         file_size_bytes: 'not really audio'.length,
@@ -631,17 +633,25 @@ describe('GET /api/calls', () => {
 
   async function seedReadyCall(
     minutesAgo: number,
-    report: { score_passed: number; score_total: number },
+    report: {
+      score_passed: number;
+      score_total: number;
+      frustration?: Report['frustration'];
+    },
+    call: Parameters<typeof insertCall>[0] = {},
   ) {
-    const call = await seedCheckedCall(minutesAgo, { status: 'ready' });
+    const ready = await seedCheckedCall(minutesAgo, {
+      status: 'ready',
+      ...call,
+    });
     const inserted = await createAdminClient()
       .from('reports')
       .insert({
-        call_id: call.id,
-        ...report,
+        call_id: ready.id,
         needs_review: report.score_passed < report.score_total,
         frustration_peak: 'annoyed',
         frustration: { ranges: [], turn: null },
+        ...report,
         speakers: [],
         checks: [],
         red_flags: [],
@@ -652,7 +662,7 @@ describe('GET /api/calls', () => {
         checklist_snapshot: { checks: [], red_flags: [], rules: '' },
       });
     if (inserted.error) throw inserted.error;
-    return call;
+    return ready;
   }
 
   async function readRecentCalls(cookie = session.cookie) {
@@ -679,8 +689,19 @@ describe('GET /api/calls', () => {
     expect(await readRecentCalls()).toEqual({ calls: [], average: null });
   });
 
-  it('lists a Ready call with its score, Needs review and peak', async () => {
-    const call = await seedReadyCall(1, { score_passed: 5, score_total: 6 });
+  it('lists a Ready call with its score, Needs review and how the customer ended', async () => {
+    const call = await seedReadyCall(1, {
+      score_passed: 5,
+      score_total: 6,
+      frustration: {
+        ranges: [
+          { start: 0, end: 12, level: 'calm' },
+          { start: 12, end: 30, level: 'angry' },
+          { start: 30, end: 41, level: 'annoyed' },
+        ],
+        turn: { segment_id: 3, time: 12 },
+      },
+    });
 
     const body = await readRecentCalls();
 
@@ -689,11 +710,12 @@ describe('GET /api/calls', () => {
         id: call.id,
         title: call.title,
         status: 'ready',
+        example_id: null,
         report: {
           score_passed: 5,
           score_total: 6,
           needs_review: true,
-          frustration_peak: 'annoyed',
+          ended_mood: 'annoyed',
         },
       }),
     ]);
@@ -707,6 +729,22 @@ describe('GET /api/calls', () => {
     const body = await readRecentCalls();
 
     expect(body.average).toEqual({ percent: 58, calls: 2 });
+  });
+
+  it('lists example calls but leaves them out of the average', async () => {
+    await seedReadyCall(2, { score_passed: 1, score_total: 2 });
+    const example = await seedReadyCall(
+      1,
+      { score_passed: 6, score_total: 6 },
+      { title: 'Late order', example_id: 'late-order' },
+    );
+
+    const body = await readRecentCalls();
+
+    expect(body.calls).toContainEqual(
+      expect.objectContaining({ id: example.id, example_id: 'late-order' }),
+    );
+    expect(body.average).toEqual({ percent: 50, calls: 1 });
   });
 
   it('lists the 10 newest checked calls, newest first', async () => {
