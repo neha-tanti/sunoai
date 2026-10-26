@@ -1,8 +1,10 @@
 import { ImageResponse } from 'next/og';
-import { MOOD_COLOR } from '@/components/logo';
 import { LogoImage } from '@/components/logo-image';
-import { LATE_ORDER_REPORT } from '@/lib/late-order-example';
-import { formatTime } from '@/lib/report-labels';
+import {
+  LATE_ORDER_REPORT,
+  LATE_ORDER_SECONDS,
+} from '@/lib/late-order-example';
+import { formatTime, MOOD_COLOR } from '@/lib/report-labels';
 import { SITE_URL } from '@/lib/site';
 
 export const alt =
@@ -13,7 +15,6 @@ export const contentType = 'image/png';
 export default function OpenGraphImage() {
   const { ranges } = LATE_ORDER_REPORT.frustration;
   const flag = LATE_ORDER_REPORT.red_flags[0];
-  const length = ranges.at(-1)?.end ?? flag.time;
 
   return new ImageResponse(
     <div
@@ -64,7 +65,7 @@ export default function OpenGraphImage() {
               <div
                 key={range.start}
                 style={{
-                  width: `${((range.end - range.start) / length) * 100}%`,
+                  width: `${((range.end - range.start) / LATE_ORDER_SECONDS) * 100}%`,
                   background: MOOD_COLOR[range.level],
                 }}
               />
@@ -73,7 +74,7 @@ export default function OpenGraphImage() {
           <div
             style={{
               position: 'absolute',
-              left: `${(flag.time / length) * 100}%`,
+              left: `${(flag.time / LATE_ORDER_SECONDS) * 100}%`,
               right: 0,
               top: 0,
               bottom: 0,

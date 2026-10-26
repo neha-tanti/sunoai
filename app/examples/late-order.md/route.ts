@@ -23,7 +23,8 @@ export function GET() {
 }
 
 function lateOrderMarkdown() {
-  const percent = scorePercent(report.score_passed, report.score_total) ?? 0;
+  const percent = scorePercent(report.score_passed, report.score_total);
+  if (percent === null) throw new Error('The Late order report has no checks');
   const example = exampleCall('late-order');
   const languages = example.call_langs
     .map((code) => callLanguage(code).label)

@@ -6,14 +6,14 @@ import { useTryIt } from '@/hooks/use-auth';
 import { useHydrated } from '@/hooks/use-hydrated';
 import { isSharedReport } from '@/lib/site';
 
-export function TryItButton({ report }: { report?: string }) {
+export function TryItButton({ reportPath }: { reportPath?: string }) {
   const hydrated = useHydrated();
-  const tryIt = useTryIt(report);
+  const tryIt = useTryIt(reportPath);
   const busy = tryIt.isPending || tryIt.isSuccess;
 
   return (
     <div className="flex flex-col gap-3">
-      {report && (
+      {reportPath && (
         <p className="font-medium">Someone shared a SunoAI report with you.</p>
       )}
       <div className="flex flex-wrap items-center gap-4">
@@ -24,7 +24,7 @@ export function TryItButton({ report }: { report?: string }) {
         >
           {busy
             ? 'Opening…'
-            : report
+            : reportPath
               ? 'Open the report'
               : 'Try an example call'}
         </Button>
@@ -43,5 +43,5 @@ export function TryItButton({ report }: { report?: string }) {
 
 export function TryItFromLink() {
   const next = useSearchParams().get('next');
-  return <TryItButton report={isSharedReport(next) ? next : undefined} />;
+  return <TryItButton reportPath={isSharedReport(next) ? next : undefined} />;
 }

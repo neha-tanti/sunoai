@@ -5,13 +5,7 @@ export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
       userAgent: '*',
-      allow: [
-        '/',
-        '/llms.txt',
-        '/how-it-works.md',
-        '/checklist.md',
-        '/examples/',
-      ],
+      allow: ['/', '/checklist.md'],
       disallow: ['/calls', '/check', '/login', '/api/'],
     },
     sitemap: `${SITE_URL}/sitemap.xml`,

@@ -1,12 +1,7 @@
+import { MOOD_COLOR } from '@/lib/report-labels';
 import { cn } from '@/lib/utils';
 
 export const LOGO_TILE = '#171717';
-
-export const MOOD_COLOR = {
-  calm: '#2bb985',
-  annoyed: '#f49f1e',
-  angry: '#f14445',
-};
 
 export const LOGO_BARS = [
   { height: 10, color: MOOD_COLOR.calm },

@@ -32,7 +32,7 @@ export async function loadChecklist() {
   return { version, checklist };
 }
 
-export async function checklistMarkdown() {
+async function toMarkdown() {
   const { checklist } = await loadChecklist();
 
   return [
@@ -86,6 +86,16 @@ function withIds<T extends { id?: string; name: string }>(
     return { ...item, id };
   });
 }
+
+export const checklistMarkdown = new Hono().get('/', async (c) => {
+  if (new URL(c.req.url).search) return c.redirect('/checklist.md', 301);
+
+  const markdown = await toMarkdown();
+  return c.body(markdown, 200, {
+    'Content-Type': 'text/markdown; charset=utf-8',
+    'Cache-Control': 'public, s-maxage=300',
+  });
+});
 
 export const checklist = new Hono<SignedInEnv>()
   .get('/', async (c) => {

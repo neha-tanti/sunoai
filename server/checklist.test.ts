@@ -2,7 +2,6 @@ import { testClient } from 'hono/testing';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { HANDOVER_CHECK_ID, type SaveChecklist } from '@/lib/checklist';
 import { app } from './app';
-import { loadChecklist } from './checklist';
 import { createAdminClient } from './supabase';
 import { keepChecklist } from './test/checklist';
 import {
@@ -29,17 +28,25 @@ const SEEDED_RED_FLAGS = [
 const api = testClient(app).api;
 
 describe('GET /api/checklist.md signed out', () => {
-  it('answers the live checklist as Markdown, cacheable by the CDN', async () => {
+  it('answers the seeded checklist as Markdown, cacheable by the CDN', async () => {
     const res = await app.request('/api/checklist.md');
 
     expect(res.status).toBe(200);
     expect(res.headers.get('Content-Type')).toMatch(/^text\/markdown/);
     expect(res.headers.get('Cache-Control')).toContain('public');
     const markdown = await res.text();
-    const { checklist } = await loadChecklist();
-    for (const item of [...checklist.checks, ...checklist.red_flags]) {
-      expect(markdown).toContain(`- **${item.name}:**`);
-    }
+    expect(markdown).toContain(
+      '- **Order confirmed:** Confirms which order the call is about',
+    );
+    expect(markdown).toContain('- **Agent stuck in a loop:** "Sorry,');
+    expect(markdown).toContain('No cash compensation.');
+  });
+
+  it('sends a request with a query string to the bare path, so the CDN cache serves it', async () => {
+    const res = await app.request('/api/checklist.md?nocache=1');
+
+    expect(res.status).toBe(301);
+    expect(res.headers.get('Location')).toBe('/checklist.md');
   });
 });
 

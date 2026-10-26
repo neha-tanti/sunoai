@@ -26,11 +26,7 @@ export const app = new Hono()
     ),
   )
   .get('/health', (c) => c.json({ status: 'ok' as const }))
-  .get('/checklist.md', async (c) => {
-    c.header('Content-Type', 'text/markdown; charset=utf-8');
-    c.header('Cache-Control', 'public, s-maxage=300');
-    return c.body(await checklistMarkdown());
-  })
+  .route('/checklist.md', checklistMarkdown)
   .route('/calls', calls)
   .route('/checklist', checklist)
   .route('/webhooks', webhooks)
