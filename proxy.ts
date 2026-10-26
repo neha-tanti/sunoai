@@ -1,7 +1,6 @@
 import { createServerClient, type SetAllCookies } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
-
-const PUBLIC_PAGES = ['/', '/login'];
+import { isAppPage, isSharedReport } from '@/lib/site';
 
 export async function proxy(request: NextRequest) {
   let refreshedCookies: Parameters<SetAllCookies>[0] = [];
@@ -24,10 +23,11 @@ export async function proxy(request: NextRequest) {
   );
 
   const { data } = await supabase.auth.getClaims();
+  const { pathname } = request.nextUrl;
   const response =
-    data || PUBLIC_PAGES.includes(request.nextUrl.pathname)
+    data || !isAppPage(pathname)
       ? NextResponse.next({ request })
-      : NextResponse.redirect(new URL('/', request.url));
+      : NextResponse.redirect(homeFor(request, pathname));
 
   for (const { name, value, options } of refreshedCookies) {
     response.cookies.set(name, value, options);
@@ -36,6 +36,12 @@ export async function proxy(request: NextRequest) {
     response.headers.set(name, value);
   }
   return response;
+}
+
+function homeFor(request: NextRequest, pathname: string) {
+  const home = new URL('/', request.url);
+  if (isSharedReport(pathname)) home.searchParams.set('next', pathname);
+  return home;
 }
 
 export const config = {

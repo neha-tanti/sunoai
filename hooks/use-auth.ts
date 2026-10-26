@@ -26,10 +26,10 @@ function toReadableError(error: AuthError) {
   );
 }
 
-function useOpenAppAfterAuth() {
+function useOpenAppAfterAuth(path = '/check') {
   const router = useRouter();
   return () => {
-    router.replace('/check');
+    router.replace(path);
     router.refresh();
   };
 }
@@ -48,8 +48,8 @@ export function useSignIn() {
   });
 }
 
-export function useTryIt() {
-  const openApp = useOpenAppAfterAuth();
+export function useTryIt(destination: string) {
+  const openApp = useOpenAppAfterAuth(destination);
   return useMutation({
     mutationFn: async () => {
       const supabase = createSupabaseBrowserClient();

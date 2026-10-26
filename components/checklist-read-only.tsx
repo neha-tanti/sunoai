@@ -15,7 +15,8 @@ export function ChecklistReadOnly({
   return (
     <div className="flex flex-col gap-4">
       <p role="status" className="text-sm text-muted-foreground">
-        Visitors can read the checklist but not change it.
+        Only the team leader&apos;s account can change the checklist. Visitors
+        can read it here.
       </p>
 
       <Card role="region" aria-label="Checks">
