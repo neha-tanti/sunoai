@@ -22,4 +22,20 @@ describe('the published Late order report', () => {
       red_flags: EXPECTED.segments.red_flags.map((flag) => flag.split('@')[0]),
     });
   });
+
+  it('places each red flag between the line it was expected on and the handover', () => {
+    const expectedSegment = new Map(
+      EXPECTED.segments.red_flags.map((flag) => {
+        const [id, segment] = flag.split('@');
+        return [id, Number(segment)];
+      }),
+    );
+
+    for (const flag of report.red_flags) {
+      expect(flag.segment_id).toBeGreaterThanOrEqual(
+        expectedSegment.get(flag.flag_id) ?? Infinity,
+      );
+      expect(flag.segment_id).toBeLessThan(EXPECTED.segments.handover);
+    }
+  });
 });

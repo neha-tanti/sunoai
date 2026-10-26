@@ -4,7 +4,9 @@ import { isAppPage } from './site';
 
 describe('isAppPage', () => {
   it('covers every page in the signed-in route group', () => {
-    const pages = readdirSync('app/(app)', { withFileTypes: true })
+    const pages = readdirSync(new URL('../app/(app)', import.meta.url), {
+      withFileTypes: true,
+    })
       .filter((entry) => entry.isDirectory())
       .map((entry) => `/${entry.name}`);
 

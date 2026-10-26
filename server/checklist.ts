@@ -32,7 +32,7 @@ export async function loadChecklist() {
   return { version, checklist };
 }
 
-async function toMarkdown() {
+async function loadChecklistMarkdown() {
   const { checklist } = await loadChecklist();
 
   return [
@@ -90,7 +90,7 @@ function withIds<T extends { id?: string; name: string }>(
 export const checklistMarkdown = new Hono().get('/', async (c) => {
   if (new URL(c.req.url).search) return c.redirect('/checklist.md', 301);
 
-  const markdown = await toMarkdown();
+  const markdown = await loadChecklistMarkdown();
   return c.body(markdown, 200, {
     'Content-Type': 'text/markdown; charset=utf-8',
     'Cache-Control': 'public, s-maxage=300',
