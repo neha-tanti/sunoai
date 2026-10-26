@@ -151,13 +151,10 @@ export function stubGnani() {
 export type GnaniStub = ReturnType<typeof stubGnani>;
 
 export function hinglishTranscript(
-  overrides: {
-    duration_seconds?: number;
-    language_code?: string;
-  } = {},
+  overrides: { duration_seconds?: number } = {},
 ) {
   return {
-    language_code: overrides.language_code ?? 'hi-IN',
+    language_code: 'hi-IN',
     duration_seconds: overrides.duration_seconds ?? 42.5,
     model: 'gnani-prisma-v2.5',
     segments: [

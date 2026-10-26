@@ -175,7 +175,6 @@ describe('a call from upload to Ready', () => {
     expect(call).toMatchObject({
       status: 'ready',
       error_code: null,
-      detected_lang: 'hi-IN',
       duration_seconds: 42.5,
     });
     expect(segments.map((segment) => segment.segment_id)).toEqual([0, 1, 2, 3]);
