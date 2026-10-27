@@ -177,13 +177,11 @@ function withSegmentTimes(
       should_have: times(note.should_have),
     })),
     summary: times(answer.summary),
-    coaching: answer.coaching
-      ? {
-          ...answer.coaching,
-          text: times(answer.coaching.text),
-          english: times(answer.coaching.english),
-        }
-      : null,
+    coaching: {
+      ...answer.coaching,
+      text: times(answer.coaching.text),
+      english: times(answer.coaching.english),
+    },
   };
 }
 
@@ -198,7 +196,9 @@ function checkCoaching(
   roleOf: Map<number, LlmAnswer['speakers'][number]['role']>,
   script: CoachingLanguage['script'],
 ) {
-  if (!coaching) return { kept: null, dropped: null };
+  if (!coaching.text.trim() || !coaching.english.trim()) {
+    return { kept: null, dropped: 'empty coaching' };
+  }
   if (!inCoachingScript(coaching.text, script)) {
     return { kept: null, dropped: 'coaching in another script' };
   }

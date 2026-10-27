@@ -212,7 +212,7 @@ describe('buildReport', () => {
           { ...base.fix_notes[0], should_have: 'Transfer at segment 3.' },
         ],
         coaching: {
-          ...base.coaching!,
+          ...base.coaching,
           english: 'Arjun, in segment 5 you did well.',
         },
       });
@@ -238,7 +238,7 @@ describe('buildReport', () => {
       const { report } = build(
         {
           coaching: {
-            ...answer().coaching!,
+            ...answer().coaching,
             text: 'Arjun, in segment 5 you did well.',
             english: 'Arjun, in segment 5 you did well.',
           },
@@ -516,7 +516,7 @@ describe('buildReport', () => {
     it('drops coaching about a line the human agent did not say', () => {
       const { report, rejected } = build({
         coaching: {
-          ...answer().coaching!,
+          ...answer().coaching,
           segment_id: 3,
           quote: 'kisi insaan se baat karni hai',
         },
@@ -528,11 +528,56 @@ describe('buildReport', () => {
 
     it('drops coaching whose quote is not in the line it points at', () => {
       const { report, rejected } = build({
-        coaching: { ...answer().coaching!, quote: 'yeh toh normal hai' },
+        coaching: { ...answer().coaching, quote: 'yeh toh normal hai' },
       });
 
       expect(report.coaching).toBeNull();
       expect(rejected.coaching).toBe('coaching without a human agent quote');
+    });
+
+    it.each([
+      {
+        field: 'every field',
+        coaching: { segment_id: 0, quote: '', text: '', english: '' },
+      },
+      {
+        field: 'the text',
+        coaching: {
+          segment_id: 5,
+          quote: 'aap pareshaan hain',
+          text: '  ',
+          english: 'You listened well.',
+        },
+      },
+      {
+        field: 'the English',
+        coaching: {
+          segment_id: 5,
+          quote: 'aap pareshaan hain',
+          text: 'Aapne achhe se suna.',
+          english: '',
+        },
+      },
+    ])(
+      'drops coaching that leaves $field empty when a human agent took part',
+      ({ coaching }) => {
+        const { report, rejected } = build({ coaching });
+
+        expect(report.coaching).toBeNull();
+        expect(rejected.coaching).toBe('empty coaching');
+      },
+    );
+
+    it('does not count empty coaching as dropped when there is no human agent', () => {
+      const { report, rejected } = build({
+        speakers: speakers.map((s) =>
+          s.speaker_id === HUMAN ? { ...s, role: 'ai_agent' } : s,
+        ),
+        coaching: { segment_id: 0, quote: '', text: '', english: '' },
+      });
+
+      expect(report.coaching).toBeNull();
+      expect(rejected.coaching).toBeNull();
     });
 
     it('drops Hinglish coaching written in Devanagari, which the hi-en voice would misread', () => {

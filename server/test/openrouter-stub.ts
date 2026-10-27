@@ -134,6 +134,6 @@ export function lateOrderAnswer() {
         should_have: 'Recognised a late order and checked the rider.',
       },
     ],
-    coaching: null,
+    coaching: { segment_id: 0, quote: '', text: '', english: '' },
   };
 }

@@ -45,14 +45,12 @@ export const llmAnswerSchema = z.object({
       should_have: z.string(),
     }),
   ),
-  coaching: z
-    .object({
-      segment_id: z.int(),
-      quote: z.string(),
-      text: z.string(),
-      english: z.string(),
-    })
-    .nullable(),
+  coaching: z.object({
+    segment_id: z.int(),
+    quote: z.string(),
+    text: z.string(),
+    english: z.string(),
+  }),
 });
 
 export type LlmAnswer = z.infer<typeof llmAnswerSchema>;
