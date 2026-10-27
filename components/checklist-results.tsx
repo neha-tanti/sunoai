@@ -12,7 +12,7 @@ import { RESULT_LABEL, RESULT_TONE } from '@/lib/report-labels';
 
 type Check = ReportDetail['checks'][number];
 
-type ChecklistResultsProps = { checks: Check[]; langs: string[] };
+type ChecklistResultsProps = { checks: Check[]; langs: readonly string[] };
 
 export function ChecklistResults({ checks, langs }: ChecklistResultsProps) {
   return (
@@ -39,7 +39,9 @@ export function ChecklistResults({ checks, langs }: ChecklistResultsProps) {
   );
 }
 
-function CheckRow({ check, langs }: { check: Check; langs: string[] }) {
+type CheckRowProps = { check: Check; langs: readonly string[] };
+
+function CheckRow({ check, langs }: CheckRowProps) {
   return (
     <li className="grid gap-x-3 gap-y-1 py-2.5 first:pt-0 sm:grid-cols-[6rem_minmax(0,1fr)]">
       <div>

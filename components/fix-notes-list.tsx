@@ -11,7 +11,7 @@ import { langOf } from '@/lib/report-labels';
 
 type FixNote = ReportDetail['fix_notes'][number];
 
-type FixNotesListProps = { notes: FixNote[]; langs: string[] };
+type FixNotesListProps = { notes: FixNote[]; langs: readonly string[] };
 
 export function FixNotesList({ notes, langs }: FixNotesListProps) {
   return (
@@ -49,7 +49,11 @@ export function FixNotesList({ notes, langs }: FixNotesListProps) {
   );
 }
 
-type FixNoteItemProps = { note: FixNote; number: number; langs: string[] };
+type FixNoteItemProps = {
+  note: FixNote;
+  number: number;
+  langs: readonly string[];
+};
 
 function FixNoteItem({ note, number, langs }: FixNoteItemProps) {
   return (
