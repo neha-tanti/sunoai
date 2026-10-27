@@ -8,6 +8,8 @@ set frustration_end = coalesce(
 
 alter table public.reports alter column frustration_end set not null;
 
+create index reports_created_at_idx on public.reports (created_at desc);
+
 create or replace function public.save_report(p_call_id uuid, p_report jsonb)
 returns boolean
 language plpgsql

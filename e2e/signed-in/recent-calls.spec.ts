@@ -19,7 +19,7 @@ const titles = {
   toDelete: `Wrong dessert, customer hung up (${run})`,
   example: `Late order, example run (${run})`,
 };
-const ids: string[] = [];
+let ids: Record<keyof typeof titles, string>;
 
 async function seedSilentCall() {
   const id = randomUUID();
@@ -42,34 +42,34 @@ async function seedSilentCall() {
 }
 
 test.beforeAll(async () => {
-  ids.push(
-    await seedReadyCall(
+  ids = {
+    coldBiryani: await seedReadyCall(
       titles.coldBiryani,
       COLD_BIRYANI_SEGMENTS,
       COLD_BIRYANI_REPORT,
     ),
-    await seedReadyCall(
+    calmQuestion: await seedReadyCall(
       titles.calmQuestion,
       CALM_QUESTION_SEGMENTS,
       CALM_QUESTION_REPORT,
     ),
-    await seedSilentCall(),
-    await seedReadyCall(
+    silent: await seedSilentCall(),
+    toDelete: await seedReadyCall(
       titles.toDelete,
       CALM_QUESTION_SEGMENTS,
       CALM_QUESTION_REPORT,
     ),
-    await seedReadyCall(
+    example: await seedReadyCall(
       titles.example,
       COLD_BIRYANI_SEGMENTS,
       COLD_BIRYANI_REPORT,
       'late-order',
     ),
-  );
+  };
 });
 
 test.afterAll(async () => {
-  await deleteCalls(ids);
+  await deleteCalls(Object.values(ids));
 });
 
 function callRow(page: Page, title: string) {
@@ -123,7 +123,7 @@ test('an example run is tagged Example in its row, its card and its report', asy
       .getByText('Example', { exact: true }),
   ).toBeVisible();
 
-  await page.goto(`/calls/${ids[4]}`);
+  await page.goto(`/calls/${ids.example}`);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(
     titles.example,
   );
@@ -135,7 +135,7 @@ test('a call title opens its report', async ({ page }) => {
 
   await page.getByRole('link', { name: titles.coldBiryani }).click();
 
-  await expect(page).toHaveURL(`/calls/${ids[0]}`);
+  await expect(page).toHaveURL(`/calls/${ids.coldBiryani}`);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(
     titles.coldBiryani,
   );
@@ -150,7 +150,7 @@ test('clicking anywhere on a row opens its report', async ({ page }) => {
   const box = await scoreCell.boundingBox();
   await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
 
-  await expect(page).toHaveURL(`/calls/${ids[0]}`);
+  await expect(page).toHaveURL(`/calls/${ids.coldBiryani}`);
 });
 
 test('on a phone each call is a card with its review and score in view', async ({
@@ -205,7 +205,7 @@ test('keeping a call closes the dialog and leaves it in the list', async ({
 });
 
 test('a failed delete says why and keeps the call', async ({ page }) => {
-  await page.route(`**/api/calls/${ids[0]}`, (route) => {
+  await page.route(`**/api/calls/${ids.coldBiryani}`, (route) => {
     if (route.request().method() !== 'DELETE') return route.fallback();
     return route.fulfill({
       status: 500,

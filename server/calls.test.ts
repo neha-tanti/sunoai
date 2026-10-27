@@ -741,6 +741,17 @@ describe('GET /api/calls', () => {
     expect(body.average).toEqual({ percent: 50, calls: 1 });
   });
 
+  it('averages only the 10 newest scored calls', async () => {
+    await seedReadyCall(12, { score_passed: 0, score_total: 2 });
+    for (let minutesAgo = 11; minutesAgo >= 2; minutesAgo--) {
+      await seedReadyCall(minutesAgo, { score_passed: 2, score_total: 2 });
+    }
+
+    const body = await readRecentCalls();
+
+    expect(body.average).toEqual({ percent: 100, calls: 10 });
+  });
+
   it('keeps a scored call in the average when newer example runs fill the list', async () => {
     await seedReadyCall(20, { score_passed: 1, score_total: 2 });
     for (let minutesAgo = 10; minutesAgo >= 1; minutesAgo--) {
