@@ -1,47 +1,44 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
-import { AudioPlayer } from '@/components/audio-player';
-import type { Segment } from '@/hooks/use-call';
-import { useCallRecording } from '@/hooks/use-call-recording';
+import { type Ref, useState } from 'react';
+import { AudioPlayer, type AudioPlayerHandle } from '@/components/audio-player';
+import { URL_FRESH_MS, useCallRecording } from '@/hooks/use-call-recording';
 
-type CallPlayerProps = { callId: string; segments: Segment[] };
+type Resume = { src: string; time: number; play: boolean };
 
-export function CallPlayer({ callId, segments }: CallPlayerProps) {
+type CallPlayerProps = { callId: string; ref: Ref<AudioPlayerHandle> };
+
+export function CallPlayer({ callId, ref }: CallPlayerProps) {
   const recording = useCallRecording(callId);
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const [resume, setResume] = useState<Resume | null>(null);
 
-  useEffect(() => {
-    const startByHref = new Map(
-      segments.map((segment) => [
-        `#segment-${segment.segment_id}`,
-        segment.start_time,
-      ]),
-    );
-    function playFromSegmentLink(event: MouseEvent) {
-      const href = (event.target as Element).closest('a')?.getAttribute('href');
-      const start = href ? startByHref.get(href) : undefined;
-      const audio = audioRef.current;
-      if (start === undefined || !audio) return;
-      audio.currentTime = start;
-      void audio.play();
-    }
-
-    document.addEventListener('click', playFromSegmentLink);
-    return () => document.removeEventListener('click', playFromSegmentLink);
-  }, [segments]);
-
-  if (recording.isPending) {
-    return (
-      <p className="text-sm text-muted-foreground">Loading the recording…</p>
-    );
-  }
   if (recording.isError) {
     return (
       <p className="text-sm text-muted-foreground">{recording.error.message}</p>
     );
   }
+  if (recording.isPending || resume?.src === recording.data) {
+    return (
+      <p className="text-sm text-muted-foreground">Loading the recording…</p>
+    );
+  }
+
+  const src = recording.data;
+
+  function handleError(audio: HTMLAudioElement) {
+    if (Date.now() - recording.dataUpdatedAt < URL_FRESH_MS) return;
+    setResume({ src, time: audio.currentTime, play: !audio.paused });
+    void recording.refetch();
+  }
+
   return (
-    <AudioPlayer ref={audioRef} src={recording.data} label="Call recording" />
+    <AudioPlayer
+      ref={ref}
+      src={src}
+      label="Call recording"
+      startAt={resume?.time}
+      autoPlay={resume?.play}
+      onError={handleError}
+    />
   );
 }

@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
 import { apiError } from '@/lib/api-errors';
 
-const URL_FRESH_MS = 9 * 60 * 1000;
+export const URL_FRESH_MS = 9 * 60 * 1000;
 
 export function useCallRecording(id: string) {
   return useQuery({

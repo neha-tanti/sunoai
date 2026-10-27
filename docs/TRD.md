@@ -288,6 +288,8 @@ The signed-in pages sit in the `app/(app)` route group, whose layout adds `SiteN
 | `FrustrationTimeline` | Calm, annoyed and angry ranges across the call, with red flag and handover markers placed by time |
 | `TranscriptView` | Agent, human and customer lines with times; a quote click scrolls to and highlights its line |
 | `ChecklistResults`, `RedFlagsList`, `FixNotesList` | The report sections, each quote linked to its line |
+| `AudioPlayer` | Play and pause, a progress bar and the time for one signed audio URL; says when the audio can't be played, and pauses any other player that is playing |
+| `CallPlayer` | Plays the call's recording in the report's top bar. Every time and quote link plays from its moment, and a URL that has expired is fetched again and playback resumes where it stopped |
 | `CoachingPlayer` | Plays the coaching audio from its signed URL |
 | `RecentCalls` | The team average and the recent calls table, each row deletable after a confirmation |
 | `ScoreBadge` | A score percent with its band in words (Good, Needs work, Poor), or No checks applied, on the report and in Recent calls |
