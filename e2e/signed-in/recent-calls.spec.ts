@@ -19,7 +19,7 @@ const titles = {
   toDelete: `Wrong dessert, customer hung up (${run})`,
   example: `Late order, example run (${run})`,
 };
-let ids: Record<keyof typeof titles, string>;
+const ids = {} as Record<keyof typeof titles, string>;
 
 async function seedSilentCall() {
   const id = randomUUID();
@@ -42,30 +42,28 @@ async function seedSilentCall() {
 }
 
 test.beforeAll(async () => {
-  ids = {
-    coldBiryani: await seedReadyCall(
-      titles.coldBiryani,
-      COLD_BIRYANI_SEGMENTS,
-      COLD_BIRYANI_REPORT,
-    ),
-    calmQuestion: await seedReadyCall(
-      titles.calmQuestion,
-      CALM_QUESTION_SEGMENTS,
-      CALM_QUESTION_REPORT,
-    ),
-    silent: await seedSilentCall(),
-    toDelete: await seedReadyCall(
-      titles.toDelete,
-      CALM_QUESTION_SEGMENTS,
-      CALM_QUESTION_REPORT,
-    ),
-    example: await seedReadyCall(
-      titles.example,
-      COLD_BIRYANI_SEGMENTS,
-      COLD_BIRYANI_REPORT,
-      'late-order',
-    ),
-  };
+  ids.coldBiryani = await seedReadyCall(
+    titles.coldBiryani,
+    COLD_BIRYANI_SEGMENTS,
+    COLD_BIRYANI_REPORT,
+  );
+  ids.calmQuestion = await seedReadyCall(
+    titles.calmQuestion,
+    CALM_QUESTION_SEGMENTS,
+    CALM_QUESTION_REPORT,
+  );
+  ids.silent = await seedSilentCall();
+  ids.toDelete = await seedReadyCall(
+    titles.toDelete,
+    CALM_QUESTION_SEGMENTS,
+    CALM_QUESTION_REPORT,
+  );
+  ids.example = await seedReadyCall(
+    titles.example,
+    COLD_BIRYANI_SEGMENTS,
+    COLD_BIRYANI_REPORT,
+    'late-order',
+  );
 });
 
 test.afterAll(async () => {
