@@ -13,7 +13,6 @@ export function useCallRecording(id: string) {
       return (await res.json()).url;
     },
     retry: false,
-    staleTime: URL_FRESH_MS,
-    refetchOnWindowFocus: false,
+    staleTime: Infinity,
   });
 }

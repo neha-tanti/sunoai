@@ -33,9 +33,10 @@ export function AudioPlayer({
   const [failed, setFailed] = useState(false);
 
   function play(audio: HTMLAudioElement) {
-    audio.play().catch((error: DOMException) => {
+    audio.play().catch((error: unknown) => {
       // AbortError only means a pause or a new src interrupted play()
-      if (error.name !== 'AbortError') setFailed(true);
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      setFailed(true);
     });
   }
 
