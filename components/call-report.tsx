@@ -1,6 +1,5 @@
 'use client';
 
-import { CircleCheckIcon, TriangleAlertIcon } from 'lucide-react';
 import { useRef } from 'react';
 import type { AudioPlayerHandle } from '@/components/audio-player';
 import { CallPlayer } from '@/components/call-player';
@@ -10,9 +9,9 @@ import { FixNotesList } from '@/components/fix-notes-list';
 import { FrustrationTimeline } from '@/components/frustration-timeline';
 import { RedFlagsList } from '@/components/red-flags-list';
 import { ReportTiles } from '@/components/report-tiles';
+import { ReviewBanner } from '@/components/review-banner';
 import { PlayFromContext, QuoteLink, TimeLink } from '@/components/time-link';
 import { TranscriptView } from '@/components/transcript-view';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   Card,
   CardContent,
@@ -105,36 +104,6 @@ function JumpLinks({ report }: { report: ReportDetail }) {
         ))}
       </ul>
     </nav>
-  );
-}
-
-function ReviewBanner({ redFlags }: { redFlags: number }) {
-  if (redFlags === 0) {
-    return (
-      <Alert role="region" aria-label="Review">
-        <CircleCheckIcon />
-        <AlertTitle>No red flags</AlertTitle>
-        <AlertDescription>
-          Nothing on this call needs a person to look at it.
-        </AlertDescription>
-      </Alert>
-    );
-  }
-
-  return (
-    <Alert
-      role="region"
-      aria-label="Review"
-      variant="destructive"
-      className="bg-angry/10"
-    >
-      <TriangleAlertIcon />
-      <AlertTitle>Needs review</AlertTitle>
-      <AlertDescription>
-        {redFlags === 1 ? '1 red flag' : `${redFlags} red flags`}. A person
-        should look at this call, whatever its checklist score.
-      </AlertDescription>
-    </Alert>
   );
 }
 

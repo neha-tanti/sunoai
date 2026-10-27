@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { EXPECTED } from '../scripts/calls/late-order.mjs';
-import { LATE_ORDER_REPORT as report } from './late-order-example';
+import {
+  LATE_ORDER_ASK as ask,
+  LATE_ORDER_REPORT as report,
+  LATE_ORDER_SEGMENTS as segments,
+} from './late-order-example';
 
 describe('the published Late order report', () => {
   it('agrees with what the Late order call was written to expect', () => {
@@ -39,5 +43,18 @@ describe('the published Late order report', () => {
         EXPECTED.segments.handover,
       );
     }
+  });
+
+  it("quotes the customer's ask for a person from its line, before the red flag", () => {
+    const segment = segments[ask.segment_id];
+
+    const speaker = report.speakers.find(
+      (s) => s.speaker_id === segment.speaker_id,
+    );
+
+    expect(segment.segment_id).toBe(ask.segment_id);
+    expect(speaker?.role).toBe('customer');
+    expect(segment.text).toContain(ask.quote);
+    expect(ask.segment_id).toBeLessThan(report.red_flags[0].segment_id);
   });
 });

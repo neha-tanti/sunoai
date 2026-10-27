@@ -1,15 +1,19 @@
 import { Suspense } from 'react';
-import { ReviewBanner } from '@/components/call-report';
 import { FrustrationTimeline } from '@/components/frustration-timeline';
 import { Logo } from '@/components/logo';
 import { ReportTiles } from '@/components/report-tiles';
+import { ReviewBanner } from '@/components/review-banner';
 import { TryItButton, TryItFromLink } from '@/components/try-it-button';
 import { CALL_LANGUAGES, COACHING_LANGUAGES } from '@/lib/call-upload';
+import { exampleCall } from '@/lib/examples';
+import { formatTime } from '@/lib/format-time';
 import {
+  LATE_ORDER_ASK,
   LATE_ORDER_REPORT,
+  LATE_ORDER_SECONDS,
   LATE_ORDER_SEGMENTS,
 } from '@/lib/late-order-example';
-import { formatTime, MOOD_CLASS, MOOD_LABEL } from '@/lib/report-labels';
+import { MOOD_CLASS, MOOD_LABEL } from '@/lib/report-labels';
 import { SITE_DESCRIPTION, SITE_URL, SOURCE_URL } from '@/lib/site';
 import { cn } from '@/lib/utils';
 
@@ -89,6 +93,11 @@ export default function HomePage() {
             report with the recording, transcript, checklist and coaching.
           </p>
         </div>
+        <p className="sr-only">
+          Red flags: {LATE_ORDER_REPORT.red_flags.length}. Checklist score {LATE_ORDER_REPORT.score_passed} of{' '}
+          {LATE_ORDER_REPORT.score_total}. Peak frustration{' '}
+          {MOOD_LABEL[LATE_ORDER_REPORT.frustration_peak]}.
+        </p>
         <div
           inert
           className="flex flex-col gap-4 rounded-2xl border bg-muted/40 p-3 sm:p-6"
@@ -97,6 +106,7 @@ export default function HomePage() {
           <ReportTiles
             report={LATE_ORDER_REPORT}
             segments={LATE_ORDER_SEGMENTS}
+            langs={[...exampleCall('late-order').call_langs]}
           />
           <FrustrationTimeline
             report={LATE_ORDER_REPORT}
@@ -135,14 +145,14 @@ export default function HomePage() {
 function MoodStory() {
   const { ranges } = LATE_ORDER_REPORT.frustration;
   const flag = LATE_ORDER_REPORT.red_flags[0];
-  const length = ranges.at(-1)?.end ?? flag.time;
+  const ask = LATE_ORDER_SEGMENTS[LATE_ORDER_ASK.segment_id];
 
   return (
     <figure className="flex flex-col gap-2">
       <div aria-hidden className="relative h-9">
         <div
           className="absolute bottom-0 flex -translate-x-1/2 flex-col items-center"
-          style={{ left: `${(flag.time / length) * 100}%` }}
+          style={{ left: `${(flag.time / LATE_ORDER_SECONDS) * 100}%` }}
         >
           <span className="rounded-md bg-angry/15 px-1.5 text-xs font-semibold whitespace-nowrap text-destructive">
             Red flag · {formatTime(flag.time)}
@@ -172,10 +182,11 @@ function MoodStory() {
       </div>
       <figcaption className="text-muted-foreground mt-2 text-sm text-pretty">
         <q lang="hi-IN" className="text-foreground">
-          मुझे किसी इंसान से बात करनी है
+          {LATE_ORDER_ASK.quote}
         </q>{' '}
-        (I want to talk to a person), 0:22. The AI repeated itself instead of
-        transferring, and the customer got angry.
+        ({LATE_ORDER_ASK.translation}), at {formatTime(ask.start_time)}. At{' '}
+        {formatTime(flag.time)} the AI repeated itself instead of transferring,
+        and the customer got angry.
       </figcaption>
     </figure>
   );

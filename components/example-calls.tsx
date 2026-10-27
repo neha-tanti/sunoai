@@ -41,7 +41,7 @@ function ExampleCard({ example, disabled, onCheck }: ExampleCardProps) {
       ) : (
         <Button
           variant="ghost"
-          className="-ml-2.5 self-start"
+          className="self-start"
           disabled={audio.isFetching}
           onClick={handleListen}
         >

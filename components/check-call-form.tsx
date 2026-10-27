@@ -33,6 +33,8 @@ const STAGE_TEXT = {
   starting: 'Starting the check…',
 };
 
+const NO_TITLE = 'Give the call a title.';
+
 const titleFromFileName = (name: string) =>
   name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ');
 
@@ -41,6 +43,7 @@ export function CheckCallForm() {
   const checkCall = useCheckCall();
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
+  const [titleTyped, setTitleTyped] = useState(false);
   const [callLangs, setCallLangs] = useState<CallLang[]>(['hi-IN', 'en-IN']);
   const [coachingLang, setCoachingLang] = useState<CoachingLang>('hi-IN');
   const [denoise, setDenoise] = useState(true);
@@ -50,7 +53,12 @@ export function CheckCallForm() {
   function acceptFile(picked: File) {
     setFile(picked);
     setFormError(null);
-    if (!title) setTitle(titleFromFileName(picked.name));
+    if (!titleTyped) setTitle(titleFromFileName(picked.name));
+  }
+
+  function handleTitleChange(event: React.ChangeEvent<HTMLInputElement>) {
+    setTitle(event.target.value);
+    setTitleTyped(event.target.value !== '');
   }
 
   function rejectFile(message: string) {
@@ -67,7 +75,7 @@ export function CheckCallForm() {
   function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!file) return setFormError('Choose a call recording first.');
-    if (!title.trim()) return setFormError('Give the call a title.');
+    if (!title.trim()) return setFormError(NO_TITLE);
     if (callLangs.length === 0) {
       return setFormError('Pick at least one call language.');
     }
@@ -82,6 +90,7 @@ export function CheckCallForm() {
   }
 
   const error = formError ?? checkCall.error?.message;
+  const titleInvalid = formError === NO_TITLE;
 
   return (
     <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
@@ -113,9 +122,11 @@ export function CheckCallForm() {
         <Input
           id="title"
           value={title}
-          onChange={(event) => setTitle(event.target.value)}
+          onChange={handleTitleChange}
           maxLength={120}
           aria-required
+          aria-invalid={titleInvalid}
+          aria-describedby={titleInvalid ? 'check-error' : undefined}
         />
       </div>
 
@@ -172,7 +183,7 @@ export function CheckCallForm() {
       </Label>
 
       {error && (
-        <p role="alert" className="text-destructive text-sm">
+        <p id="check-error" role="alert" className="text-destructive text-sm">
           {error}
         </p>
       )}
