@@ -3,7 +3,7 @@
 import { PauseIcon, PlayIcon } from 'lucide-react';
 import { type RefObject, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { formatTime } from '@/lib/report-labels';
+import { formatTime } from '@/lib/format-time';
 
 type AudioPlayerProps = {
   src: string;
