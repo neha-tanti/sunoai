@@ -57,7 +57,7 @@ const SCRIPTS = COACHING_LANGUAGES.filter(
   pattern: new RegExp(`\\p{Script=${script}}`, 'u'),
 }));
 
-export function langOf(text: string | undefined, langs: string[]) {
+export function langOf(text: string | undefined, langs: readonly string[]) {
   if (!text) return undefined;
   return SCRIPTS.find(
     ({ code, pattern }) => langs.includes(code) && pattern.test(text),

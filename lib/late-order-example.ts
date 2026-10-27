@@ -2,6 +2,12 @@ import type { ReportDetail, Segment } from '@/hooks/use-call';
 
 export const LATE_ORDER_SECONDS = 65.1;
 
+export const LATE_ORDER_ASK = {
+  segment_id: 5,
+  quote: 'मुझे किसी इंसान से बात करनी है',
+  translation: 'I want to talk to a person',
+};
+
 export const LATE_ORDER_SEGMENTS: Segment[] = [
   {
     segment_id: 0,

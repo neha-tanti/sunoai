@@ -43,7 +43,7 @@ type QuoteLinkProps = {
   segmentId: number;
   time: number;
   quote: string;
-  langs: string[];
+  langs: readonly string[];
 };
 
 export function QuoteLink({ segmentId, time, quote, langs }: QuoteLinkProps) {

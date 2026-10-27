@@ -13,7 +13,7 @@ import type { ReportDetail, Segment } from '@/hooks/use-call';
 type RedFlagsListProps = {
   report: ReportDetail;
   segments: Segment[];
-  langs: string[];
+  langs: readonly string[];
 };
 
 export function RedFlagsList({ report, segments, langs }: RedFlagsListProps) {

@@ -40,8 +40,7 @@ function ExampleCard({ example, disabled, onCheck }: ExampleCardProps) {
         />
       ) : (
         <Button
-          variant="outline"
-          size="sm"
+          variant="ghost"
           className="self-start"
           disabled={audio.isFetching}
           onClick={handleListen}
@@ -56,8 +55,9 @@ function ExampleCard({ example, disabled, onCheck }: ExampleCardProps) {
         </p>
       )}
       <Button
-        size="sm"
-        className="self-start"
+        variant="outline"
+        size="lg"
+        className="w-full"
         disabled={disabled}
         onClick={() => onCheck(example.id)}
       >

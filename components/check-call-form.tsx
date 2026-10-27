@@ -1,7 +1,9 @@
 'use client';
 
+import { EyeIcon } from 'lucide-react';
 import { useState } from 'react';
 import { UploadDropzone } from '@/components/upload-dropzone';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -31,6 +33,8 @@ const STAGE_TEXT = {
   starting: 'Starting the check…',
 };
 
+const NO_TITLE = 'Give the call a title.';
+
 const titleFromFileName = (name: string) =>
   name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ');
 
@@ -39,6 +43,7 @@ export function CheckCallForm() {
   const checkCall = useCheckCall();
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
+  const [titleTyped, setTitleTyped] = useState(false);
   const [callLangs, setCallLangs] = useState<CallLang[]>(['hi-IN', 'en-IN']);
   const [coachingLang, setCoachingLang] = useState<CoachingLang>('hi-IN');
   const [denoise, setDenoise] = useState(true);
@@ -48,7 +53,13 @@ export function CheckCallForm() {
   function acceptFile(picked: File) {
     setFile(picked);
     setFormError(null);
-    if (!title) setTitle(titleFromFileName(picked.name));
+    if (!titleTyped) setTitle(titleFromFileName(picked.name));
+  }
+
+  function handleTitleChange(event: React.ChangeEvent<HTMLInputElement>) {
+    setTitle(event.target.value);
+    setTitleTyped(event.target.value !== '');
+    if (formError === NO_TITLE) setFormError(null);
   }
 
   function rejectFile(message: string) {
@@ -65,6 +76,7 @@ export function CheckCallForm() {
   function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!file) return setFormError('Choose a call recording first.');
+    if (!title.trim()) return setFormError(NO_TITLE);
     if (callLangs.length === 0) {
       return setFormError('Pick at least one call language.');
     }
@@ -79,27 +91,43 @@ export function CheckCallForm() {
   }
 
   const error = formError ?? checkCall.error?.message;
+  const titleInvalid = formError === NO_TITLE;
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+    <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
+      <Alert
+        role="note"
+        className="border-annoyed/60 bg-annoyed/10 text-foreground"
+      >
+        <EyeIcon className="text-annoyed-foreground dark:text-annoyed" />
+        <AlertTitle>Don&apos;t upload private calls</AlertTitle>
+        <AlertDescription className="text-foreground/80">
+          Other visitors can see every call you check, its recording and its
+          transcript. Use made-up calls only.
+        </AlertDescription>
+      </Alert>
       <UploadDropzone
         file={file}
         disabled={busy}
         onAccept={acceptFile}
         onReject={rejectFile}
       />
-      <p className="text-muted-foreground -mt-3 text-xs">
-        Don&apos;t upload private calls. Other visitors can see them.
-      </p>
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="title">Call title</Label>
+        <Label htmlFor="title">
+          Call title
+          <span className="font-normal text-muted-foreground">
+            (filled in from the file name)
+          </span>
+        </Label>
         <Input
           id="title"
           value={title}
-          onChange={(event) => setTitle(event.target.value)}
+          onChange={handleTitleChange}
           maxLength={120}
-          required
+          aria-required
+          aria-invalid={titleInvalid}
+          aria-describedby={titleInvalid ? 'check-error' : undefined}
         />
       </div>
 
@@ -156,7 +184,7 @@ export function CheckCallForm() {
       </Label>
 
       {error && (
-        <p role="alert" className="text-destructive text-sm">
+        <p id="check-error" role="alert" className="text-destructive text-sm">
           {error}
         </p>
       )}
@@ -165,7 +193,7 @@ export function CheckCallForm() {
       </p>
 
       <div>
-        <Button type="submit" disabled={!hydrated || busy}>
+        <Button type="submit" size="lg" disabled={!hydrated || busy}>
           Check this call
         </Button>
       </div>

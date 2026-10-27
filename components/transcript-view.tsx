@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 type TranscriptViewProps = {
   report: ReportDetail;
   segments: Segment[];
-  langs: string[];
+  langs: readonly string[];
 };
 
 export function TranscriptView({
@@ -53,7 +53,7 @@ export function TranscriptView({
 type TranscriptLineProps = {
   report: ReportDetail;
   segment: Segment;
-  langs: string[];
+  langs: readonly string[];
   isTurn: boolean;
 };
 

@@ -267,7 +267,7 @@ Six Next.js pages built from shadcn/ui parts, plus public Markdown pages, with a
 
 | Route | Screen |
 | --- | --- |
-| `/` | Homepage: what SunoAI does in a few words, and a Try it button that signs the visitor in anonymously and opens `/check` |
+| `/` | Homepage: what SunoAI does in a few words, the Late order example's mood bar with its red flag and the customer's quote, a Try an example call button that signs the visitor in anonymously and opens `/check`, a non-interactive preview of the Late order report built from `lib/late-order-example.ts`, and one line on each thing SunoAI checks |
 | `/login` | Sign in with email and password, for the owner's account; not linked from any page |
 | `/check` | Check a call: listen to and pick an example call, or upload one with call languages, coaching language, noise removal toggle and progress |
 | `/calls` | Recent calls and the team average |

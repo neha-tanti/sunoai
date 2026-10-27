@@ -29,6 +29,74 @@ test.describe('choosing a recording', () => {
     );
   });
 
+  test('checking without a recording asks for one before the title', async ({
+    page,
+  }) => {
+    await page.getByRole('button', { name: 'Check this call' }).click();
+
+    await expect(page.getByRole('main').getByRole('alert')).toHaveText(
+      'Choose a call recording first.',
+    );
+  });
+
+  test('the page warns against uploading private calls', async ({ page }) => {
+    await expect(page.getByRole('main').getByRole('note')).toContainText(
+      "Don't upload private calls",
+    );
+  });
+
+  test('each recording fills in the title until one is typed', async ({
+    page,
+  }) => {
+    const recording = page.getByLabel('Call recording');
+    const title = page.getByLabel('Call title');
+
+    await recording.setInputFiles({
+      name: 'late-order_refund.wav',
+      mimeType: 'audio/wav',
+      buffer: silentWav(5),
+    });
+    await expect(title).toHaveValue('late order refund');
+
+    await recording.setInputFiles({
+      name: 'missing-raita.wav',
+      mimeType: 'audio/wav',
+      buffer: silentWav(5),
+    });
+    await expect(title).toHaveValue('missing raita');
+
+    await title.fill('Cold biryani, Indiranagar');
+    await recording.setInputFiles({
+      name: 'wrong-thali.wav',
+      mimeType: 'audio/wav',
+      buffer: silentWav(5),
+    });
+    await expect(title).toHaveValue('Cold biryani, Indiranagar');
+  });
+
+  test('checking with an empty title asks for one on the title field', async ({
+    page,
+  }) => {
+    await page.getByLabel('Call recording').setInputFiles({
+      name: 'missing-raita.wav',
+      mimeType: 'audio/wav',
+      buffer: silentWav(5),
+    });
+    await page.getByLabel('Call title').fill('');
+    await page.getByRole('button', { name: 'Check this call' }).click();
+
+    await expect(page.getByLabel('Call title')).toHaveAccessibleDescription(
+      'Give the call a title.',
+    );
+
+    await page.getByLabel('Call title').fill('Missing raita');
+    await expect(page.getByLabel('Call title')).not.toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
+    await expect(page.getByRole('main').getByRole('alert')).toHaveCount(0);
+  });
+
   test('a file over 50 MB says it is too big', async ({ page }, testInfo) => {
     const recording = testInfo.outputPath('long-escalation.mp3');
     writeFileSync(recording, Buffer.alloc(50 * 1024 * 1024 + 1));
