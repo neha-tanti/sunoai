@@ -4,31 +4,13 @@ import { expect, test, type Page } from '@playwright/test';
 import { CALL_ERROR_MESSAGES } from '@/lib/call-errors';
 import { UPLOAD_TOKEN_REUSE_MS } from '@/lib/call-upload';
 import type { Enums } from '@/lib/database.types';
+import { silentWav } from '../support/audio';
 import {
   createTestAdminClient,
   createTeamLeader,
   deleteTeamLeader,
   signIn,
 } from '../support/team-leader';
-
-function silentWav(seconds: number) {
-  const sampleRate = 8000;
-  const dataBytes = seconds * sampleRate;
-  const wav = Buffer.alloc(44 + dataBytes, 128);
-  wav.write('RIFF', 0);
-  wav.writeUInt32LE(36 + dataBytes, 4);
-  wav.write('WAVEfmt ', 8);
-  wav.writeUInt32LE(16, 16);
-  wav.writeUInt16LE(1, 20);
-  wav.writeUInt16LE(1, 22);
-  wav.writeUInt32LE(sampleRate, 24);
-  wav.writeUInt32LE(sampleRate, 28);
-  wav.writeUInt16LE(1, 32);
-  wav.writeUInt16LE(8, 34);
-  wav.write('data', 36);
-  wav.writeUInt32LE(dataBytes, 40);
-  return wav;
-}
 
 test.describe('choosing a recording', () => {
   test.beforeEach(async ({ page }) => {
@@ -92,7 +74,9 @@ test.describe('example calls', () => {
       .click();
 
     await expect(
-      exampleCard(page, 'Late order').getByLabel('Late order recording'),
+      exampleCard(page, 'Late order').getByLabel('Late order recording', {
+        exact: true,
+      }),
     ).toHaveAttribute('src', '/late-order-example.wav');
   });
 

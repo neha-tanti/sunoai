@@ -37,7 +37,7 @@ type SavedReport = Pick<Report, ReportJsonColumn> & {
 
 const RECENT_CALLS = 10;
 const RECORDING_URL_SECONDS = 2 * 60 * 60;
-const EXAMPLE_AUDIO_URL_SECONDS = 10 * 60;
+const LISTEN_URL_SECONDS = 10 * 60;
 const DAY_MS = 24 * 60 * 60 * 1000;
 export const DAILY_CALL_LIMIT = 30;
 
@@ -375,7 +375,7 @@ export const calls = new Hono<SignedInEnv>()
         .storage.from('examples')
         .createSignedUrl(
           `${c.req.valid('param').example}.wav`,
-          EXAMPLE_AUDIO_URL_SECONDS,
+          LISTEN_URL_SECONDS,
         );
       if (signed.error) throw signed.error;
       return c.json({ url: signed.data.signedUrl });
@@ -411,6 +411,36 @@ export const calls = new Hono<SignedInEnv>()
       report,
     });
   })
+  .get(
+    '/:id/recording',
+    zValidator('param', callIdParam, rejectInvalid),
+    async (c) => {
+      const supabase = createAdminClient();
+      const call = await supabase
+        .from('calls')
+        .select('file_path')
+        .eq('id', c.req.valid('param').id)
+        .maybeSingle();
+      if (call.error) throw call.error;
+      if (!call.data) throw new HTTPException(404);
+
+      const recordings = supabase.storage.from('calls');
+      const exists = await recordings.exists(call.data.file_path);
+      if (!exists.data) {
+        throw new ApiError(
+          404,
+          'not_found',
+          "This call's recording isn't available.",
+        );
+      }
+      const signed = await recordings.createSignedUrl(
+        call.data.file_path,
+        LISTEN_URL_SECONDS,
+      );
+      if (signed.error) throw signed.error;
+      return c.json({ url: signed.data.signedUrl });
+    },
+  )
   .post(
     '/:id/check',
     zValidator('param', callIdParam, rejectInvalid),

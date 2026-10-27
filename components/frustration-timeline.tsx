@@ -1,3 +1,4 @@
+import { SegmentLink } from '@/components/time-link';
 import {
   Card,
   CardContent,
@@ -47,7 +48,7 @@ export function FrustrationTimeline({ report, segments }: TimelineProps) {
           <h2>How the customer felt during the call</h2>
         </CardTitle>
         <CardDescription>
-          Pick a moment to read it in the transcript
+          Pick a moment to hear it and read it in the transcript
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
@@ -161,8 +162,9 @@ function MarkerPin({ marker, number, left, row }: MarkerPinProps) {
       >
         {number}
       </span>
-      <a
-        href={`#segment-${marker.segmentId}`}
+      <SegmentLink
+        segmentId={marker.segmentId}
+        time={marker.time}
         aria-label={markerLabel(marker)}
         title={names}
         className={cn(
@@ -173,7 +175,7 @@ function MarkerPin({ marker, number, left, row }: MarkerPinProps) {
         )}
       >
         <span className="truncate">{names}</span>· {formatTime(marker.time)}
-      </a>
+      </SegmentLink>
       <span
         className={cn(
           'w-0.5 flex-1',
@@ -191,8 +193,9 @@ function MarkerList({ markers }: { markers: Marker[] }) {
     <ol className="flex flex-col text-sm sm:hidden">
       {markers.map((marker, index) => (
         <li key={marker.time}>
-          <a
-            href={`#segment-${marker.segmentId}`}
+          <SegmentLink
+            segmentId={marker.segmentId}
+            time={marker.time}
             aria-label={markerLabel(marker)}
             className="flex min-h-11 items-center gap-2"
           >
@@ -213,7 +216,7 @@ function MarkerList({ markers }: { markers: Marker[] }) {
             <span className="ml-auto font-mono text-xs text-muted-foreground">
               {formatTime(marker.time)}
             </span>
-          </a>
+          </SegmentLink>
         </li>
       ))}
     </ol>

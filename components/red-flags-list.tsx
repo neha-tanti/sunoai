@@ -57,6 +57,7 @@ export function RedFlagsList({ report, segments, langs }: RedFlagsListProps) {
                 </div>
                 <QuoteLink
                   segmentId={flag.segment_id}
+                  time={flag.time}
                   quote={flag.quote}
                   langs={langs}
                 />

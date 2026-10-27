@@ -1,11 +1,16 @@
+'use client';
+
 import { CircleCheckIcon, TriangleAlertIcon } from 'lucide-react';
+import { useRef } from 'react';
+import type { AudioPlayerHandle } from '@/components/audio-player';
+import { CallPlayer } from '@/components/call-player';
 import { ChecklistResults } from '@/components/checklist-results';
 import { CoachingPlayer } from '@/components/coaching-player';
 import { FixNotesList } from '@/components/fix-notes-list';
 import { FrustrationTimeline } from '@/components/frustration-timeline';
 import { RedFlagsList } from '@/components/red-flags-list';
 import { ReportTiles } from '@/components/report-tiles';
-import { QuoteLink, TimeLink } from '@/components/time-link';
+import { PlayFromContext, QuoteLink, TimeLink } from '@/components/time-link';
 import { TranscriptView } from '@/components/transcript-view';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
@@ -28,35 +33,45 @@ type CallReportProps = {
 
 export function CallReport({ call, report, segments }: CallReportProps) {
   const langs = call.call_langs;
+  const playerRef = useRef<AudioPlayerHandle>(null);
+
+  function playFrom(time: number) {
+    playerRef.current?.playFrom(time);
+  }
 
   return (
-    <article className="flex flex-col gap-4" aria-label="Call report">
-      <div className="sticky top-0 z-10 -mx-6 border-b bg-background/95 px-6 py-1.5 backdrop-blur">
-        <JumpLinks report={report} />
-      </div>
-      <ReviewBanner redFlags={report.red_flags.length} />
-      <ReportTiles report={report} segments={segments} langs={langs} />
-      <FrustrationTimeline report={report} segments={segments} />
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:items-start">
-        <div className="flex min-w-0 flex-col gap-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                <h2>Summary</h2>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p>{report.summary}</p>
-            </CardContent>
-          </Card>
-          <RedFlagsList report={report} segments={segments} langs={langs} />
-          <CoachingSection call={call} report={report} />
-          <ChecklistResults checks={report.checks} langs={langs} />
-          <FixNotesList notes={report.fix_notes} langs={langs} />
+    <PlayFromContext value={playFrom}>
+      <article className="flex flex-col gap-4" aria-label="Call report">
+        <div className="sticky top-0 z-10 -mx-6 flex flex-wrap items-center gap-x-6 border-b bg-background/95 px-6 py-1.5 backdrop-blur">
+          <div className="flex min-w-64 flex-1 sm:max-w-md">
+            <CallPlayer callId={call.id} ref={playerRef} />
+          </div>
+          <JumpLinks report={report} />
         </div>
-        <TranscriptView report={report} segments={segments} langs={langs} />
-      </div>
-    </article>
+        <ReviewBanner redFlags={report.red_flags.length} />
+        <ReportTiles report={report} segments={segments} langs={langs} />
+        <FrustrationTimeline report={report} segments={segments} />
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:items-start">
+          <div className="flex min-w-0 flex-col gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  <h2>Summary</h2>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p>{report.summary}</p>
+              </CardContent>
+            </Card>
+            <RedFlagsList report={report} segments={segments} langs={langs} />
+            <CoachingSection call={call} report={report} />
+            <ChecklistResults checks={report.checks} langs={langs} />
+            <FixNotesList notes={report.fix_notes} langs={langs} />
+          </div>
+          <TranscriptView report={report} segments={segments} langs={langs} />
+        </div>
+      </article>
+    </PlayFromContext>
   );
 }
 
@@ -147,6 +162,7 @@ function CoachingSection({ call, report }: CoachingSectionProps) {
         <TimeLink segmentId={coaching.segment_id} time={coaching.time} />
         <QuoteLink
           segmentId={coaching.segment_id}
+          time={coaching.time}
           quote={coaching.quote}
           langs={call.call_langs}
         />

@@ -2,6 +2,7 @@
 
 import { PlayIcon } from 'lucide-react';
 import { useState } from 'react';
+import { AudioPlayer } from '@/components/audio-player';
 import { Button } from '@/components/ui/button';
 import { useCoachingAudio } from '@/hooks/use-coaching-audio';
 
@@ -15,20 +16,12 @@ export function CoachingPlayer({ callId }: { callId: string }) {
   }
 
   if (requested && audio.data) {
-    return (
-      <audio
-        controls
-        autoPlay
-        src={audio.data}
-        aria-label="Coaching audio"
-        className="w-full"
-      />
-    );
+    return <AudioPlayer src={audio.data} label="Coaching audio" autoPlay />;
   }
 
   return (
     <div className="flex flex-col items-start gap-2">
-      <Button onClick={handlePlay} disabled={audio.isFetching}>
+      <Button size="lg" onClick={handlePlay} disabled={audio.isFetching}>
         <PlayIcon />
         {audio.isFetching ? 'Creating the coaching audio…' : 'Play coaching'}
       </Button>

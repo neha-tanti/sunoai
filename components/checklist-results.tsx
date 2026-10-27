@@ -55,6 +55,7 @@ function CheckRow({ check, langs }: { check: Check; langs: string[] }) {
             <TimeLink segmentId={check.segment_id} time={check.time} />
             <QuoteLink
               segmentId={check.segment_id}
+              time={check.time}
               quote={check.quote}
               langs={langs}
             />
