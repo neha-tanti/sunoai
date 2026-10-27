@@ -94,9 +94,9 @@ export default function HomePage() {
           </p>
         </div>
         <p className="sr-only">
-          Red flags: {LATE_ORDER_REPORT.red_flags.length}. Checklist score {LATE_ORDER_REPORT.score_passed} of{' '}
-          {LATE_ORDER_REPORT.score_total}. Peak frustration{' '}
-          {MOOD_LABEL[LATE_ORDER_REPORT.frustration_peak]}.
+          Red flags: {LATE_ORDER_REPORT.red_flags.length}. Checklist score{' '}
+          {LATE_ORDER_REPORT.score_passed} of {LATE_ORDER_REPORT.score_total}.
+          Peak frustration {MOOD_LABEL[LATE_ORDER_REPORT.frustration_peak]}.
         </p>
         <div
           inert
@@ -106,7 +106,7 @@ export default function HomePage() {
           <ReportTiles
             report={LATE_ORDER_REPORT}
             segments={LATE_ORDER_SEGMENTS}
-            langs={[...exampleCall('late-order').call_langs]}
+            langs={exampleCall('late-order').call_langs}
           />
           <FrustrationTimeline
             report={LATE_ORDER_REPORT}

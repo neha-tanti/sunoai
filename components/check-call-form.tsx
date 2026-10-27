@@ -59,6 +59,7 @@ export function CheckCallForm() {
   function handleTitleChange(event: React.ChangeEvent<HTMLInputElement>) {
     setTitle(event.target.value);
     setTitleTyped(event.target.value !== '');
+    if (formError === NO_TITLE) setFormError(null);
   }
 
   function rejectFile(message: string) {

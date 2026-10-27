@@ -26,7 +26,7 @@ const HANDOVER_LABEL = {
 } as const;
 
 type TilesProps = { report: ReportDetail; segments: Segment[] };
-type LangTilesProps = TilesProps & { langs: string[] };
+type LangTilesProps = TilesProps & { langs: readonly string[] };
 
 export function ReportTiles({ report, segments, langs }: LangTilesProps) {
   return (

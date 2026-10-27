@@ -88,6 +88,13 @@ test.describe('choosing a recording', () => {
     await expect(page.getByLabel('Call title')).toHaveAccessibleDescription(
       'Give the call a title.',
     );
+
+    await page.getByLabel('Call title').fill('Missing raita');
+    await expect(page.getByLabel('Call title')).not.toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
+    await expect(page.getByRole('main').getByRole('alert')).toHaveCount(0);
   });
 
   test('a file over 50 MB says it is too big', async ({ page }, testInfo) => {
