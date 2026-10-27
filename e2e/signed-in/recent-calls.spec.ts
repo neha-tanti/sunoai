@@ -17,8 +17,9 @@ const titles = {
   calmQuestion: `Sunday delivery question (${run})`,
   silent: `Silent line after the greeting (${run})`,
   toDelete: `Wrong dessert, customer hung up (${run})`,
+  example: `Late order, example run (${run})`,
 };
-const ids: string[] = [];
+const ids = {} as Record<keyof typeof titles, string>;
 
 async function seedSilentCall() {
   const id = randomUUID();
@@ -41,28 +42,32 @@ async function seedSilentCall() {
 }
 
 test.beforeAll(async () => {
-  ids.push(
-    await seedReadyCall(
-      titles.coldBiryani,
-      COLD_BIRYANI_SEGMENTS,
-      COLD_BIRYANI_REPORT,
-    ),
-    await seedReadyCall(
-      titles.calmQuestion,
-      CALM_QUESTION_SEGMENTS,
-      CALM_QUESTION_REPORT,
-    ),
-    await seedSilentCall(),
-    await seedReadyCall(
-      titles.toDelete,
-      CALM_QUESTION_SEGMENTS,
-      CALM_QUESTION_REPORT,
-    ),
+  ids.coldBiryani = await seedReadyCall(
+    titles.coldBiryani,
+    COLD_BIRYANI_SEGMENTS,
+    COLD_BIRYANI_REPORT,
+  );
+  ids.calmQuestion = await seedReadyCall(
+    titles.calmQuestion,
+    CALM_QUESTION_SEGMENTS,
+    CALM_QUESTION_REPORT,
+  );
+  ids.silent = await seedSilentCall();
+  ids.toDelete = await seedReadyCall(
+    titles.toDelete,
+    CALM_QUESTION_SEGMENTS,
+    CALM_QUESTION_REPORT,
+  );
+  ids.example = await seedReadyCall(
+    titles.example,
+    COLD_BIRYANI_SEGMENTS,
+    COLD_BIRYANI_REPORT,
+    'late-order',
   );
 });
 
 test.afterAll(async () => {
-  await deleteCalls(ids);
+  await deleteCalls(Object.values(ids));
 });
 
 function callRow(page: Page, title: string) {
@@ -72,19 +77,19 @@ function callRow(page: Page, title: string) {
     .filter({ hasText: title });
 }
 
-test('each checked call shows its score, frustration and review in words', async ({
+test('each checked call shows its score, how it ended and its review in words', async ({
   page,
 }) => {
   await page.goto('/calls');
 
   const coldBiryani = callRow(page, titles.coldBiryani);
   await expect(coldBiryani).toContainText('83% · Good');
-  await expect(coldBiryani).toContainText('Angry');
+  await expect(coldBiryani).toContainText('Ended calm');
   await expect(coldBiryani).toContainText('Needs review');
 
   const calmQuestion = callRow(page, titles.calmQuestion);
   await expect(calmQuestion).toContainText('No checks applied');
-  await expect(calmQuestion).toContainText('Calm');
+  await expect(calmQuestion).toContainText('Ended calm');
   await expect(calmQuestion).toContainText('No red flags');
 
   await expect(callRow(page, titles.silent)).toContainText(
@@ -92,7 +97,35 @@ test('each checked call shows its score, frustration and review in words', async
   );
   await expect(
     page.getByRole('region', { name: 'Team average' }),
-  ).toContainText(/\d+% · (Good|Needs work|Poor)/);
+  ).toContainText(/\d+%\s*(Good|Needs work|Poor)/);
+});
+
+test('an example run is tagged Example in its row, its card and its report', async ({
+  page,
+}) => {
+  await page.goto('/calls');
+
+  await expect(
+    callRow(page, titles.example).getByText('Example', { exact: true }),
+  ).toBeVisible();
+  await expect(
+    callRow(page, titles.coldBiryani).getByText('Example', { exact: true }),
+  ).toHaveCount(0);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(
+    page
+      .getByRole('list', { name: 'Recent calls' })
+      .getByRole('listitem')
+      .filter({ hasText: titles.example })
+      .getByText('Example', { exact: true }),
+  ).toBeVisible();
+
+  await page.goto(`/calls/${ids.example}`);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+    titles.example,
+  );
+  await expect(page.getByText('Example', { exact: true })).toBeVisible();
 });
 
 test('a call title opens its report', async ({ page }) => {
@@ -100,10 +133,43 @@ test('a call title opens its report', async ({ page }) => {
 
   await page.getByRole('link', { name: titles.coldBiryani }).click();
 
-  await expect(page).toHaveURL(`/calls/${ids[0]}`);
+  await expect(page).toHaveURL(`/calls/${ids.coldBiryani}`);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(
     titles.coldBiryani,
   );
+});
+
+test('clicking anywhere on a row opens its report', async ({ page }) => {
+  await page.goto('/calls');
+
+  const scoreCell = callRow(page, titles.coldBiryani).getByRole('cell').nth(2);
+  await expect(scoreCell).toContainText('83% · Good');
+  await scoreCell.scrollIntoViewIfNeeded();
+  const box = await scoreCell.boundingBox();
+  await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
+
+  await expect(page).toHaveURL(`/calls/${ids.coldBiryani}`);
+});
+
+test('on a phone each call is a card with its review and score in view', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/calls');
+
+  const card = page
+    .getByRole('list', { name: 'Recent calls' })
+    .getByRole('listitem')
+    .filter({ hasText: titles.coldBiryani });
+  await card.scrollIntoViewIfNeeded();
+  await expect(card.getByText('Needs review')).toBeInViewport();
+  await expect(card.getByText('83% · Good')).toBeVisible();
+  const overflow = await page.evaluate(
+    () =>
+      document.documentElement.scrollWidth -
+      document.documentElement.clientWidth,
+  );
+  expect(overflow).toBe(0);
 });
 
 test('deleting a call removes it from the list', async ({ page }) => {
@@ -137,7 +203,7 @@ test('keeping a call closes the dialog and leaves it in the list', async ({
 });
 
 test('a failed delete says why and keeps the call', async ({ page }) => {
-  await page.route(`**/api/calls/${ids[0]}`, (route) => {
+  await page.route(`**/api/calls/${ids.coldBiryani}`, (route) => {
     if (route.request().method() !== 'DELETE') return route.fallback();
     return route.fulfill({
       status: 500,

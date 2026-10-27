@@ -20,7 +20,7 @@ import { createAdminClient } from './supabase';
 import { callIdParam, rejectInvalid } from './validate';
 
 const CALL_COLUMNS =
-  'id, title, status, error_code, call_langs, coaching_lang, denoise, duration_seconds, file_size_bytes, mime_type, created_at, checked_at';
+  'id, title, status, error_code, example_id, call_langs, coaching_lang, denoise, duration_seconds, file_size_bytes, mime_type, created_at, checked_at';
 const REPORT_COLUMNS =
   'score_passed, score_total, needs_review, frustration_peak, frustration, speakers, handover_segment_id, checks, red_flags, fix_notes, summary, coaching, llm_model, prompt_version, checklist_snapshot, created_at';
 
@@ -157,40 +157,52 @@ async function readReport(
   };
 }
 
+type RecentReport = Pick<
+  Report,
+  'score_passed' | 'score_total' | 'needs_review' | 'frustration_end'
+>;
+
 async function recentCalls(userId: string, isAnonymous: boolean) {
-  const recent = await createAdminClient()
-    .from('calls')
-    .select(
-      'id, title, status, error_code, created_at, created_by, report:reports(score_passed, score_total, needs_review, frustration_peak)',
-    )
-    .not('checked_at', 'is', null)
-    .order('created_at', { ascending: false })
-    .limit(RECENT_CALLS);
+  const supabase = createAdminClient();
+  const [recent, scored] = await Promise.all([
+    supabase
+      .from('calls')
+      .select(
+        'id, title, status, error_code, example_id, duration_seconds, created_at, created_by, report:reports(score_passed, score_total, needs_review, frustration_end)',
+      )
+      .not('checked_at', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(RECENT_CALLS)
+      .overrideTypes<{ report: RecentReport | null }[]>(),
+    supabase
+      .from('reports')
+      .select('score_passed, score_total, calls!inner(example_id)')
+      .is('calls.example_id', null)
+      .gt('score_total', 0)
+      .order('created_at', { ascending: false })
+      .limit(RECENT_CALLS),
+  ]);
   if (recent.error) throw recent.error;
+  if (scored.error) throw scored.error;
 
   return {
     calls: recent.data.map(({ created_by, ...call }) => ({
       ...call,
       can_delete: !isAnonymous || created_by === userId,
     })),
-    average: teamAverage(recent.data),
+    average: teamAverage(scored.data),
   };
 }
 
-type ScoredCall = {
-  report: { score_passed: number; score_total: number } | null;
-};
+function teamAverage(reports: { score_passed: number; score_total: number }[]) {
+  if (reports.length === 0) return null;
 
-function teamAverage(calls: ScoredCall[]) {
-  const ratios = calls.flatMap(({ report }) =>
-    report && report.score_total > 0
-      ? [report.score_passed / report.score_total]
-      : [],
-  );
-  if (ratios.length === 0) return null;
-
-  const mean = ratios.reduce((sum, ratio) => sum + ratio, 0) / ratios.length;
-  return { percent: Math.round(mean * 100), calls: ratios.length };
+  const mean =
+    reports.reduce(
+      (sum, report) => sum + report.score_passed / report.score_total,
+      0,
+    ) / reports.length;
+  return { percent: Math.round(mean * 100), calls: reports.length };
 }
 
 async function startCheck(id: string, isAnonymous: boolean) {
@@ -356,6 +368,7 @@ export const calls = new Hono<SignedInEnv>()
         mime_type: 'audio/wav',
         call_langs: [...example.call_langs],
         coaching_lang: example.coaching_lang,
+        example_id: example.id,
         created_by: c.get('userId'),
       });
       if (inserted.error) throw inserted.error;

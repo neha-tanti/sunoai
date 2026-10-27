@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { CallReport } from '@/components/call-report';
 import { CallStatus } from '@/components/call-status';
 import { CheckAgainButton } from '@/components/check-again-button';
+import { Badge } from '@/components/ui/badge';
 import { type CallDetail, useCall } from '@/hooks/use-call';
 import { CALL_LANGUAGES } from '@/lib/call-upload';
 import { formatTime } from '@/lib/format-time';
@@ -77,6 +78,7 @@ function CallMeta({ call, checkedAt }: CallMetaProps) {
 
   return (
     <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+      {call.example_id && <Badge variant="outline">Example</Badge>}
       {call.duration_seconds !== null && (
         <span className="font-mono">{formatTime(call.duration_seconds)}</span>
       )}

@@ -25,6 +25,7 @@ export type Database = {
           duration_seconds: number | null
           error: string | null
           error_code: Database["public"]["Enums"]["call_error_code"] | null
+          example_id: string | null
           file_path: string
           file_size_bytes: number
           gnani_attempts: number
@@ -45,6 +46,7 @@ export type Database = {
           duration_seconds?: number | null
           error?: string | null
           error_code?: Database["public"]["Enums"]["call_error_code"] | null
+          example_id?: string | null
           file_path: string
           file_size_bytes: number
           gnani_attempts?: number
@@ -65,6 +67,7 @@ export type Database = {
           duration_seconds?: number | null
           error?: string | null
           error_code?: Database["public"]["Enums"]["call_error_code"] | null
+          example_id?: string | null
           file_path?: string
           file_size_bytes?: number
           gnani_attempts?: number
@@ -153,6 +156,7 @@ export type Database = {
           created_at: string
           fix_notes: Json
           frustration: Json
+          frustration_end: Database["public"]["Enums"]["mood"]
           frustration_peak: Database["public"]["Enums"]["mood"]
           handover_segment_id: number | null
           llm_model: string
@@ -173,6 +177,7 @@ export type Database = {
           created_at?: string
           fix_notes: Json
           frustration: Json
+          frustration_end: Database["public"]["Enums"]["mood"]
           frustration_peak: Database["public"]["Enums"]["mood"]
           handover_segment_id?: number | null
           llm_model: string
@@ -193,6 +198,7 @@ export type Database = {
           created_at?: string
           fix_notes?: Json
           frustration?: Json
+          frustration_end?: Database["public"]["Enums"]["mood"]
           frustration_peak?: Database["public"]["Enums"]["mood"]
           handover_segment_id?: number | null
           llm_model?: string

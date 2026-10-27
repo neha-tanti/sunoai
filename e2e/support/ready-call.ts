@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import type { ExampleCallId } from '@/lib/examples';
 import type { Checklist } from '@/server/checklist';
 import type { Report } from '@/server/report';
 import { createTestAdminClient } from './team-leader';
@@ -155,6 +156,7 @@ export const COLD_BIRYANI_REPORT = {
   score_total: 6,
   needs_review: true,
   frustration_peak: 'angry',
+  frustration_end: 'calm',
   frustration: {
     ranges: [
       { start: 0, end: 16, level: 'calm' },
@@ -293,6 +295,7 @@ export const CALM_QUESTION_REPORT = {
   score_total: 0,
   needs_review: false,
   frustration_peak: 'calm',
+  frustration_end: 'calm',
   frustration: { ranges: [{ start: 0, end: 18, level: 'calm' }], turn: null },
   speakers: [
     { speaker_id: 1, role: 'ai_agent', name: null },
@@ -318,6 +321,7 @@ export async function seedReadyCall(
   title: string,
   segments: Segment[],
   report: Report,
+  exampleId: ExampleCallId | null = null,
 ) {
   const supabase = createTestAdminClient();
   const id = randomUUID();
@@ -332,6 +336,7 @@ export async function seedReadyCall(
     status: 'analyzing',
     checked_at: new Date().toISOString(),
     duration_seconds: segments.at(-1)?.end_time ?? 0,
+    example_id: exampleId,
   });
   if (inserted.error) throw inserted.error;
 
