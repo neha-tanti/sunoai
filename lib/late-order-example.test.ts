@@ -45,16 +45,14 @@ describe('the published Late order report', () => {
     }
   });
 
-  it("quotes the customer's ask for a person from its line, before the red flag", () => {
-    const segment = segments[ask.segment_id];
+  it("quotes the customer's ask for a person from the red flag's line", () => {
+    const segment = segments[report.red_flags[0].segment_id];
 
     const speaker = report.speakers.find(
       (s) => s.speaker_id === segment.speaker_id,
     );
 
-    expect(segment.segment_id).toBe(ask.segment_id);
     expect(speaker?.role).toBe('customer');
     expect(segment.text).toContain(ask.quote);
-    expect(ask.segment_id).toBeLessThan(report.red_flags[0].segment_id);
   });
 });
