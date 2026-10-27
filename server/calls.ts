@@ -157,61 +157,52 @@ async function readReport(
   };
 }
 
-type RecentReport = {
-  score_passed: number;
-  score_total: number;
-  needs_review: boolean;
-  frustration: Report['frustration'];
-};
+type RecentReport = Pick<
+  Report,
+  'score_passed' | 'score_total' | 'needs_review' | 'frustration_end'
+>;
 
 async function recentCalls(userId: string, isAnonymous: boolean) {
-  const recent = await createAdminClient()
-    .from('calls')
-    .select(
-      'id, title, status, error_code, example_id, duration_seconds, created_at, created_by, report:reports(score_passed, score_total, needs_review, frustration)',
-    )
-    .not('checked_at', 'is', null)
-    .order('created_at', { ascending: false })
-    .limit(RECENT_CALLS)
-    .overrideTypes<{ report: RecentReport | null }[]>();
+  const supabase = createAdminClient();
+  const [recent, scored] = await Promise.all([
+    supabase
+      .from('calls')
+      .select(
+        'id, title, status, error_code, example_id, duration_seconds, created_at, created_by, report:reports(score_passed, score_total, needs_review, frustration_end)',
+      )
+      .not('checked_at', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(RECENT_CALLS)
+      .overrideTypes<{ report: RecentReport | null }[]>(),
+    supabase
+      .from('reports')
+      .select('score_passed, score_total, calls!inner(example_id)')
+      .is('calls.example_id', null)
+      .gt('score_total', 0)
+      .order('created_at', { ascending: false })
+      .limit(RECENT_CALLS),
+  ]);
   if (recent.error) throw recent.error;
+  if (scored.error) throw scored.error;
 
   return {
-    calls: recent.data.map(({ created_by, report, ...call }) => ({
+    calls: recent.data.map(({ created_by, ...call }) => ({
       ...call,
-      report: listedReport(report),
       can_delete: !isAnonymous || created_by === userId,
     })),
-    average: teamAverage(
-      recent.data.filter((call) => call.example_id === null),
-    ),
+    average: teamAverage(scored.data),
   };
 }
 
-function listedReport(report: RecentReport | null) {
-  if (!report) return null;
-  return {
-    score_passed: report.score_passed,
-    score_total: report.score_total,
-    needs_review: report.needs_review,
-    ended_mood: report.frustration.ranges.at(-1)?.level ?? null,
-  };
-}
+function teamAverage(reports: { score_passed: number; score_total: number }[]) {
+  if (reports.length === 0) return null;
 
-type ScoredCall = {
-  report: { score_passed: number; score_total: number } | null;
-};
-
-function teamAverage(calls: ScoredCall[]) {
-  const ratios = calls.flatMap(({ report }) =>
-    report && report.score_total > 0
-      ? [report.score_passed / report.score_total]
-      : [],
-  );
-  if (ratios.length === 0) return null;
-
-  const mean = ratios.reduce((sum, ratio) => sum + ratio, 0) / ratios.length;
-  return { percent: Math.round(mean * 100), calls: ratios.length };
+  const mean =
+    reports.reduce(
+      (sum, report) => sum + report.score_passed / report.score_total,
+      0,
+    ) / reports.length;
+  return { percent: Math.round(mean * 100), calls: reports.length };
 }
 
 async function startCheck(id: string, isAnonymous: boolean) {

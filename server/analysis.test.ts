@@ -62,6 +62,7 @@ describe('analysing a call', () => {
       score_total: 5,
       needs_review: true,
       frustration_peak: 'angry',
+      frustration_end: 'angry',
       handover_segment_id: null,
       coaching: null,
       llm_model: ANSWERING_MODEL,

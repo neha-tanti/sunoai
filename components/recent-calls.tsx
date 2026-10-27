@@ -35,7 +35,7 @@ import {
 import { type RecentCall, type RecentCalls, useCalls } from '@/hooks/use-calls';
 import { useDeleteCall } from '@/hooks/use-delete-call';
 import { formatTime } from '@/lib/format-time';
-import { MOOD_LABEL, SCORE_BAND_LABEL } from '@/lib/report-labels';
+import { MOOD_CLASS, MOOD_LABEL, SCORE_BAND_LABEL } from '@/lib/report-labels';
 import { scoreBand, scorePercent } from '@/lib/score-band';
 
 export function RecentCalls() {
@@ -118,11 +118,11 @@ function TeamAverage({ average }: { average: RecentCalls['average'] }) {
               </span>
             </p>
             <p className="text-sm text-muted-foreground">
-              Across{' '}
+              Across the latest{' '}
               {average.calls === 1
-                ? '1 scored call'
-                : `${average.calls} scored calls`}{' '}
-              in this list. Example calls are left out.
+                ? 'scored call'
+                : `${average.calls} scored calls`}
+              . Example calls are left out.
             </p>
           </>
         ) : (
@@ -150,12 +150,16 @@ function CallTitle({ call }: { call: RecentCall }) {
       >
         {call.title}
       </Link>
-      <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-        {call.example_id && <Badge variant="outline">Example</Badge>}
-        {call.duration_seconds !== null && (
-          <span className="font-mono">{formatTime(call.duration_seconds)}</span>
-        )}
-      </p>
+      {(call.example_id || call.duration_seconds !== null) && (
+        <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          {call.example_id && <Badge variant="outline">Example</Badge>}
+          {call.duration_seconds !== null && (
+            <span className="font-mono">
+              {formatTime(call.duration_seconds)}
+            </span>
+          )}
+        </p>
+      )}
       {call.status !== 'ready' && (
         <p
           className={
@@ -174,18 +178,16 @@ function CallTitle({ call }: { call: RecentCall }) {
 function ReviewResult({ report }: { report: RecentCall['report'] }) {
   if (!report) return null;
   if (report.needs_review) {
-    return (
-      <Badge className="bg-angry text-angry-foreground">Needs review</Badge>
-    );
+    return <Badge className={MOOD_CLASS.angry}>Needs review</Badge>;
   }
   return <span className="text-sm text-muted-foreground">No red flags</span>;
 }
 
 function EndedMood({ report }: { report: RecentCall['report'] }) {
-  if (!report?.ended_mood) return null;
+  if (!report) return null;
   return (
-    <ToneBadge tone={report.ended_mood}>
-      Ended {MOOD_LABEL[report.ended_mood].toLowerCase()}
+    <ToneBadge tone={report.frustration_end}>
+      Ended {MOOD_LABEL[report.frustration_end].toLowerCase()}
     </ToneBadge>
   );
 }

@@ -596,6 +596,7 @@ describe('buildReport', () => {
         { start: 30, end: 35, level: 'calm' },
       ]);
       expect(report.frustration_peak).toBe('angry');
+      expect(report.frustration_end).toBe('calm');
       expect(report.frustration.turn).toEqual({ segment_id: 3, time: 15 });
     });
 
@@ -616,6 +617,7 @@ describe('buildReport', () => {
         { start: 0, end: 5, level: 'calm' },
         { start: 5, end: 35, level: 'annoyed' },
       ]);
+      expect(report.frustration_end).toBe('annoyed');
       expect(report.frustration.turn).toEqual({ segment_id: 1, time: 5 });
     });
 
@@ -653,6 +655,7 @@ describe('buildReport', () => {
         turn: null,
       });
       expect(report.frustration_peak).toBe('calm');
+      expect(report.frustration_end).toBe('calm');
     });
   });
 });

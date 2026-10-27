@@ -17,6 +17,7 @@ const titles = {
   calmQuestion: `Sunday delivery question (${run})`,
   silent: `Silent line after the greeting (${run})`,
   toDelete: `Wrong dessert, customer hung up (${run})`,
+  example: `Late order, example run (${run})`,
 };
 const ids: string[] = [];
 
@@ -58,6 +59,12 @@ test.beforeAll(async () => {
       CALM_QUESTION_SEGMENTS,
       CALM_QUESTION_REPORT,
     ),
+    await seedReadyCall(
+      titles.example,
+      COLD_BIRYANI_SEGMENTS,
+      COLD_BIRYANI_REPORT,
+      'late-order',
+    ),
   );
 });
 
@@ -93,6 +100,34 @@ test('each checked call shows its score, how it ended and its review in words', 
   await expect(
     page.getByRole('region', { name: 'Team average' }),
   ).toContainText(/\d+%\s*(Good|Needs work|Poor)/);
+});
+
+test('an example run is tagged Example in its row, its card and its report', async ({
+  page,
+}) => {
+  await page.goto('/calls');
+
+  await expect(
+    callRow(page, titles.example).getByText('Example', { exact: true }),
+  ).toBeVisible();
+  await expect(
+    callRow(page, titles.coldBiryani).getByText('Example', { exact: true }),
+  ).toHaveCount(0);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(
+    page
+      .getByRole('list', { name: 'Recent calls' })
+      .getByRole('listitem')
+      .filter({ hasText: titles.example })
+      .getByText('Example', { exact: true }),
+  ).toBeVisible();
+
+  await page.goto(`/calls/${ids[4]}`);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+    titles.example,
+  );
+  await expect(page.getByText('Example', { exact: true })).toBeVisible();
 });
 
 test('a call title opens its report', async ({ page }) => {

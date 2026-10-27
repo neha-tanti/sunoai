@@ -156,6 +156,7 @@ export type Database = {
           created_at: string
           fix_notes: Json
           frustration: Json
+          frustration_end: Database["public"]["Enums"]["mood"]
           frustration_peak: Database["public"]["Enums"]["mood"]
           handover_segment_id: number | null
           llm_model: string
@@ -176,6 +177,7 @@ export type Database = {
           created_at?: string
           fix_notes: Json
           frustration: Json
+          frustration_end: Database["public"]["Enums"]["mood"]
           frustration_peak: Database["public"]["Enums"]["mood"]
           handover_segment_id?: number | null
           llm_model: string
@@ -196,6 +198,7 @@ export type Database = {
           created_at?: string
           fix_notes?: Json
           frustration?: Json
+          frustration_end?: Database["public"]["Enums"]["mood"]
           frustration_peak?: Database["public"]["Enums"]["mood"]
           handover_segment_id?: number | null
           llm_model?: string

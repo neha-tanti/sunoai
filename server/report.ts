@@ -109,6 +109,7 @@ export function buildReport(input: {
       score_total: checks.filter((c) => c.result !== 'na').length,
       needs_review: redFlags.length > 0,
       frustration_peak: frustration.peak,
+      frustration_end: frustration.end,
       frustration: { ranges: frustration.ranges, turn: frustration.turn },
       speakers,
       handover_segment_id: handover?.segment_id ?? null,
@@ -323,6 +324,7 @@ function buildFrustration(
 
   return {
     peak,
+    end: points.at(-1)?.level ?? 'calm',
     ranges,
     turn: turnPoint
       ? {

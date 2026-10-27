@@ -636,7 +636,7 @@ describe('GET /api/calls', () => {
     report: {
       score_passed: number;
       score_total: number;
-      frustration?: Report['frustration'];
+      frustration_end?: Report['frustration_end'];
     },
     call: Parameters<typeof insertCall>[0] = {},
   ) {
@@ -650,6 +650,7 @@ describe('GET /api/calls', () => {
         call_id: ready.id,
         needs_review: report.score_passed < report.score_total,
         frustration_peak: 'annoyed',
+        frustration_end: 'calm',
         frustration: { ranges: [], turn: null },
         ...report,
         speakers: [],
@@ -693,14 +694,7 @@ describe('GET /api/calls', () => {
     const call = await seedReadyCall(1, {
       score_passed: 5,
       score_total: 6,
-      frustration: {
-        ranges: [
-          { start: 0, end: 12, level: 'calm' },
-          { start: 12, end: 30, level: 'angry' },
-          { start: 30, end: 41, level: 'annoyed' },
-        ],
-        turn: { segment_id: 3, time: 12 },
-      },
+      frustration_end: 'annoyed',
     });
 
     const body = await readRecentCalls();
@@ -715,7 +709,7 @@ describe('GET /api/calls', () => {
           score_passed: 5,
           score_total: 6,
           needs_review: true,
-          ended_mood: 'annoyed',
+          frustration_end: 'annoyed',
         },
       }),
     ]);
@@ -743,6 +737,24 @@ describe('GET /api/calls', () => {
 
     expect(body.calls).toContainEqual(
       expect.objectContaining({ id: example.id, example_id: 'late-order' }),
+    );
+    expect(body.average).toEqual({ percent: 50, calls: 1 });
+  });
+
+  it('keeps a scored call in the average when newer example runs fill the list', async () => {
+    await seedReadyCall(20, { score_passed: 1, score_total: 2 });
+    for (let minutesAgo = 10; minutesAgo >= 1; minutesAgo--) {
+      await seedReadyCall(
+        minutesAgo,
+        { score_passed: 6, score_total: 6 },
+        { title: 'Late order', example_id: 'late-order' },
+      );
+    }
+
+    const body = await readRecentCalls();
+
+    expect(body.calls.every((call) => call.example_id === 'late-order')).toBe(
+      true,
     );
     expect(body.average).toEqual({ percent: 50, calls: 1 });
   });
