@@ -83,6 +83,7 @@ async function checkCall(name: string) {
       const misses = differences(
         answer,
         report,
+        rejected.coaching,
         script.EXPECTED,
         segmentsMatchLines,
       );
@@ -122,6 +123,7 @@ async function loadCall(title: string) {
 function differences(
   answer: LlmAnswer,
   report: Report,
+  droppedCoaching: string | null,
   expected: Expected,
   segmentsMatchLines: boolean,
 ) {
@@ -130,6 +132,11 @@ function differences(
     ['score', `${report.score_passed}/${report.score_total}`, expected.score],
     ['needs_review', report.needs_review, expected.needs_review],
     ['frustration_peak', report.frustration_peak, expected.frustration_peak],
+    [
+      'coaching',
+      report.coaching ? 'given' : (droppedCoaching ?? 'none'),
+      expected.segments.handover === null ? 'none' : 'given',
+    ],
     ...Object.entries(expected.checks).map(
       ([id, result]): [string, unknown, unknown] => [
         id,

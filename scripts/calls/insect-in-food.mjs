@@ -30,7 +30,7 @@ export const LINES = toLines([
   ['ai_agent', 'Thank you for calling TiffinGo. Have a nice day.'],
 ]);
 
-// Written down before the first run (testing.md).
+// Written down before the first run (testing.md); the red flag lines were corrected in #48.
 export const EXPECTED = {
   score: '0/5',
   needs_review: true,
@@ -44,7 +44,7 @@ export const EXPECTED = {
     closing: 'miss',
   },
   segments: {
-    red_flags: ['safety_not_escalated@4', 'human_not_transferred@8'],
+    red_flags: ['safety_not_escalated@1', 'human_not_transferred@7'],
     handover: null,
     frustration_turn: 1,
     moods: {
