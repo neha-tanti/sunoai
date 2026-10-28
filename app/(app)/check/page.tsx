@@ -1,18 +1,18 @@
 import type { Metadata } from 'next';
 import { CheckCallForm } from '@/components/check-call-form';
 import { ExampleCalls } from '@/components/example-calls';
+import { PageTitle } from '@/components/page-title';
+import { Card } from '@/components/ui/card';
 
 export const metadata: Metadata = { title: 'Check a call' };
 
 export default function CheckPage() {
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-12">
-      <div className="flex max-w-3xl flex-col gap-10">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-semibold tracking-tight">
-            Check a call
-          </h1>
-          <p className="text-muted-foreground">
+      <div className="mx-auto flex max-w-5xl flex-col gap-12">
+        <div className="flex flex-col gap-4">
+          <PageTitle>Check a call</PageTitle>
+          <p className="max-w-[42em] text-lg text-pretty text-muted-foreground">
             Pick an example or upload a support call. SunoAI transcribes it,
             then shows where the customer got frustrated and how the agents did.
           </p>
@@ -23,10 +23,12 @@ export default function CheckPage() {
           aria-labelledby="upload-heading"
           className="flex flex-col gap-4"
         >
-          <h2 id="upload-heading" className="font-medium">
+          <h2 id="upload-heading" className="text-lg font-medium">
             Or upload your own
           </h2>
-          <CheckCallForm />
+          <Card className="p-6 text-base">
+            <CheckCallForm />
+          </Card>
         </section>
       </div>
     </main>

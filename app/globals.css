@@ -4,11 +4,54 @@
 
 @custom-variant dark (&:is(.dark *));
 
-@utility scroll-below-jump-bar {
-  scroll-margin-top: --spacing(32);
+:root {
+  --jump-bar-offset: --spacing(36);
 
   @variant lg {
-    scroll-margin-top: --spacing(20);
+    --jump-bar-offset: --spacing(24);
+  }
+}
+
+@utility audio-range {
+  height: --spacing(4);
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+
+  &::-webkit-slider-runnable-track {
+    height: --spacing(1.5);
+    border-radius: calc(infinity* 1px);
+    background: var(--track);
+  }
+  &::-moz-range-track {
+    height: --spacing(1.5);
+    border-radius: calc(infinity* 1px);
+    background: var(--track);
+  }
+  &::-webkit-slider-thumb {
+    appearance: none;
+    margin-top: --spacing(-1.25);
+    width: --spacing(4);
+    height: --spacing(4);
+    border: 0;
+    border-radius: calc(infinity* 1px);
+    background: var(--foreground);
+  }
+  &::-moz-range-thumb {
+    width: --spacing(4);
+    height: --spacing(4);
+    border: 0;
+    border-radius: calc(infinity* 1px);
+    background: var(--foreground);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--foreground);
+    outline-offset: 4px;
+    border-radius: calc(infinity* 1px);
+  }
+  &:disabled {
+    cursor: default;
+    opacity: 0.5;
   }
 }
 
@@ -86,6 +129,7 @@
   --border: #ece9e2;
   --input: #e6e3db;
   --ring: #a8a49a;
+  --track: #a8a49a;
   --radius: 0.625rem;
   --headline-muted: #8f8b82;
   --card-shadow:
@@ -131,6 +175,7 @@
   --border: #4a4741;
   --input: #6a665e;
   --ring: #8f8b82;
+  --track: #8f8b82;
   --card-shadow:
     inset 0 1px 0 rgb(255 255 255 / 6%), 0 2px 4px rgb(0 0 0 / 25%),
     0 18px 40px -16px rgb(0 0 0 / 60%);

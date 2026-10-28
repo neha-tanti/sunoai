@@ -148,6 +148,35 @@ test.describe('example calls', () => {
     ).toHaveAttribute('src', '/late-order-example.wav');
   });
 
+  test('on a phone, an example playing in its card fits the screen', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.route('**/api/calls/examples/late-order/audio', (route) =>
+      route.fulfill({ json: { url: '/late-order-example.wav' } }),
+    );
+    await page.route('**/late-order-example.wav', (route) =>
+      route.fulfill({ contentType: 'audio/wav', body: silentWav(45) }),
+    );
+    await page.goto('/check');
+
+    await exampleCard(page, 'Late order')
+      .getByRole('button', { name: 'Listen' })
+      .click();
+
+    await expect(
+      exampleCard(page, 'Late order').getByRole('button', {
+        name: 'Pause Late order recording',
+      }),
+    ).toBeVisible();
+    const overflow = await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth -
+        document.documentElement.clientWidth,
+    );
+    expect(overflow).toBe(0);
+  });
+
   test('picking an example opens its call', async ({ page }) => {
     const id = randomUUID();
     let picked: unknown;

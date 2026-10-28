@@ -27,7 +27,7 @@ export function TranscriptView({
   return (
     <Card
       id="transcript"
-      className="scroll-below-jump-bar lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6rem)]"
+      className="scroll-mt-(--jump-bar-offset) lg:sticky lg:top-(--jump-bar-offset) lg:max-h-[calc(100dvh-var(--jump-bar-offset)-1rem)]"
     >
       <CardHeader>
         <CardTitle>
@@ -80,8 +80,8 @@ function TranscriptLine({
       <div
         id={`segment-${segment.segment_id}`}
         className={cn(
-          'grid scroll-mt-32 grid-cols-[2.5rem_minmax(0,1fr)] gap-x-2 rounded-lg p-2 target:outline-2 target:-outline-offset-2 target:outline-ring lg:scroll-mt-4',
-          flags.length > 0 && 'bg-angry/10',
+          'grid scroll-mt-(--jump-bar-offset) grid-cols-[2.5rem_minmax(0,1fr)] gap-x-2 rounded-lg p-2 target:outline-2 target:-outline-offset-2 target:outline-ring lg:scroll-mt-4',
+          flags.length > 0 && 'bg-coral',
           isTurn && 'shadow-[inset_3px_0_var(--annoyed)]',
         )}
       >

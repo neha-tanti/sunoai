@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { Suspense } from 'react';
 import { FrustrationTimeline } from '@/components/frustration-timeline';
+import { IconTile } from '@/components/icon-tile';
 import { ReportTiles } from '@/components/report-tiles';
 import { ReviewBanner } from '@/components/review-banner';
 import { ScoreBadge } from '@/components/score-badge';
@@ -32,6 +33,7 @@ import {
 import { MOOD_CLASS, MOOD_LABEL } from '@/lib/report-labels';
 import { scorePercent } from '@/lib/score-band';
 import { SITE_DESCRIPTION, SITE_URL, SOURCE_URL } from '@/lib/site';
+import type { Tint } from '@/lib/tints';
 import { cn } from '@/lib/utils';
 
 const LATE_ORDER = exampleCall('late-order');
@@ -57,12 +59,6 @@ const STEPS = [
   },
 ];
 
-const TINT_CLASS = {
-  sage: 'border-sage-border bg-sage text-sage-foreground',
-  coral: 'border-coral-border bg-coral text-coral-foreground',
-  sand: 'border-sand-border bg-sand text-sand-foreground',
-  slate: 'border-slate-border bg-slate text-slate-foreground',
-};
 const SECTION_HEADING =
   'mb-10 max-w-[14em] font-serif text-4xl leading-[1.05] tracking-[-0.015em] text-balance sm:text-[52px]';
 
@@ -255,7 +251,7 @@ function Features() {
 type FeatureCardProps = {
   name: string;
   text: string;
-  tint: keyof typeof TINT_CLASS;
+  tint: Tint;
   icon: React.ReactNode;
   children: React.ReactNode;
 };
@@ -264,14 +260,9 @@ function FeatureCard({ name, text, tint, icon, children }: FeatureCardProps) {
   return (
     <li>
       <Card className="h-full gap-2.5 p-5.5">
-        <span
-          className={cn(
-            'mb-2 grid size-9.5 place-items-center rounded-[11px] border [&_svg]:size-4.5',
-            TINT_CLASS[tint],
-          )}
-        >
+        <IconTile tint={tint} className="mb-2">
           {icon}
-        </span>
+        </IconTile>
         <h3 className="text-base font-semibold">{name}</h3>
         <p className="flex-1 text-muted-foreground">{text}</p>
         <div className="mt-1.5 flex min-h-11 flex-wrap items-center gap-2.5 border-t border-dashed pt-3.5 text-[13px] text-muted-foreground">

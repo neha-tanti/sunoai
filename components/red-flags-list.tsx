@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import type { ReportDetail, Segment } from '@/hooks/use-call';
+import { TINT_CLASS } from '@/lib/tints';
 
 type RedFlagsListProps = {
   report: ReportDetail;
@@ -24,14 +25,16 @@ export function RedFlagsList({ report, segments, langs }: RedFlagsListProps) {
       id="red-flags"
       role="region"
       aria-label="Red flags"
-      className="scroll-below-jump-bar"
+      className="scroll-mt-(--jump-bar-offset)"
     >
       <CardHeader>
         <CardTitle>
           <h2>Red flags</h2>
         </CardTitle>
         <CardAction>
-          <Badge variant="destructive">{report.red_flags.length}</Badge>
+          <Badge variant="outline" className={TINT_CLASS.coral}>
+            {report.red_flags.length}
+          </Badge>
         </CardAction>
       </CardHeader>
       <CardContent>
