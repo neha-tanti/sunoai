@@ -13,7 +13,7 @@ The product is described in the [SunoAI Product Document](PRD.md). This document
 | Frontend | Next.js (App Router), TanStack Query, shadcn/ui |
 | Backend | Hono, mounted in a Next.js route handler and deployed on Vercel |
 | Data | Supabase: Postgres, Auth, Storage and Cron |
-| Speech to text | Gnani Prisma v2.5 through the Batch API, for timestamps and speaker labels |
+| Speech to text | Gnani Prisma v3.0 through the Batch API, for timestamps and speaker labels |
 | Coaching voice | Gnani Timbre v2.5 text-to-speech |
 | Analysis | A low-cost model on OpenRouter, paid per token from the account's credits, called with the OpenRouter TypeScript SDK |
 | Accounts | One team; anyone who presses Try it on the homepage is signed in anonymously as a team leader |
@@ -113,8 +113,8 @@ We use Batch rather than the REST endpoint because REST returns only plain text,
 
 | Setting | Value | Why |
 | --- | --- | --- |
-| `model` | `gnani-prisma-v2.5` | Current model |
-| `language_code` | Up to 3 codes, comma-separated | Gnani picks one per file; the first is the fallback |
+| `model` | `prisma-v3.0` | Gnani failed every `gnani-prisma-v2.5` job from 2026-10-28 (#53) |
+| `language_code` | Up to 3 codes, comma-separated | Gnani picks one per file; v3.0 takes up to 4 and ignores the order |
 | `with_diarization` | `true` | Speaker labels |
 | `num_speakers` | `3` | AI agent, human agent and customer (an upper limit) |
 | `with_denoise` | A toggle on the upload screen, default on | Noisy phone audio; on the spike's 65-second call it added 3.6 seconds, about 6% of the call's length, to processing |

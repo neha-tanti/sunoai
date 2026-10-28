@@ -10,7 +10,7 @@ Upload a recording (WAV, MP3, MP4, FLAC, OGG, OPUS, M4A, AAC, WEBM or AMR, up to
 
 ## 2. Transcribe with Gnani
 
-Gnani's Batch speech-to-text (Prisma v2.5) transcribes the call, separates the speakers and gives each line its start time. Calls can be in Hindi, English, Bengali, Marathi, Tamil, Telugu, Kannada or Malayalam, including Hindi and English mixed in one call.
+Gnani's Batch speech-to-text (Prisma v3.0) transcribes the call, separates the speakers and gives each line its start time. Calls can be in Hindi, English, Bengali, Marathi, Tamil, Telugu, Kannada or Malayalam, including Hindi and English mixed in one call.
 
 ## 3. Analyse the transcript
 

@@ -180,7 +180,7 @@ export function hinglishTranscript(
   return {
     language_code: 'hi-IN',
     duration_seconds: overrides.duration_seconds ?? 42.5,
-    model: 'gnani-prisma-v2.5',
+    model: 'prisma-v3.0',
     segments: [
       {
         segment_id: 0,

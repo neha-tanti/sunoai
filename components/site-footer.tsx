@@ -13,7 +13,7 @@ export function SiteFooter() {
           </a>
           <span className="block sm:inline">
             <span className="hidden sm:inline"> · </span>
-            Transcription by Gnani Prisma v2.5, coaching voice by Gnani Timbre
+            Transcription by Gnani Prisma v3.0, coaching voice by Gnani Timbre
             v2.5
           </span>
         </p>

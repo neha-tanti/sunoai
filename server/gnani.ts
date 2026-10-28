@@ -115,7 +115,7 @@ export async function createJob(
     method: 'POST',
     body: {
       config: {
-        model: 'gnani-prisma-v2.5',
+        model: 'prisma-v3.0',
         language_code: options.callLangs.join(','),
         mode: 'transcribe',
         with_diarization: true,

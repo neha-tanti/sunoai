@@ -34,7 +34,7 @@ It works in Hindi, Bengali, Marathi, Tamil, Telugu, Kannada, Malayalam, Gujarati
 
 | Gnani model | What SunoAI uses it for |
 | --- | --- |
-| Prisma v2.5, Batch speech-to-text | Writing down every call, with speaker labels, timestamps and noise removal |
+| Prisma v3.0, Batch speech-to-text | Writing down every call, with speaker labels, timestamps and noise removal |
 | Timbre v2.5, text-to-speech | Speaking coaching to the human agent in their language |
 
 The analysis (checklist, red flags, frustration, fix notes) comes from Qwen 3.8 Flash on OpenRouter. Our own code checks every quote and counts the score.

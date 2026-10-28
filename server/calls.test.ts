@@ -1185,7 +1185,7 @@ describe('POST /api/calls/:id/check', () => {
     );
     expect(create.body).toMatchObject({
       config: {
-        model: 'gnani-prisma-v2.5',
+        model: 'prisma-v3.0',
         language_code: 'hi-IN,en-IN',
         with_diarization: true,
         num_speakers: 3,

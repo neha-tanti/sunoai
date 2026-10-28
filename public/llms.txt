@@ -1,6 +1,6 @@
 # SunoAI
 
-> SunoAI checks recorded food delivery support calls. It transcribes the call, tracks customer frustration over time, scores the agents against the team's checklist, flags red flags, writes fix notes for the AI team and gives the human agent spoken coaching. Powered by Gnani.ai speech models (Prisma v2.5 for transcription, Timbre v2.5 for the coaching voice). Built for Gnani.ai's Great Indian AI Internship Challenge 2026.
+> SunoAI checks recorded food delivery support calls. It transcribes the call, tracks customer frustration over time, scores the agents against the team's checklist, flags red flags, writes fix notes for the AI team and gives the human agent spoken coaching. Powered by Gnani.ai speech models (Prisma v3.0 for transcription, Timbre v2.5 for the coaching voice). Built for Gnani.ai's Great Indian AI Internship Challenge 2026.
 
 ## Try it
 
