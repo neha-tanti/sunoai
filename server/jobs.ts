@@ -7,7 +7,7 @@ import { DEADLINE_MS, finishCall } from './pipeline';
 import { createAdminClient } from './supabase';
 import { TRANSCRIBING_CALL_COLUMNS } from './transcription';
 
-const STUCK_AFTER_MS = 60_000;
+const STUCK_AFTER_MS = 10_000;
 const STOPPED_ANALYSIS_MS = 5 * 60_000;
 
 async function failStoppedAnalyses() {

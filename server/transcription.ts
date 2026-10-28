@@ -12,7 +12,7 @@ import { loggableError } from './errors';
 import { failCall, type Failure } from './fail-call';
 import { createAdminClient } from './supabase';
 
-const MAX_GNANI_ATTEMPTS = 30;
+const MAX_GNANI_ATTEMPTS = 180;
 const MAX_TRANSCRIBING_MS = 2 * 60 * 60 * 1000;
 
 export const TRANSCRIBING_CALL_COLUMNS =

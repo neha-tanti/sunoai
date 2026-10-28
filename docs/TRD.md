@@ -57,7 +57,7 @@ flowchart LR
     auth["Auth<br/>Visitors sign in anonymously; the owner with email and password"]
     storage["Storage<br/>Recordings and coaching audio"]
     postgres["Postgres<br/>Calls, transcripts, reports, checklist"]
-    cron["Cron<br/>pg_cron and pg_net, every minute"]
+    cron["Cron<br/>pg_cron and pg_net, every 10 seconds"]
   end
   browser -->|requests| hono
   browser -->|sign in| auth
@@ -79,7 +79,7 @@ A call moves through 5 statuses; no request waits on Gnani, because each step is
 1. **Create.** The page calls `POST /api/calls`. Hono creates a `calls` row and returns a signed upload URL for Supabase Storage.
 2. **Upload.** The browser uploads the file straight to the private `calls` bucket. Files never pass through Vercel, which limits request bodies to about 4.5 MB.
 3. **Start.** The page calls `POST /api/calls/:id/check`. Hono makes a signed download URL (valid 2 hours), creates a Gnani Batch job that reads the file from that URL, starts it, and saves the `job_id`.
-4. **Wait.** Gnani calls `POST /api/webhooks/gnani` when the job ends. Because Gnani says webhooks are best-effort, a Supabase Cron job also calls `POST /api/jobs/poll` every minute for calls stuck in Transcribing or Analysing.
+4. **Wait.** Gnani calls `POST /api/webhooks/gnani` when the job ends. Because Gnani says webhooks are best-effort, a Supabase Cron job also calls `POST /api/jobs/poll` every 10 seconds for calls stuck in Transcribing or Analysing.
 5. **Save the transcript.** Whichever arrives first downloads the transcript JSON from `transcript_url` (it expires after 1 hour), then calls the `save_transcript` Postgres function with `.rpc()`, which saves every segment to `transcript_segments` and sets Analysing in one transaction. A call over 30 minutes is set to Failed (`too_long`) instead.
 6. **Analyse.** Hono sends the segments, the checklist and the refund rules to the LLM in one request, checks the answer in code (see LLM analysis), and saves the report.
 7. **Show.** The page polls `GET /api/calls/:id` every 3 seconds while the call is not finished, then shows the report.
@@ -125,7 +125,7 @@ We use Batch rather than the REST endpoint because REST returns only plain text,
 
 The transcript gives `full_transcript`, `language_code`, `duration_seconds`, and `segments`, each with `segment_id`, `start_time`, `end_time`, `text` and `speaker_id`. Segments also have `language_detected`, which v3.0 fills on every segment with text, and `sentiment` and `emotion`, which Gnani's examples leave empty; SunoAI uses none of them. With `format: transcribe`, order IDs and amounts come back as digits ("FD4572") and English words stay in Latin script inside Devanagari lines. Gnani's examples give every segment the same `segment_id`, so SunoAI sorts segments by `start_time` and numbers them 0, 1, 2 and so on.
 
-Job statuses `COMPLETED`, `PARTIAL_FAILURE`, `FAILED`, `START_FAILED` and `CANCELLED` are final. Polling must be no more often than every 10 seconds; our cron runs every minute.
+Job statuses `COMPLETED`, `PARTIAL_FAILURE`, `FAILED`, `START_FAILED` and `CANCELLED` are final. Polling must be no more often than every 10 seconds; our cron runs every 10 seconds.
 
 **Timbre text-to-speech**
 
@@ -251,7 +251,7 @@ Fifteen Hono routes under `/api`: twelve for the page, one public Markdown page,
 | `PUT /api/checklist` | Page | Saves checks, red flags and rules in one transaction, through the `save_checklist` Postgres function called with `.rpc()`; it locks the checklist tables so two saves run one after another, and answers 409 `checklist_changed` when the `version` sent is no longer the latest, so a save from an out-of-date page never overwrites a newer one. Answers 403 `not_allowed` to visitors |
 | `GET /api/checklist.md` | Anyone, at `/checklist.md` | The live checklist as Markdown for AI assistants, without a session; `app/checklist.md/route.ts` passes `/checklist.md` and its query string to it, a request with a query string is redirected (301) to the bare path, and the CDN caches it for 5 minutes |
 | `POST /api/webhooks/gnani` | Gnani | Checks the token, then finishes the call (save transcript, analyse) |
-| `POST /api/jobs/poll` | Supabase Cron | Checks `CRON_SECRET` and sets calls in Analysing for over 5 minutes to Failed ("Analysis failed."), since their function was stopped. Then it asks Gnani about calls in Transcribing for over a minute, fewest busy answers first and then oldest, and finishes the first one that is done; the rest wait for the next run. It also stops at the first 429 or 5xx from Gnani, so the calls after it don't use up their attempts, and the busy call moves behind them for the next run |
+| `POST /api/jobs/poll` | Supabase Cron | Checks `CRON_SECRET` and sets calls in Analysing for over 5 minutes to Failed ("Analysis failed."), since their function was stopped. Then it asks Gnani about calls in Transcribing for over 10 seconds, fewest busy answers first and then oldest, and finishes the first one that is done; the rest wait for the next run. It also stops at the first 429 or 5xx from Gnani, so the calls after it don't use up their attempts, and the busy call moves behind them for the next run |
 
 - **Server-only code:** everything under `server/` (the Hono app, the Gnani and LLM wrappers, the prompt) starts with `import 'server-only'`, so a client component that imports it fails the build; Vitest resolves the `react-server` condition so tests can load it. `lib/` holds only code the browser may import.
 - **Mounting:** the Hono app lives in `server/app.ts` with `basePath('/api')`, and `app/api/[[...route]]/route.ts` exports `GET`, `POST`, `PUT` and `DELETE` from `handle(app)` in `@hono/vercel`. It runs on the Node.js runtime (the only runtime Cache Components allows, so the route sets no `runtime`) with `maxDuration` set to 300 seconds, the Hobby plan's maximum with Fluid compute, so the analysis step has time.
@@ -341,7 +341,7 @@ The MVP accepts calls up to 50 MB and 30 minutes, and every failure ends in a cl
 | File size | 50 MB | Supabase Storage upload limit; Gnani reads by URL, so its 10 MB upload cap doesn't apply |
 | Call length | 30 minutes | Gnani allows 4 hours, but its call analytics guide advises splitting calls over 30 minutes before LLM analysis |
 | File types | WAV, MP3, MP4, FLAC, OGG, OPUS, M4A, AAC, WEBM, AMR | Gnani Batch |
-| Polling | No more than every 10 seconds | Gnani; our cron runs every minute |
+| Polling | No more than every 10 seconds | Gnani; our cron runs every 10 seconds |
 | Transcript link | Expires after 1 hour | Gnani; saved immediately |
 | Request time | 300 seconds | Vercel Hobby maximum with Fluid compute; our `maxDuration` |
 
@@ -351,7 +351,7 @@ The browser reads the length from the file before upload and blocks files over 3
 | --- | --- | --- |
 | Upload fails | "Upload failed. Check your connection and try again." | Call stays Uploaded and can be retried |
 | Gnani rejects the file | "Gnani couldn't read this file. Try an MP3 or WAV." | Status Failed (`file_rejected`); Gnani's reason is saved in `error` for us, never shown |
-| Gnani busy (429), down (5xx), or no answer (connection dropped, cut off, or nothing within the 20-second limit on each Gnani request) | Still Transcribing | `gnani_attempts` goes up by 1 and the next cron run retries; at 30 the call is Failed (`gnani_failed`). Gnani answers 429, with no `Retry-After`, to a request sent within about a second of the previous one, so every Gnani request that gets a 429 is sent once more after a second before it counts as busy. A lone call is Failed after about 30 minutes of busy answers or no answer; during a Gnani outage the queued calls take turns, so each of N calls takes about 30×N minutes |
+| Gnani busy (429), down (5xx), or no answer (connection dropped, cut off, or nothing within the 20-second limit on each Gnani request) | Still Transcribing | `gnani_attempts` goes up by 1 and the next cron run retries; at 180 the call is Failed (`gnani_failed`). Gnani answers 429, with no `Retry-After`, to a request sent within about a second of the previous one, so every Gnani request that gets a 429 is sent once more after a second before it counts as busy. A lone call is Failed after about 30 minutes of busy answers or no answer; during a Gnani outage the queued calls take turns, so each of N calls takes about 30×N minutes |
 | Gnani or the transcript link answers another error, Gnani's answer isn't in the expected shape, or the transcript isn't JSON | "Gnani couldn't transcribe this call. The problem is on Gnani's side, so try again in a few minutes." | Status Failed (`gnani_failed`), so the call doesn't hold up the cron job's queue |
 | The transcript isn't in the expected shape, or saving it fails | "Couldn't save the transcript. Upload the call again." | Status Failed (`transcription_failed`) |
 | Job ends in `FAILED`, `START_FAILED`, `PARTIAL_FAILURE` or `CANCELLED`, or finishes without a transcript | "Gnani couldn't transcribe this call. The problem is on Gnani's side, so try again in a few minutes." | Status Failed (`gnani_failed`); Gnani's reason is saved in `error` for us, never shown |
@@ -387,8 +387,8 @@ One Vercel project serves the page and the API; one Supabase project holds the d
 
 - **Vercel:** connected to the GitHub repository. Every branch gets a preview URL; `main` deploys to production. Previews have the same variables as production and sit behind Vercel's login, so a preview call's webhook goes to production, which finishes it in the shared database.
 - **Supabase:** migrations and the seed run with the Supabase CLI, linked to the dev project. Because it is also production, it only ever gets `supabase db push`, and only once a migration's PR merges, so each migration must work with the code already on `main`. `supabase db reset` is used only on the test project, by `pnpm db:reset:test`. The first migration creates the two private buckets. Auth settings and the 50 MB Storage limit live in `supabase/config.toml` and reach a cloud project with `supabase config push`.
-- **Cron:** a migration turns on `pg_cron` and `pg_net` and schedules a job that runs every minute and calls `<app_url>/api/jobs/poll` with the `x-cron-secret` header, with a 10-second timeout, and a daily job that deletes `cron.job_run_details` rows older than 7 days. The poll job reads `app_url` and `cron_secret` from Supabase Vault, so the test project, which has neither, sends nothing. `app_url` is the same production domain as `APP_URL`, never a deployment URL, which Vercel's login protects, and `cron_secret` is the same value as `CRON_SECRET`; change both places together.
-- **Local development:** Gnani can't reach `localhost`, so the webhook doesn't fire locally. Under `pnpm dev`, production's cron job finishes local calls with `main`'s code. A branch's code or migration runs under `pnpm dev:test`, on the test project, where nothing polls: call the local `/api/jobs/poll` by hand once a call has been in Transcribing for over a minute, or open a tunnel to test the webhook.
+- **Cron:** a migration turns on `pg_cron` and `pg_net` and schedules a job that runs every 10 seconds and calls `<app_url>/api/jobs/poll` with the `x-cron-secret` header, with a 10-second timeout, and a daily job that deletes `cron.job_run_details` rows older than 7 days. The poll job reads `app_url` and `cron_secret` from Supabase Vault, so the test project, which has neither, sends nothing. `app_url` is the same production domain as `APP_URL`, never a deployment URL, which Vercel's login protects, and `cron_secret` is the same value as `CRON_SECRET`; change both places together.
+- **Local development:** Gnani can't reach `localhost`, so the webhook doesn't fire locally. Under `pnpm dev`, production's cron job finishes local calls with `main`'s code. A branch's code or migration runs under `pnpm dev:test`, on the test project, where nothing polls: call the local `/api/jobs/poll` by hand once a call has been in Transcribing for over 10 seconds, or open a tunnel to test the webhook.
 
 | Variable | Available to | Used for |
 | --- | --- | --- |
