@@ -20,6 +20,7 @@ export type FakeJob = {
   cancel_reason?: string;
   statusAnswer?: number;
   unreachable?: boolean;
+  stalled?: boolean;
   malformed?: boolean;
   malformedFiles?: boolean;
   busyOnce?: boolean;
@@ -47,7 +48,13 @@ export function stubGnani() {
     return Response.json(body, { status });
   }
 
-  function jobResponse(jobId: string, rest: string) {
+  function stall(signal: AbortSignal) {
+    return new Promise<Response>((_, reject) => {
+      signal.addEventListener('abort', () => reject(signal.reason));
+    });
+  }
+
+  function jobResponse(jobId: string, rest: string, signal: AbortSignal) {
     const job = jobs.get(jobId);
     if (!job) return Response.json({ error: 'JOB_NOT_FOUND' }, { status: 404 });
 
@@ -82,6 +89,7 @@ export function stubGnani() {
       return Response.json({ error: 'STUBBED' }, { status: job.statusAnswer });
     }
     if (job.unreachable) throw new TypeError('fetch failed');
+    if (job.stalled) return stall(signal);
     if (job.malformed) return Response.json({ job_id: jobId });
     return Response.json({
       job_id: jobId,
@@ -144,7 +152,7 @@ export function stubGnani() {
       return response;
     }
     const match = url.match(/\/stt\/v3\/batch\/jobs\/([^/?]+)(\/[a-z]+)?/);
-    if (match) return jobResponse(match[1], match[2] ?? '');
+    if (match) return jobResponse(match[1], match[2] ?? '', request.signal);
 
     return Response.json({ error: 'UNKNOWN_ROUTE' }, { status: 404 });
   };

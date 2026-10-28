@@ -12,6 +12,7 @@ import {
 } from 'vitest';
 import type { TablesInsert } from '@/lib/database.types';
 import { app } from './app';
+import { GNANI_REQUEST_MS } from './gnani';
 import { createAdminClient } from './supabase';
 import { flushAfter } from './test/after';
 import {
@@ -435,25 +436,19 @@ describe('each failure in the TRD table', () => {
     expect(await finishByWebhook(call.jobId)).toEqual(['ready']);
   });
 
-  it.each([429, 503])(
-    'keeps the call Transcribing for the next run when Gnani answers %i',
-    async (status) => {
-      const call = await transcribingCall({
-        status: 'IN_PROGRESS',
-        statusAnswer: status,
-        files: [],
-      });
-
-      expect(await finishByWebhook(call.jobId)).toEqual(['gnani_busy']);
-
-      expect((await readCall(call.id)).call).toMatchObject({
-        status: 'transcribing',
-        gnani_attempts: 1,
-      });
-    },
-  );
-
   it.each<[string, FakeJob]>([
+    [
+      'Gnani answers 429',
+      { status: 'IN_PROGRESS', statusAnswer: 429, files: [] },
+    ],
+    [
+      'Gnani answers 503',
+      { status: 'IN_PROGRESS', statusAnswer: 503, files: [] },
+    ],
+    [
+      'Gnani rate-limits the files of a finished job',
+      { ...completedJob(), filesAnswer: 429 },
+    ],
     [
       'Gnani does not answer',
       { status: 'IN_PROGRESS', unreachable: true, files: [] },
@@ -495,6 +490,25 @@ describe('each failure in the TRD table', () => {
     });
   });
 
+  it('gives up on a Gnani request that stalls without waiting for the run deadline', async () => {
+    const timeout = AbortSignal.timeout.bind(AbortSignal);
+    vi.spyOn(AbortSignal, 'timeout').mockImplementation((ms) =>
+      timeout(ms === GNANI_REQUEST_MS ? 50 : ms),
+    );
+    const call = await transcribingCall({
+      status: 'IN_PROGRESS',
+      stalled: true,
+      files: [],
+    });
+
+    expect(await finishByWebhook(call.jobId)).toEqual(['gnani_busy']);
+
+    expect((await readCall(call.id)).call).toMatchObject({
+      status: 'transcribing',
+      gnani_attempts: 1,
+    });
+  });
+
   it('finishes the call when Gnani answers 429 once and then answers', async () => {
     const call = await transcribingCall({ ...completedJob(), busyOnce: true });
 
@@ -503,20 +517,6 @@ describe('each failure in the TRD table', () => {
     expect((await readCall(call.id)).call).toMatchObject({
       status: 'ready',
       gnani_attempts: 0,
-    });
-  });
-
-  it('keeps a finished call Transcribing when Gnani rate-limits its files', async () => {
-    const call = await transcribingCall({
-      ...completedJob(),
-      filesAnswer: 429,
-    });
-
-    expect(await finishByWebhook(call.jobId)).toEqual(['gnani_busy']);
-
-    expect((await readCall(call.id)).call).toMatchObject({
-      status: 'transcribing',
-      gnani_attempts: 1,
     });
   });
 

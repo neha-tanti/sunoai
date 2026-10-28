@@ -22,9 +22,17 @@ export class GnaniError extends Error {
   }
 }
 
-async function reach(url: string, init: RequestInit, what: string) {
+async function reach(
+  url: string,
+  init: RequestInit & { signal: AbortSignal },
+  what: string,
+) {
+  const signal = AbortSignal.any([
+    init.signal,
+    AbortSignal.timeout(GNANI_REQUEST_MS),
+  ]);
   try {
-    return await fetch(url, init);
+    return await fetch(url, { ...init, signal });
   } catch (err) {
     throw new GnaniError(null, `${what} got no answer`, { cause: err });
   }
