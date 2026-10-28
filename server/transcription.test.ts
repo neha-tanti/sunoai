@@ -297,7 +297,7 @@ describe('each failure in the TRD table', () => {
         cancel_reason: 'All provided paths were invalid',
         files: [],
       },
-      'transcription_failed',
+      'gnani_failed',
     ],
     [
       'the job fails',
@@ -305,7 +305,7 @@ describe('each failure in the TRD table', () => {
         status: 'FAILED',
         files: [{ status: 'FAILED', error_message: 'Decoder error' }],
       },
-      'transcription_failed',
+      'gnani_failed',
     ],
     [
       'the job partly fails',
@@ -313,12 +313,12 @@ describe('each failure in the TRD table', () => {
         status: 'PARTIAL_FAILURE',
         files: [{ status: 'FAILED', error_message: 'Decoder error' }],
       },
-      'transcription_failed',
+      'gnani_failed',
     ],
     [
       'the job is cancelled',
       { status: 'CANCELLED', files: [] },
-      'transcription_failed',
+      'gnani_failed',
     ],
     [
       'the file has no speech',
@@ -355,7 +355,7 @@ describe('each failure in the TRD table', () => {
           },
         ],
       },
-      'transcription_failed',
+      'gnani_failed',
     ],
     [
       'the transcript is not in the expected shape',
@@ -365,7 +365,7 @@ describe('each failure in the TRD table', () => {
     [
       'Gnani finishes without a transcript',
       { status: 'COMPLETED', files: [] },
-      'transcription_failed',
+      'gnani_failed',
     ],
   ])('%s → Failed (%s)', async (_, job, errorCode) => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -392,7 +392,7 @@ describe('each failure in the TRD table', () => {
     const { call: saved } = await readCall(call.id);
     expect(saved).toMatchObject({
       status: 'failed',
-      error_code: 'transcription_failed',
+      error_code: 'gnani_failed',
     });
     expect(saved?.error).not.toContain(transcriptText);
     expect(consoleError).toHaveBeenCalled();
@@ -473,7 +473,7 @@ describe('each failure in the TRD table', () => {
     });
     expect((await readCall(thirtieth.id)).call).toMatchObject({
       status: 'failed',
-      error_code: 'transcription_failed',
+      error_code: 'gnani_failed',
     });
   });
 
@@ -485,7 +485,7 @@ describe('each failure in the TRD table', () => {
 
     expect(await finishByWebhook(call.jobId)).toEqual(['failed']);
     expect((await readCall(call.id)).call).toMatchObject({
-      error_code: 'transcription_failed',
+      error_code: 'gnani_failed',
     });
   });
 });

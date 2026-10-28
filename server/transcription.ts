@@ -54,7 +54,7 @@ async function finish(
   if (!FINAL_JOB_STATUSES.includes(job.status)) {
     if (!isOverdue(call)) return 'pending';
     return fail(call.id, {
-      code: 'transcription_failed',
+      code: 'gnani_failed',
       reason: `Gnani job still ${job.status} after 2 hours`,
     });
   }
@@ -68,7 +68,7 @@ async function finish(
   )?.transcript_url;
   if (!transcriptUrl) {
     return fail(call.id, {
-      code: 'transcription_failed',
+      code: 'gnani_failed',
       reason: 'Gnani finished without a transcript',
     });
   }
@@ -122,7 +122,7 @@ function jobFailure(
   if (job.status === 'COMPLETED') return null;
 
   return {
-    code: 'transcription_failed',
+    code: 'gnani_failed',
     reason:
       job.cancel_reason ?? failedMessage ?? `Gnani job ended ${job.status}`,
   };
@@ -143,7 +143,7 @@ async function handleError(
       `Finishing the transcription of call ${call.id} failed: ${loggableError(err)}`,
     );
     return fail(call.id, {
-      code: 'transcription_failed',
+      code: err instanceof GnaniError ? 'gnani_failed' : 'transcription_failed',
       reason:
         err instanceof Error ? err.message : 'Saving the transcript failed',
     });
@@ -152,7 +152,7 @@ async function handleError(
   const attempts = call.gnani_attempts + 1;
   if (attempts >= MAX_GNANI_ATTEMPTS) {
     return fail(call.id, {
-      code: 'transcription_failed',
+      code: 'gnani_failed',
       reason: `Gnani answered ${err.status} ${attempts} times`,
     });
   }

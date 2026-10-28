@@ -297,6 +297,7 @@ export type Database = {
         | "no_speech"
         | "too_long"
         | "analysis_failed"
+        | "gnani_failed"
       call_status:
         | "uploaded"
         | "transcribing"
@@ -437,6 +438,7 @@ export const Constants = {
         "no_speech",
         "too_long",
         "analysis_failed",
+        "gnani_failed",
       ],
       call_status: ["uploaded", "transcribing", "analyzing", "ready", "failed"],
       mood: ["calm", "annoyed", "angry"],
