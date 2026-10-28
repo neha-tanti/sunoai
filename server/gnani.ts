@@ -13,11 +13,20 @@ type GnaniRequest = { method?: 'GET' | 'POST'; body?: unknown };
 
 export class GnaniError extends Error {
   constructor(
-    readonly status: number,
+    readonly status: number | null,
     message: string,
+    options?: ErrorOptions,
   ) {
-    super(message);
+    super(message, options);
     this.name = 'GnaniError';
+  }
+}
+
+async function reach(url: string, init: RequestInit, what: string) {
+  try {
+    return await fetch(url, init);
+  } catch (err) {
+    throw new GnaniError(null, `${what} got no answer`, { cause: err });
   }
 }
 
@@ -36,20 +45,24 @@ async function send(
   { method = 'GET', body }: GnaniRequest = {},
 ): Promise<Response> {
   const request = () =>
-    fetch(`${GNANI_URL}${path}`, {
-      method,
-      headers: {
-        'X-API-Key-ID': requireEnv('GNANI_API_KEY'),
-        ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+    reach(
+      `${GNANI_URL}${path}`,
+      {
+        method,
+        headers: {
+          'X-API-Key-ID': requireEnv('GNANI_API_KEY'),
+          ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+        },
+        body: body === undefined ? undefined : JSON.stringify(body),
+        signal,
       },
-      body: body === undefined ? undefined : JSON.stringify(body),
-      signal,
-    });
+      `Gnani ${method} ${path}`,
+    );
   let res = await request();
   // Gnani answers 429 to a request sent within about a second of the previous one.
   if (res.status === 429) {
     await res.body?.cancel();
-    await sleep(BURST_RETRY_MS, undefined, { signal });
+    await sleep(BURST_RETRY_MS);
     res = await request();
   }
   if (!res.ok) {
@@ -61,12 +74,22 @@ async function send(
   return res;
 }
 
-async function gnani(
+async function gnani<Schema extends z.ZodType>(
   path: string,
   signal: AbortSignal,
+  schema: Schema,
   request: GnaniRequest = {},
-): Promise<unknown> {
-  return readJson(await send(path, signal, request), `Gnani ${path}`);
+): Promise<z.output<Schema>> {
+  const res = await send(path, signal, request);
+  const parsed = schema.safeParse(await readJson(res, `Gnani ${path}`));
+  if (!parsed.success) {
+    throw new GnaniError(
+      res.status,
+      `Gnani ${path} answered in an unexpected shape`,
+      { cause: parsed.error },
+    );
+  }
+  return parsed.data;
 }
 
 export async function createJob(
@@ -78,7 +101,7 @@ export async function createJob(
   },
   signal: AbortSignal,
 ): Promise<string> {
-  const body = await gnani(JOBS, signal, {
+  const body = await gnani(JOBS, signal, z.object({ job_id: z.string() }), {
     method: 'POST',
     body: {
       config: {
@@ -98,16 +121,20 @@ export async function createJob(
       callback_url: options.callbackUrl,
     },
   });
-  return z.object({ job_id: z.string() }).parse(body).job_id;
+  return body.job_id;
 }
 
 export async function startJob(jobId: string, signal: AbortSignal) {
-  await gnani(`${JOBS}/${jobId}/start`, signal, { method: 'POST' });
+  await gnani(`${JOBS}/${jobId}/start`, signal, z.unknown(), {
+    method: 'POST',
+  });
 }
 
 export async function cancelJob(jobId: string, signal: AbortSignal) {
   try {
-    await gnani(`${JOBS}/${jobId}/cancel`, signal, { method: 'POST' });
+    await gnani(`${JOBS}/${jobId}/cancel`, signal, z.unknown(), {
+      method: 'POST',
+    });
   } catch (err) {
     const alreadyGone =
       err instanceof GnaniError && (err.status === 404 || err.status === 409);
@@ -129,7 +156,7 @@ const jobSchema = z.object({
 });
 
 export async function getJob(jobId: string, signal: AbortSignal) {
-  return jobSchema.parse(await gnani(`${JOBS}/${jobId}`, signal));
+  return gnani(`${JOBS}/${jobId}`, signal, jobSchema);
 }
 
 const filesSchema = z.object({
@@ -143,7 +170,7 @@ const filesSchema = z.object({
 });
 
 export async function listFiles(jobId: string, signal: AbortSignal) {
-  return filesSchema.parse(await gnani(`${JOBS}/${jobId}/files`, signal)).data;
+  return (await gnani(`${JOBS}/${jobId}/files`, signal, filesSchema)).data;
 }
 
 const transcriptSchema = z.object({
@@ -181,7 +208,7 @@ export function parseGnaniTranscript(json: unknown) {
 }
 
 export async function downloadTranscript(url: string, signal: AbortSignal) {
-  const res = await fetch(url, { signal });
+  const res = await reach(url, { signal }, 'Transcript download');
   if (!res.ok) {
     throw new GnaniError(
       res.status,

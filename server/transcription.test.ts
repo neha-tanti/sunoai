@@ -363,8 +363,34 @@ describe('each failure in the TRD table', () => {
       'transcription_failed',
     ],
     [
+      'saving the transcript fails',
+      completedJob({
+        ...hinglishTranscript(),
+        // Postgres rejects a NUL character in jsonb, so save_transcript fails.
+        segments: [
+          {
+            start_time: 0,
+            end_time: 4.2,
+            speaker_id: 1,
+            text: 'Haan ji\u0000',
+          },
+        ],
+      }),
+      'transcription_failed',
+    ],
+    [
       'Gnani finishes without a transcript',
       { status: 'COMPLETED', files: [] },
+      'gnani_failed',
+    ],
+    [
+      'Gnani does not answer',
+      { status: 'IN_PROGRESS', unreachable: true, files: [] },
+      'gnani_failed',
+    ],
+    [
+      "Gnani's job answer is not in the expected shape",
+      { status: 'COMPLETED', malformed: true, files: [] },
       'gnani_failed',
     ],
   ])('%s → Failed (%s)', async (_, job, errorCode) => {

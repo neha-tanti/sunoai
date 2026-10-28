@@ -18,6 +18,8 @@ export type FakeJob = {
   status: string;
   cancel_reason?: string;
   statusAnswer?: number;
+  unreachable?: boolean;
+  malformed?: boolean;
   busyOnce?: boolean;
   filesAnswer?: number;
   files: FakeFile[];
@@ -76,6 +78,8 @@ export function stubGnani() {
     if (job.statusAnswer) {
       return Response.json({ error: 'STUBBED' }, { status: job.statusAnswer });
     }
+    if (job.unreachable) throw new TypeError('fetch failed');
+    if (job.malformed) return Response.json({ job_id: jobId });
     return Response.json({
       job_id: jobId,
       status: job.status,

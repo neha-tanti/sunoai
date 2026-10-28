@@ -136,17 +136,19 @@ async function handleError(
   call: TranscribingCall,
   err: unknown,
 ): Promise<FinishOutcome> {
-  const gnaniBusy =
-    err instanceof GnaniError && (err.status === 429 || err.status >= 500);
-  if (!gnaniBusy) {
-    console.error(
-      `Finishing the transcription of call ${call.id} failed: ${loggableError(err)}`,
-    );
+  if (!(err instanceof GnaniError)) {
+    logFailure(call, err);
     return fail(call.id, {
-      code: err instanceof GnaniError ? 'gnani_failed' : 'transcription_failed',
+      code: 'transcription_failed',
       reason:
         err instanceof Error ? err.message : 'Saving the transcript failed',
     });
+  }
+
+  const busy = err.status !== null && (err.status === 429 || err.status >= 500);
+  if (!busy) {
+    logFailure(call, err);
+    return fail(call.id, { code: 'gnani_failed', reason: err.message });
   }
 
   const attempts = call.gnani_attempts + 1;
@@ -165,4 +167,10 @@ async function handleError(
     .eq('gnani_attempts', call.gnani_attempts);
   if (updated.error) throw updated.error;
   return 'gnani_busy';
+}
+
+function logFailure(call: TranscribingCall, err: unknown) {
+  console.error(
+    `Finishing the transcription of call ${call.id} failed: ${loggableError(err)}`,
+  );
 }
