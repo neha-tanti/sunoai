@@ -69,11 +69,15 @@ export function buildReport(input: {
   const knownFlags = answer.red_flags.filter((flag) =>
     flagIds.has(flag.flag_id),
   );
-  const redFlags = knownFlags.flatMap((flag) => {
+  const quotedFlags = knownFlags.flatMap((flag) => {
     const evidence = evidenceFor(flag.segment_id, flag.quote);
     if (!evidence) return [];
     return [{ flag_id: flag.flag_id, ...evidence, note: flag.note }];
   });
+  const redFlags = quotedFlags.filter(
+    (flag, index) =>
+      quotedFlags.findIndex((f) => f.flag_id === flag.flag_id) === index,
+  );
 
   const customerSegments = segments.filter(
     (s) => roleOf.get(s.speaker_id) === 'customer',
@@ -124,7 +128,7 @@ export function buildReport(input: {
         (c) =>
           c.result === 'miss' && answers.get(c.check_id)?.result === 'pass',
       ).length,
-      red_flags: knownFlags.length - redFlags.length,
+      red_flags: knownFlags.length - quotedFlags.length,
       coaching: coaching.dropped,
     },
   };

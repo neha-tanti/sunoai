@@ -448,6 +448,25 @@ describe('buildReport', () => {
       },
     );
 
+    it('keeps the first quoted flag for a flag id given twice', () => {
+      const repeated = answer().red_flags[0];
+      const { report, rejected } = build({
+        red_flags: [
+          { ...repeated, segment_id: 2, quote: 'insaan se baat' },
+          repeated,
+          { ...repeated, segment_id: 3, quote: 'insaan se baat karni hai' },
+        ],
+      });
+
+      expect(report.red_flags).toEqual([
+        expect.objectContaining({
+          flag_id: 'human_not_transferred',
+          segment_id: 4,
+        }),
+      ]);
+      expect(rejected.red_flags).toBe(1);
+    });
+
     it('drops unknown flag ids', () => {
       const { report } = build({
         red_flags: [

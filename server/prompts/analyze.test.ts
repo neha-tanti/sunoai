@@ -66,14 +66,11 @@ describe('llmAnswerSchema', () => {
     expect(llmAnswerSchema.safeParse(lateOrderAnswer).success).toBe(true);
   });
 
-  it('rejects an answer without coaching or with null coaching', () => {
-    const withoutCoaching: Record<string, unknown> = { ...lateOrderAnswer };
-    delete withoutCoaching.coaching;
-
-    expect(llmAnswerSchema.safeParse(withoutCoaching).success).toBe(false);
-    expect(
-      llmAnswerSchema.safeParse({ ...lateOrderAnswer, coaching: null }).success,
-    ).toBe(false);
+  it.each([
+    ['without coaching', { ...lateOrderAnswer, coaching: undefined }],
+    ['with null coaching', { ...lateOrderAnswer, coaching: null }],
+  ])('rejects an answer %s', (_, answer) => {
+    expect(llmAnswerSchema.safeParse(answer).success).toBe(false);
   });
 
   it('rejects a mood outside calm, annoyed and angry', () => {

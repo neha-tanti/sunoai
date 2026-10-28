@@ -30,7 +30,7 @@ export const LINES = toLines([
   ['ai_agent', 'Thank you for calling TiffinGo. Have a nice day.'],
 ]);
 
-// Written down before the first run (testing.md); the red flag lines were corrected in #48.
+// Written down before the first run (testing.md).
 export const EXPECTED = {
   score: '0/5',
   needs_review: true,
