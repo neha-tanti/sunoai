@@ -1187,6 +1187,7 @@ describe('POST /api/calls/:id/check', () => {
       config: {
         model: 'prisma-v3.0',
         language_code: 'hi-IN,en-IN',
+        format: 'transcribe',
         with_diarization: true,
         num_speakers: 3,
         is_multi_channel: false,

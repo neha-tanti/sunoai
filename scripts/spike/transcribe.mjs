@@ -19,9 +19,10 @@ const MAX_WAIT_MS = 15 * 60_000;
 
 async function startJob() {
   const config = {
-    model: 'gnani-prisma-v2.5',
+    model: 'prisma-v3.0',
     language_code: 'hi-IN,en-IN',
     mode: 'transcribe',
+    format: 'transcribe',
     with_diarization: true,
     num_speakers: 3,
     is_multi_channel: false,

@@ -118,6 +118,7 @@ export async function createJob(
         model: 'prisma-v3.0',
         language_code: options.callLangs.join(','),
         mode: 'transcribe',
+        format: 'transcribe',
         with_diarization: true,
         num_speakers: 3,
         is_multi_channel: false,

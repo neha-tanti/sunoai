@@ -97,7 +97,7 @@ Each step moves the status forward only from the status it expects, with a condi
 
 ## Gnani integration
 
-SunoAI uses two Gnani APIs: Batch speech-to-text for every call and Timbre text-to-speech for coaching. Gnani has no JavaScript SDK, so a small typed `fetch` wrapper (`server/gnani.ts`) calls them from Hono. All calls go to `https://api.vachana.ai` with the key in the `X-API-Key-ID` header. Details are from the [Batch STT](https://docs.gnani.ai/api/STT/stt-batch), [create job](https://docs.gnani.ai/api/STT/batch/create-job) and [quick start](https://docs.gnani.ai/api/introduction/quick-start) pages, checked 9 October 2026.
+SunoAI uses two Gnani APIs: Batch speech-to-text for every call and Timbre text-to-speech for coaching. Gnani has no JavaScript SDK, so a small typed `fetch` wrapper (`server/gnani.ts`) calls them from Hono. All calls go to `https://api.vachana.ai` with the key in the `X-API-Key-ID` header. Details are from the [Batch STT](https://docs.gnani.ai/api/STT/stt-batch), [create job](https://docs.gnani.ai/api/STT/batch/create-job) and [quick start](https://docs.gnani.ai/api/introduction/quick-start) pages, checked 28 October 2026.
 
 **Batch speech-to-text**
 
@@ -114,15 +114,16 @@ We use Batch rather than the REST endpoint because REST returns only plain text,
 | Setting | Value | Why |
 | --- | --- | --- |
 | `model` | `prisma-v3.0` | Gnani failed every `gnani-prisma-v2.5` job from 2026-10-28 (#53) |
-| `language_code` | Up to 3 codes, comma-separated | Gnani picks one per file; v3.0 takes up to 4 and ignores the order |
-| `with_diarization` | `true` | Speaker labels |
+| `language_code` | Up to 3 codes, comma-separated | Gnani identifies the language of each segment, listening for the listed codes first; it takes up to 4 and ignores the order |
+| `format` | `transcribe` | English words in Latin script and numbers as digits, whatever languages are picked; left out, v3.0 writes English in the native script and numbers as words when a language other than Hindi or English is picked |
+| `with_diarization` | `true` | v3.0 labels speakers either way; with this on, a diarization failure fails the file instead of returning it unlabelled |
 | `num_speakers` | `3` | AI agent, human agent and customer (an upper limit) |
 | `with_denoise` | A toggle on the upload screen, default on | Noisy phone audio; on the spike's 65-second call it added 3.6 seconds, about 6% of the call's length, to processing |
 | `is_multi_channel` | `false` | Turn on only for true stereo call recordings |
 | `source` | `{"type":"cloud_storage","auth":{"mode":"public"},"paths":["<signed URL>"]}` | Gnani reads the file from Supabase, so there is no 10 MB upload limit |
 | `callback_url` | `https://<app>/api/webhooks/gnani?token=<secret>` | Webhook for terminal job events |
 
-The transcript gives `full_transcript`, `language_code`, `duration_seconds`, and `segments`, each with `segment_id`, `start_time`, `end_time`, `text` and `speaker_id`. Segments also have `sentiment` and `emotion` fields, but Gnani's examples leave them empty, so SunoAI doesn't use them. Batch returns numbers as spoken words (no number formatting), so order IDs and amounts can appear as words. Gnani's examples give every segment the same `segment_id`, so SunoAI sorts segments by `start_time` and numbers them 0, 1, 2 and so on.
+The transcript gives `full_transcript`, `language_code`, `duration_seconds`, and `segments`, each with `segment_id`, `start_time`, `end_time`, `text` and `speaker_id`. Segments also have `language_detected`, which v3.0 fills on every segment with text, and `sentiment` and `emotion`, which Gnani's examples leave empty; SunoAI uses none of them. With `format: transcribe`, order IDs and amounts come back as digits ("FD4572") and English words stay in Latin script inside Devanagari lines. Gnani's examples give every segment the same `segment_id`, so SunoAI sorts segments by `start_time` and numbers them 0, 1, 2 and so on.
 
 Job statuses `COMPLETED`, `PARTIAL_FAILURE`, `FAILED`, `START_FAILED` and `CANCELLED` are final. Polling must be no more often than every 10 seconds; our cron runs every minute.
 
@@ -417,9 +418,9 @@ The biggest unknowns are how well Gnani separates an AI voice from a human one, 
 
 **To confirm on Gnani's Discord**
 
-- [ ] Does Batch support Gujarati and Punjabi? The docs say both yes and no.
-- [ ] Does Batch support word boosting (`bias_list`)? The docs conflict.
-- [ ] Will the `sentiment` and `emotion` segment fields be filled in?
+- [x] Does Batch support Gujarati and Punjabi? Yes on v3.0: the create job page lists `gu-IN` and `pa-IN`.
+- [x] Does Batch support word boosting (`bias_list`)? Yes on v3.0, as `keyterms` (up to 200); `bias_list` is its older name.
+- [x] Will the `sentiment` and `emotion` segment fields be filled in? Not yet: v3.0 returns the same document, and Gnani's examples leave both empty.
 - [ ] How many credits does a minute of Batch audio use, with and without noise removal? The #13 spike didn't record credits per job.
 - [ ] What are the rate limits for Batch jobs and Timbre? The #13 spike saw the job files endpoint answer 429 for a few minutes after two jobs finished together.
 - [ ] Can webhook calls be signed?
