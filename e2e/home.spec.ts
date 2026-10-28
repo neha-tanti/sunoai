@@ -74,6 +74,24 @@ test('a signed-out visitor to a report link is offered that report', async ({
   await expect(
     page.getByRole('button', { name: 'Open the report' }),
   ).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Upload a call' })).toHaveCount(
+    0,
+  );
+});
+
+test('the homepage fits a phone screen without scrolling sideways', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+
+  await expect(
+    page.getByRole('button', { name: 'Upload a call' }),
+  ).toBeVisible();
+  const scrollWidth = await page.evaluate(
+    () => document.documentElement.scrollWidth,
+  );
+  expect(scrollWidth).toBeLessThanOrEqual(390);
 });
 
 test('a next link that is not a report is ignored', async ({ page }) => {
@@ -110,6 +128,9 @@ test('a page that does not exist says so and offers a way in', async ({
   await expect(
     page.getByRole('button', { name: 'Try an example call' }),
   ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: 'Upload a call' }),
+  ).toBeVisible();
 });
 
 test.describe('Try it', () => {
@@ -132,6 +153,17 @@ test.describe('Try it', () => {
     await expect(
       page.getByRole('heading', { name: 'Check a call' }),
     ).toBeVisible();
+  });
+
+  test('opens the upload form without an account', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Upload a call' }).click();
+
+    await expect(page).toHaveURL(/\/check#upload$/, { timeout: 30_000 });
+    visitorIds.push(await signedInUserId(page));
+    await expect(
+      page.getByRole('heading', { name: 'Or upload your own' }),
+    ).toBeInViewport();
   });
 
   test('opens a shared report without an account', async ({ page }) => {

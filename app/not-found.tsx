@@ -1,5 +1,5 @@
 import { SiteHeader } from '@/components/site-header';
-import { TryItButton } from '@/components/try-it-button';
+import { TryItButtons } from '@/components/try-it-button';
 
 export default function NotFound() {
   return (
@@ -15,7 +15,7 @@ export default function NotFound() {
             and see its report instead.
           </p>
         </div>
-        <TryItButton />
+        <TryItButtons className="items-start" />
       </main>
     </>
   );

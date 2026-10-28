@@ -19,6 +19,7 @@ export default function CheckPage() {
         </div>
         <ExampleCalls />
         <section
+          id="upload"
           aria-labelledby="upload-heading"
           className="flex flex-col gap-4"
         >
