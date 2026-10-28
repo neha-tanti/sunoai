@@ -1,6 +1,11 @@
 alter table public.calls drop column gnani_attempts;
 alter table public.calls add column polled_at timestamptz;
 alter table public.calls add column answered_at timestamptz;
+update public.calls
+set answered_at = coalesce(checked_at, now())
+where status = 'transcribing';
+alter table public.calls add constraint calls_answered_at_while_transcribing
+  check (status <> 'transcribing' or answered_at is not null);
 
 create function public.claim_gnani_poll(p_call_id uuid, p_gap_seconds integer)
 returns boolean

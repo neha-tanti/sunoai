@@ -190,7 +190,9 @@ describe('a call from upload to Ready', () => {
 
 describe('the webhook and the poll both finishing a call', () => {
   it('finish the call exactly once', async () => {
-    const call = await transcribingCall(completedJob());
+    const job = completedJob();
+    job.files[0].holdFor = 2;
+    const call = await transcribingCall(job);
     await backdate(call.id, 2);
     const consoleError = vi
       .spyOn(console, 'error')
@@ -214,12 +216,7 @@ describe('the webhook and the poll both finishing a call', () => {
             .filter((entry) => entry.callId === call.id)
             .map((entry) => entry.outcome),
     );
-    expect(outcomes.filter((outcome) => outcome === 'ready')).toHaveLength(1);
-    expect(
-      outcomes
-        .filter((outcome) => outcome !== 'ready')
-        .every((outcome) => outcome === 'lost_race'),
-    ).toBe(true);
+    expect(outcomes.sort()).toEqual(['lost_race', 'ready']);
     expect(consoleError).not.toHaveBeenCalled();
     expect(openRouter.requests).toHaveLength(1);
     const { call: saved, segments } = await readCall(call.id);
@@ -518,14 +515,18 @@ describe('each failure in the TRD table', () => {
   });
 
   it('records when Gnani last answered about a job still running', async () => {
+    const answeredAt = new Date(Date.now() - 5 * 60_000).toISOString();
     const call = await transcribingCall(
       { status: 'IN_PROGRESS', files: [] },
-      { answered_at: null },
+      { answered_at: answeredAt },
     );
 
     expect(await finishByWebhook(call.jobId)).toEqual(['pending']);
 
-    expect((await readCall(call.id)).call?.answered_at).not.toBeNull();
+    const { call: saved } = await readCall(call.id);
+    expect(Date.parse(saved!.answered_at!)).toBeGreaterThan(
+      Date.parse(answeredAt),
+    );
   });
 
   it('fails the call on a busy answer over 30 minutes after Gnani last answered, not before', async () => {

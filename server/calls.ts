@@ -243,13 +243,14 @@ async function startCheck(id: string, isAnonymous: boolean) {
     throw err;
   });
 
+  const now = new Date().toISOString();
   const updated = await supabase
     .from('calls')
     .update({
       status: 'transcribing',
       gnani_job_id: jobId,
-      checked_at: new Date().toISOString(),
-      answered_at: new Date().toISOString(),
+      checked_at: now,
+      answered_at: now,
     })
     .eq('id', id)
     .eq('status', 'uploaded')
