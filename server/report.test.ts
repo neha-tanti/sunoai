@@ -448,7 +448,7 @@ describe('buildReport', () => {
       },
     );
 
-    it('keeps the first quoted flag for a flag id given twice', () => {
+    it('keeps the first quoted flag for a flag id given more than once', () => {
       const repeated = answer().red_flags[0];
       const { report, rejected } = build({
         red_flags: [
