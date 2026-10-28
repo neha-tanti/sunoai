@@ -361,7 +361,7 @@ describe('buildReport', () => {
       );
     });
 
-    it('keeps the first answer for a check id given twice, so the score never exceeds the checks', () => {
+    it('keeps the first answer for a check id given more than once, so the score never exceeds the checks', () => {
       const pass = answer().checks[1];
       const { report } = build({
         checks: [pass, { ...pass, result: 'miss' }, pass],
