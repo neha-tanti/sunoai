@@ -114,7 +114,9 @@ export function stubGnani() {
     if (!fake || fake.transcript === undefined) {
       return new Response('Not found', { status: 404 });
     }
-    if (fake.holdUntilRequests) await holdUntilAllArrive(fake, fake.holdUntilRequests);
+    if (fake.holdUntilRequests) {
+      await holdUntilAllArrive(fake, fake.holdUntilRequests);
+    }
     if (fake.transcriptFailure === 'unreachable') {
       throw new TypeError('fetch failed');
     }
