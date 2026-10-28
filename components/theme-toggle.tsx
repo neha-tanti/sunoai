@@ -18,7 +18,7 @@ export function ThemeToggle() {
       aria-pressed={hydrated ? dark : undefined}
       disabled={!hydrated}
       onClick={() => setTheme(dark ? 'light' : 'dark')}
-      className="ml-auto size-10"
+      className="ml-auto"
     >
       <MoonIcon aria-hidden className="dark:hidden" />
       <SunIcon aria-hidden className="hidden dark:block" />

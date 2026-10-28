@@ -5,7 +5,7 @@ import {
   LATE_ORDER_SECONDS,
 } from '@/lib/late-order-example';
 import { formatTime } from '@/lib/format-time';
-import { MOOD_COLOR } from '@/lib/report-labels';
+import { IMAGE_PALETTE } from '@/lib/image-palette';
 import { SITE_URL } from '@/lib/site';
 
 export const alt =
@@ -26,8 +26,8 @@ export default function OpenGraphImage() {
         flexDirection: 'column',
         justifyContent: 'space-between',
         padding: 72,
-        background: '#f6f5f1',
-        color: '#1c1b19',
+        background: IMAGE_PALETTE.background,
+        color: IMAGE_PALETTE.foreground,
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
@@ -39,7 +39,7 @@ export default function OpenGraphImage() {
         <div style={{ fontSize: 76, fontWeight: 700, letterSpacing: -2 }}>
           Hear where a support call went wrong.
         </div>
-        <div style={{ fontSize: 32, color: '#67655f' }}>
+        <div style={{ fontSize: 32, color: IMAGE_PALETTE.muted }}>
           Frustration timeline, red flags, checklist score and spoken coaching
           for food delivery support calls.
         </div>
@@ -67,7 +67,7 @@ export default function OpenGraphImage() {
                 key={range.start}
                 style={{
                   width: `${((range.end - range.start) / LATE_ORDER_SECONDS) * 100}%`,
-                  background: MOOD_COLOR[range.level],
+                  background: IMAGE_PALETTE[range.level],
                 }}
               />
             ))}
@@ -88,15 +88,17 @@ export default function OpenGraphImage() {
               style={{
                 fontSize: 24,
                 fontWeight: 600,
-                color: '#9a4332',
-                background: '#fbf0ec',
+                color: IMAGE_PALETTE.coralForeground,
+                background: IMAGE_PALETTE.coral,
                 borderRadius: 8,
                 padding: '4px 12px',
               }}
             >
               {`Red flag · ${formatTime(flag.time)} · ${flag.name}`}
             </div>
-            <div style={{ width: 4, flexGrow: 1, background: '#dc7a68' }} />
+            <div
+              style={{ width: 4, flexGrow: 1, background: IMAGE_PALETTE.angry }}
+            />
           </div>
         </div>
         <div
@@ -104,11 +106,11 @@ export default function OpenGraphImage() {
             display: 'flex',
             justifyContent: 'space-between',
             fontSize: 24,
-            color: '#67655f',
+            color: IMAGE_PALETTE.muted,
           }}
         >
           <div>{new URL(SITE_URL).host}</div>
-          <div style={{ fontWeight: 600, color: '#1c1b19' }}>
+          <div style={{ fontWeight: 600, color: IMAGE_PALETTE.foreground }}>
             Powered by Gnani.ai
           </div>
         </div>

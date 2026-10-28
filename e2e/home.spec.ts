@@ -53,8 +53,10 @@ test.describe('theme switch', () => {
       await expect(page.locator('html')).toContainClass('dark');
 
       await toggle.click();
-      await page.reload();
 
+      await expect(page.locator('html')).not.toContainClass('dark');
+      await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+      await page.reload();
       await expect(toggle).toHaveAttribute('aria-pressed', 'false');
       await expect(page.locator('html')).not.toContainClass('dark');
     });

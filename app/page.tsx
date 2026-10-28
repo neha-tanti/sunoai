@@ -23,6 +23,7 @@ import {
 } from '@/lib/call-upload';
 import { exampleCall } from '@/lib/examples';
 import { formatTime } from '@/lib/format-time';
+import { PRISMA_MODEL, TIMBRE_MODEL } from '@/lib/gnani-models';
 import {
   LATE_ORDER_REPORT,
   LATE_ORDER_SECONDS,
@@ -56,8 +57,12 @@ const STEPS = [
   },
 ];
 
-const ICON_TILE =
-  'mb-2 grid size-9.5 place-items-center rounded-[11px] border [&_svg]:size-4.5';
+const TINT_CLASS = {
+  sage: 'border-sage-border bg-sage text-sage-foreground',
+  coral: 'border-coral-border bg-coral text-coral-foreground',
+  sand: 'border-sand-border bg-sand text-sand-foreground',
+  slate: 'border-slate-border bg-slate text-slate-foreground',
+};
 const SECTION_HEADING =
   'mb-10 max-w-[14em] font-serif text-4xl leading-[1.05] tracking-[-0.015em] text-balance sm:text-[52px]';
 
@@ -115,12 +120,10 @@ export default function HomePage() {
 function Hero() {
   return (
     <section className="flex flex-col items-center gap-5.5 pt-11 text-center sm:pt-18">
-      <ToneBadge
-        tone="calm"
-        className="h-auto bg-card px-3.5 py-1.5 text-[13px] font-normal whitespace-normal text-muted-foreground"
-      >
-        Built on Gnani Prisma v3.0 and Timbre v2.5
-      </ToneBadge>
+      <p className="inline-flex items-center gap-2 rounded-full border bg-card px-3.5 py-1.5 text-[13px] text-muted-foreground">
+        <span aria-hidden className="size-2 shrink-0 rounded-full bg-calm" />
+        Built on Gnani {PRISMA_MODEL.name} and {TIMBRE_MODEL.name}
+      </p>
       <h1 className="font-serif text-[46px] leading-[0.98] tracking-[-0.02em] text-balance sm:text-7xl lg:text-[92px]">
         Hear where a support call{' '}
         <em className="text-headline-muted sm:block">went wrong.</em>
@@ -199,16 +202,8 @@ function Features() {
         <FeatureCard
           name="Frustration"
           text="A timeline of calm, annoyed and angry, with the line where the customer turned."
-          icon={
-            <span
-              className={cn(
-                ICON_TILE,
-                'border-sage-border bg-sage text-sage-foreground',
-              )}
-            >
-              <ActivityIcon aria-hidden />
-            </span>
-          }
+          tint="sage"
+          icon={<ActivityIcon aria-hidden />}
         >
           <MoodBar />
           {turn && `Turned at ${formatTime(turn.time)}`}
@@ -216,16 +211,8 @@ function Features() {
         <FeatureCard
           name="Red flags"
           text="Moments a person must review, like a request for a human that the AI ignored."
-          icon={
-            <span
-              className={cn(
-                ICON_TILE,
-                'border-coral-border bg-coral text-coral-foreground',
-              )}
-            >
-              <FlagIcon aria-hidden />
-            </span>
-          }
+          tint="coral"
+          icon={<FlagIcon aria-hidden />}
         >
           <ToneBadge
             tone="angry"
@@ -237,16 +224,8 @@ function Features() {
         <FeatureCard
           name="Checklist score"
           text="Your team's checks, each passed only with a quote from the call."
-          icon={
-            <span
-              className={cn(
-                ICON_TILE,
-                'border-sand-border bg-sand text-sand-foreground',
-              )}
-            >
-              <ListChecksIcon aria-hidden />
-            </span>
-          }
+          tint="sand"
+          icon={<ListChecksIcon aria-hidden />}
         >
           <span className="text-[17px] font-semibold text-foreground tabular-nums">
             {passed}
@@ -257,16 +236,8 @@ function Features() {
         <FeatureCard
           name="Spoken coaching"
           text="Feedback for the human agent, read aloud in their language by Gnani Timbre."
-          icon={
-            <span
-              className={cn(
-                ICON_TILE,
-                'border-slate-border bg-slate text-slate-foreground',
-              )}
-            >
-              <Volume2Icon aria-hidden />
-            </span>
-          }
+          tint="slate"
+          icon={<Volume2Icon aria-hidden />}
         >
           <span
             aria-hidden
@@ -284,15 +255,23 @@ function Features() {
 type FeatureCardProps = {
   name: string;
   text: string;
+  tint: keyof typeof TINT_CLASS;
   icon: React.ReactNode;
   children: React.ReactNode;
 };
 
-function FeatureCard({ name, text, icon, children }: FeatureCardProps) {
+function FeatureCard({ name, text, tint, icon, children }: FeatureCardProps) {
   return (
     <li>
       <Card className="h-full gap-2.5 p-5.5">
-        {icon}
+        <span
+          className={cn(
+            'mb-2 grid size-9.5 place-items-center rounded-[11px] border [&_svg]:size-4.5',
+            TINT_CLASS[tint],
+          )}
+        >
+          {icon}
+        </span>
         <h3 className="text-base font-semibold">{name}</h3>
         <p className="flex-1 text-muted-foreground">{text}</p>
         <div className="mt-1.5 flex min-h-11 flex-wrap items-center gap-2.5 border-t border-dashed pt-3.5 text-[13px] text-muted-foreground">

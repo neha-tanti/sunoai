@@ -97,7 +97,7 @@ export function CheckCallForm() {
     <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
       <Alert
         role="note"
-        className="border-annoyed/60 bg-annoyed/10 text-foreground"
+        className="border-sand-border bg-sand text-foreground"
       >
         <EyeIcon className="text-sand-foreground" />
         <AlertTitle>Don&apos;t upload private calls</AlertTitle>

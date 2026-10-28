@@ -1,8 +1,5 @@
 import { cn } from '@/lib/utils';
 
-export const LOGO_TILE = '#1c1b19';
-export const LOGO_BAR = '#f6f5f1';
-
 export const LOGO_BARS = [10, 16, 12, 20, 14];
 
 export const LOGO_SIZE = 32;
