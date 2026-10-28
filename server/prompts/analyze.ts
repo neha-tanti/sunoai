@@ -4,7 +4,7 @@ import { type CoachingLanguage, HINGLISH } from '@/lib/call-upload';
 import type { Checklist } from '../checklist';
 import type { TranscriptSegment } from '../gnani';
 
-export const PROMPT_VERSION = 'analyze-v5';
+export const PROMPT_VERSION = 'analyze-v6';
 
 const MOODS = ['calm', 'annoyed', 'angry'] as const;
 export const moodSchema = z.enum(MOODS);
@@ -45,14 +45,12 @@ export const llmAnswerSchema = z.object({
       should_have: z.string(),
     }),
   ),
-  coaching: z
-    .object({
-      segment_id: z.int(),
-      quote: z.string(),
-      text: z.string(),
-      english: z.string(),
-    })
-    .nullable(),
+  coaching: z.object({
+    segment_id: z.int(),
+    quote: z.string(),
+    text: z.string(),
+    english: z.string(),
+  }),
 });
 
 export type LlmAnswer = z.infer<typeof llmAnswerSchema>;
@@ -77,20 +75,20 @@ ${JSON.stringify(ANSWER_JSON_SCHEMA)}
 Rules:
 - Speaker ids come from automatic diarization and can be wrong. Decide each speaker's role from what they say.
 - Point at lines only through the segment_id fields. Written text (reasons, notes, titles, the summary and the coaching) describes a line by what was said in it and never gives a segment number or a time.
-- Every quote is the shortest phrase that proves the point, copied character for character from the segment it cites. Keep mixed Hindi and English exactly as written: never translate, transliterate or fix a word. A quote uses the same letters as its segment: when English words are written in Devanagari ("डिलीवरी बॉय"), the quote keeps them in Devanagari.
-- Checks apply to the whole call: a check passes when either the AI agent or the human agent does it.
-- A check is "pass" only with a quote that proves it. Without one it is "miss". Use "na" only when the check does not apply.
+- Every quote (in checks, red flags and coaching) is the shortest phrase that proves the point, copied character for character from the one segment its segment_id names, never from another segment. Keep mixed Hindi and English exactly as written: never translate, transliterate or fix a word, even one that looks misheard. A quote uses the same letters as its segment: when English words are written in Devanagari ("आई कैन सी ऑर्डर" for "I can see order"), the quote keeps them in Devanagari.
+- Checks apply to the whole call: a check passes when either the AI agent or the human agent does it, even if the other agent later breaks it. A customer repeating something makes a check "miss" only when no agent had said it back correctly before; when the AI agent named the order and the problem before the handover, a human agent who makes the customer repeat it is a matter for coaching, and the check passes on the AI agent's line.
+- A check is "pass" only with a quote of an agent's own words doing what the check's rule says. Asking the customer for something, thanking them for it or acting on it does not do it: confirming something means an agent says it back, so the quote contains what was confirmed, such as the order ID. Without such a quote it is "miss". Use "na" only when the check does not apply.
 - Give one entry in "checks" for every check id, and use only the check and red flag ids listed.
-- "red_flags" lists only red flags that happened, each citing the words that raised it. Leave out any flag that did not happen; never add an entry to say a flag does not apply. Judge promises against the company rules.
-- "human_not_transferred" applies whenever the AI agent answers a request for a person with anything other than a transfer, even if it transfers later.
+- "red_flags" lists only red flags that happened, each once, citing one line: for a flag about something the customer reported or asked for, the customer's first line that reports or asks for it; for a flag about something an agent said, the agent's line that says it. Leave out any flag that did not happen; never add an entry to say a flag does not apply. Judge promises against the company rules.
+- "human_not_transferred" applies when the customer asks for a person and the AI agent's reply, its first line after that request, is not a transfer, even if it transfers later. It cites that request. When the AI agent's reply is a transfer ("connecting you to an agent"), it did not happen for that request, whatever the AI agent said or got wrong before it; earlier mistakes belong to other flags.
 - "customer_mood" has one entry for every segment spoken by the customer, judged from that segment's own words:
-  - "calm": gives details, answers a question, states the problem or how long they have waited as a plain fact, asks when the order will come, says they did what the agent asked, agrees or says thanks ("pizza thanda aaya hai", "delivery kitne baje tak hogi?", "screenshot upload kar diya").
-  - "annoyed": complains about the problem or the service: says it is too late, too much or keeps happening, says they already said it or were already told, says the same detail twice in one line, or asks for a person without saying it must be right now, even when asking again ("itna time kyun lag raha hai", "main pehle hi bata chuki hoon", "naam Riya hai. R I Y A, Riya.", "kisi aur se baat kara dijiye, please").
+  - "calm": gives details, answers a question, states the problem or how long they have waited as a plain fact, asks when the order will come, says they did what the agent asked (even in a short reply right after an angry line), agrees or says thanks ("pizza thanda aaya hai", "delivery kitne baje tak hogi?", "screenshot upload kar diya").
+  - "annoyed": complains about the problem or the service: says it is too late, too much or keeps happening, says they already said it or were already told the same thing before, says the same detail twice in one line, or asks for a person without saying it must be right now, even when asking again ("itna time kyun lag raha hai", "main pehle hi bata chuki hoon", "naam Riya hai. R I Y A, Riya.", "kisi aur se baat kara dijiye, please").
   - "angry": exclaims in shock, alarm or outrage at the problem or the agent, demands a person right now, or mocks or accuses the agent ("Ye kya bakwas hai!", "Daal mein kaanch ka tukda tha!", "Aap log sote ho kya?", "supervisor ko line pe lao, turant!"). An exclamation of pleasant surprise, thanks or relief is calm.
   - When a line fits two levels, use the higher one. Judge only the customer's words, never the topic of the call.
 - "summary" is 2 or 3 sentences in English: why the customer called, what happened and how it ended.
 - "fix_notes" are for the AI team: one per thing the AI agent got wrong.
-- "coaching" is feedback for the human agent from a senior colleague who listened to the call. Use null when there is no human agent.
+- "coaching" is feedback for the human agent from a senior colleague who listened to the call. Whenever "speakers" has a human_agent, coaching points at one of their lines and its text and english are never empty: when they made no mistake, it says what they did well and gives one small tip for their next call. Only when no speaker is a human agent, give segment_id 0 and empty quote, text and english.
 - Coaching is only about what the human agent said and did after the handover. Never mention the transfer or anything before it in coaching: the human agent did not choose when the call reached them, and the AI agent's mistakes belong in "fix_notes".
 - Choose the coaching line first. "coaching.segment_id" and "coaching.quote" point at the human agent's own line with their biggest mistake: a check their lines missed (such as asking the customer to repeat what they already told the AI agent, brushing off the customer's frustration, or ending without checking the customer is happy), otherwise a line after which the customer got more upset. Start with the human agent's first line: if it asks for the problem or the order ID the customer already gave, that is the mistake. Only when they made no mistake, point at the line a small tip for their next call builds on.
 - Something is a mistake only when the transcript and the company rules show it. Before calling something missing, check every human agent line, and before calling a promise wrong, check it against the company rules.

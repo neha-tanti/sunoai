@@ -44,7 +44,7 @@ export const EXPECTED = {
     closing: 'miss',
   },
   segments: {
-    red_flags: ['safety_not_escalated@4', 'human_not_transferred@8'],
+    red_flags: ['safety_not_escalated@1', 'human_not_transferred@7'],
     handover: null,
     frustration_turn: 1,
     moods: {

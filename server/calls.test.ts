@@ -502,7 +502,7 @@ describe('GET /api/calls/:id', () => {
     expect(body.report?.checks[0]).toMatchObject({
       check_id: 'order_confirmed',
       name: 'Order confirmed',
-      rule: 'Confirms which order the call is about',
+      rule: 'Says the order ID back to the customer to confirm which order the call is about',
     });
     for (const flag of body.report?.red_flags ?? []) {
       expect(flag.name).not.toBe(flag.flag_id);

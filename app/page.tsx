@@ -145,7 +145,6 @@ export default function HomePage() {
 function MoodStory() {
   const { ranges } = LATE_ORDER_REPORT.frustration;
   const flag = LATE_ORDER_REPORT.red_flags[0];
-  const ask = LATE_ORDER_SEGMENTS[LATE_ORDER_ASK.segment_id];
 
   return (
     <figure className="flex flex-col gap-2">
@@ -184,9 +183,8 @@ function MoodStory() {
         <q lang="hi-IN" className="text-foreground">
           {LATE_ORDER_ASK.quote}
         </q>{' '}
-        ({LATE_ORDER_ASK.translation}), at {formatTime(ask.start_time)}. At{' '}
-        {formatTime(flag.time)} the AI repeated itself instead of transferring,
-        and the customer got angry.
+        ({LATE_ORDER_ASK.translation}), at {formatTime(flag.time)}. The AI
+        repeated itself instead of transferring, and the customer got angry.
       </figcaption>
     </figure>
   );

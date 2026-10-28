@@ -98,6 +98,31 @@ describe('analysing a call', () => {
     expect(JSON.stringify(request.messages)).toContain(TRANSCRIPT_LINE);
   });
 
+  it('saves a call whose human agent got empty coaching as Ready, without coaching', async () => {
+    openRouter.reply(() =>
+      chatCompletion(
+        JSON.stringify({
+          ...lateOrderAnswer(),
+          speakers: [
+            { speaker_id: 1, role: 'human_agent', name: 'Ravi' },
+            { speaker_id: 2, role: 'customer', name: null },
+          ],
+        }),
+      ),
+    );
+    const call = await analyzingCall();
+
+    expect(await analyze(call.id)).toBe('ready');
+
+    expect(await readReport(call.id)).toMatchObject({
+      handover_segment_id: expect.any(Number),
+      coaching: null,
+    });
+    expect(consoleInfo).toHaveBeenCalledWith(
+      expect.stringContaining('empty coaching dropped'),
+    );
+  });
+
   it('saves a pass whose quote is not in its segment as a miss', async () => {
     const answer = lateOrderAnswer();
     answer.checks[0].quote = 'Aapka order number 4521 hai';

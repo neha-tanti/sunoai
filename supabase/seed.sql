@@ -1,9 +1,9 @@
 insert into public.checklist_checks (id, name, rule, position) values
-  ('order_confirmed', 'Order confirmed', 'Confirms which order the call is about', 1),
-  ('problem_understood', 'Problem understood', 'Gets the problem right without making the customer repeat it', 2),
+  ('order_confirmed', 'Order confirmed', 'Says the order ID back to the customer to confirm which order the call is about', 1),
+  ('problem_understood', 'Problem understood', 'Says back what went wrong with the order before the customer has to explain it again', 2),
   ('frustration_acknowledged', 'Frustration acknowledged', 'Recognises the customer''s frustration, for example "I understand this is frustrating"', 3),
   ('solution_or_next_step', 'Solution or next step', 'Offers a refund, replacement or clear delivery time within the company''s rules', 4),
-  ('smooth_handover', 'Smooth handover', 'Passes the call to a human who already knows the problem (Not needed when there is no handover)', 5),
+  ('smooth_handover', 'Smooth handover', 'The human agent shows they already know the problem when they take the call (Not needed when there is no handover)', 5),
   ('closing', 'Closing', 'Checks the customer is happy with the outcome before ending', 6);
 
 insert into public.checklist_red_flags (id, name, example, position) values

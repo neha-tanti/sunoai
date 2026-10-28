@@ -36,7 +36,7 @@ describe('GET /api/checklist.md signed out', () => {
     expect(res.headers.get('Cache-Control')).toContain('public');
     const markdown = await res.text();
     expect(markdown).toContain(
-      '- **Order confirmed:** Confirms which order the call is about',
+      '- **Order confirmed:** Says the order ID back to the customer to confirm which order the call is about',
     );
     expect(markdown).toContain('- **Agent stuck in a loop:** "Sorry,');
     expect(markdown).toContain('No cash compensation.');

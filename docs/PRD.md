@@ -111,11 +111,11 @@ SunoAI starts with 6 checks and 4 red flags for food delivery and quick commerce
 
 | # | Check | Passes when the agent… |
 | --- | --- | --- |
-| 1 | Order confirmed | Confirms which order the call is about |
-| 2 | Problem understood | Gets the problem right without making the customer repeat it |
+| 1 | Order confirmed | Says the order ID back to the customer to confirm which order the call is about |
+| 2 | Problem understood | Says back what went wrong with the order before the customer has to explain it again |
 | 3 | Frustration acknowledged | Recognises the customer's frustration, for example "I understand this is frustrating" |
 | 4 | Solution or next step | Offers a refund, replacement or clear delivery time within the company's rules |
-| 5 | Smooth handover | Passes the call to a human who already knows the problem (Not needed when there is no handover) |
+| 5 | Smooth handover | The human agent shows they already know the problem when they take the call (Not needed when there is no handover) |
 | 6 | Closing | Checks the customer is happy with the outcome before ending |
 
 | Red flag | Example |
