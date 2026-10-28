@@ -20,6 +20,47 @@ test('a signed-out visitor sees what SunoAI does and a way in', async ({
   ).toHaveAttribute('href', 'https://gnani.ai');
 });
 
+test.describe('theme switch', () => {
+  test.describe('on a light system', () => {
+    test.use({ colorScheme: 'light' });
+
+    test('switches to dark and remembers it after a reload', async ({
+      page,
+    }) => {
+      await page.goto('/');
+      const toggle = page.getByRole('button', { name: 'Dark mode' });
+      await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+
+      await toggle.click();
+
+      await expect(page.locator('html')).toContainClass('dark');
+      await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+      await page.reload();
+      await expect(page.locator('html')).toContainClass('dark');
+      await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    });
+  });
+
+  test.describe('on a dark system', () => {
+    test.use({ colorScheme: 'dark' });
+
+    test('starts dark, and a switch to light is remembered', async ({
+      page,
+    }) => {
+      await page.goto('/');
+      const toggle = page.getByRole('button', { name: 'Dark mode' });
+      await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+      await expect(page.locator('html')).toContainClass('dark');
+
+      await toggle.click();
+      await page.reload();
+
+      await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+      await expect(page.locator('html')).not.toContainClass('dark');
+    });
+  });
+});
+
 test('a signed-out visitor to a report link is offered that report', async ({
   page,
 }) => {
