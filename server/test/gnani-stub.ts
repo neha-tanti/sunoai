@@ -13,6 +13,7 @@ export type FakeFile = {
   transcript?: unknown;
   transcriptStatus?: number;
   transcriptFailure?: 'unreachable' | 'cut_off';
+  holdUntilRequests?: number;
 };
 
 export type FakeJob = {
@@ -34,6 +35,7 @@ export function stubGnani() {
   const realFetch = globalThis.fetch;
   const jobs = new Map<string, FakeJob>();
   const requests: GnaniRequest[] = [];
+  const held = new Map<FakeFile, (() => void)[]>();
   const answers: {
     create?: number;
     start?: number;
@@ -98,11 +100,22 @@ export function stubGnani() {
     });
   }
 
-  function transcriptResponse(url: string) {
+  function holdUntilAllArrive(fake: FakeFile, count: number) {
+    return new Promise<void>((resolve) => {
+      const waiting = [...(held.get(fake) ?? []), resolve];
+      held.set(fake, waiting);
+      if (waiting.length === count) waiting.forEach((release) => release());
+    });
+  }
+
+  async function transcriptResponse(url: string) {
     const [jobId, file] = url.slice(TRANSCRIPTS_URL.length + 1).split('/');
     const fake = jobs.get(jobId)?.files[Number.parseInt(file, 10)];
     if (!fake || fake.transcript === undefined) {
       return new Response('Not found', { status: 404 });
+    }
+    if (fake.holdUntilRequests) {
+      await holdUntilAllArrive(fake, fake.holdUntilRequests);
     }
     if (fake.transcriptFailure === 'unreachable') {
       throw new TypeError('fetch failed');

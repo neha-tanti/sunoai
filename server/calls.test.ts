@@ -627,6 +627,7 @@ describe('GET /api/calls', () => {
       status: 'transcribing',
       created_at: at,
       checked_at: at,
+      answered_at: at,
       ...overrides,
     });
   }
@@ -868,6 +869,7 @@ describe('DELETE /api/calls/:id', () => {
     const call = await seedCall({
       status: 'transcribing',
       gnani_job_id: jobId,
+      answered_at: new Date().toISOString(),
     });
     const inserted = await createAdminClient()
       .from('transcript_segments')
@@ -895,6 +897,7 @@ describe('DELETE /api/calls/:id', () => {
     const call = await seedCall({
       status: 'transcribing',
       gnani_job_id: jobId,
+      answered_at: new Date().toISOString(),
     });
     const consoleError = vi
       .spyOn(console, 'error')
@@ -1246,6 +1249,7 @@ describe('POST /api/calls/:id/check', () => {
     const call = await seedCall({
       status: 'transcribing',
       gnani_job_id: randomUUID(),
+      answered_at: new Date().toISOString(),
     });
 
     const res = await checkCall(call.id);

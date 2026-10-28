@@ -5,9 +5,9 @@ import { after } from 'next/server';
 import { secretMatches } from './env';
 import { DEADLINE_MS, finishCall } from './pipeline';
 import { createAdminClient } from './supabase';
-import { TRANSCRIBING_CALL_COLUMNS } from './transcription';
+import { claimPoll, TRANSCRIBING_CALL_COLUMNS } from './transcription';
 
-const STUCK_AFTER_MS = 60_000;
+const STUCK_AFTER_MS = 10_000;
 const STOPPED_ANALYSIS_MS = 5 * 60_000;
 
 async function failStoppedAnalyses() {
@@ -35,7 +35,7 @@ async function pollTranscribingCalls(signal: AbortSignal) {
     .eq('status', 'transcribing')
     .not('gnani_job_id', 'is', null)
     .lt('status_at', new Date(Date.now() - STUCK_AFTER_MS).toISOString())
-    .order('gnani_attempts')
+    .order('polled_at', { nullsFirst: true })
     .order('status_at');
   if (due.error) throw due.error;
 
@@ -45,6 +45,7 @@ async function pollTranscribingCalls(signal: AbortSignal) {
   }[] = [];
   for (const call of due.data) {
     if (signal.aborted) break;
+    if (!(await claimPoll(call.id))) continue;
     const outcome = await finishCall(call, signal);
     outcomes.push({ callId: call.id, outcome });
     if (outcome !== 'pending') break;

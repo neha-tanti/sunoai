@@ -12,21 +12,31 @@ import { loggableError } from './errors';
 import { failCall, type Failure } from './fail-call';
 import { createAdminClient } from './supabase';
 
-const MAX_GNANI_ATTEMPTS = 30;
+const MAX_BUSY_MS = 30 * 60 * 1000;
 const MAX_TRANSCRIBING_MS = 2 * 60 * 60 * 1000;
+const POLL_GAP_SECONDS = 10;
 
 export const TRANSCRIBING_CALL_COLUMNS =
-  'id, gnani_job_id, gnani_attempts, checked_at';
+  'id, gnani_job_id, checked_at, answered_at';
 
 export type TranscribingCall = Pick<
   Tables<'calls'>,
-  'id' | 'gnani_job_id' | 'gnani_attempts' | 'checked_at'
+  'id' | 'gnani_job_id' | 'checked_at' | 'answered_at'
 >;
 
 export type FinishOutcome =
   'pending' | 'gnani_busy' | 'analyzing' | 'failed' | 'lost_race';
 
 type JobFiles = Awaited<ReturnType<typeof listFiles>>;
+
+export async function claimPoll(callId: string) {
+  const claimed = await createAdminClient().rpc('claim_gnani_poll', {
+    p_call_id: callId,
+    p_gap_seconds: POLL_GAP_SECONDS,
+  });
+  if (claimed.error) throw claimed.error;
+  return claimed.data;
+}
 
 export async function finishTranscription(
   call: TranscribingCall,
@@ -52,10 +62,13 @@ async function finish(
 
   const job = await getJob(jobId, signal);
   if (!FINAL_JOB_STATUSES.includes(job.status)) {
-    if (!isOverdue(call)) return 'pending';
+    if (!olderThan(call.checked_at, MAX_TRANSCRIBING_MS)) {
+      await markAnswered(call.id);
+      return 'pending';
+    }
     return fail(call.id, {
       code: 'gnani_failed',
-      reason: `Gnani job still ${job.status} after 2 hours`,
+      reason: `Gnani job still ${job.status} after ${MAX_TRANSCRIBING_MS / 3_600_000} hours`,
     });
   }
 
@@ -96,9 +109,18 @@ async function finish(
   return saved.data ? 'analyzing' : 'lost_race';
 }
 
-function isOverdue(call: TranscribingCall) {
-  if (!call.checked_at) return false;
-  return Date.now() - Date.parse(call.checked_at) > MAX_TRANSCRIBING_MS;
+async function markAnswered(callId: string) {
+  const updated = await createAdminClient()
+    .from('calls')
+    .update({ answered_at: new Date().toISOString() })
+    .eq('id', callId)
+    .eq('status', 'transcribing');
+  if (updated.error) throw updated.error;
+}
+
+function olderThan(time: string | null, ms: number) {
+  if (!time) return false;
+  return Date.now() - Date.parse(time) > ms;
 }
 
 function jobFailure(
@@ -151,22 +173,11 @@ async function handleError(
     return fail(call.id, { code: 'gnani_failed', reason: err.message });
   }
 
-  const attempts = call.gnani_attempts + 1;
-  if (attempts >= MAX_GNANI_ATTEMPTS) {
-    return fail(call.id, {
-      code: 'gnani_failed',
-      reason: `Gnani answered ${err.status ?? 'nothing'} ${attempts} times`,
-    });
-  }
-
-  const updated = await createAdminClient()
-    .from('calls')
-    .update({ gnani_attempts: attempts })
-    .eq('id', call.id)
-    .eq('status', 'transcribing')
-    .eq('gnani_attempts', call.gnani_attempts);
-  if (updated.error) throw updated.error;
-  return 'gnani_busy';
+  if (!olderThan(call.answered_at, MAX_BUSY_MS)) return 'gnani_busy';
+  return fail(call.id, {
+    code: 'gnani_failed',
+    reason: `Gnani was busy or silent for over ${MAX_BUSY_MS / 60_000} minutes (last: ${err.status ?? 'no answer'})`,
+  });
 }
 
 function logFailure(call: TranscribingCall, err: unknown) {

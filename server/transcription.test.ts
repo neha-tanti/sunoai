@@ -86,6 +86,7 @@ async function transcribingCall(
     status: 'transcribing',
     gnani_job_id: jobId,
     checked_at: new Date().toISOString(),
+    answered_at: new Date().toISOString(),
     ...overrides,
   });
   createdIds.push(call.id);
@@ -187,16 +188,23 @@ describe('a call from upload to Ready', () => {
   });
 });
 
-describe('the webhook and the poll arriving together', () => {
+describe('the webhook and the poll both finishing a call', () => {
   it('finish the call exactly once', async () => {
-    const call = await transcribingCall(completedJob());
+    const job = completedJob();
+    job.files[0].holdUntilRequests = 2;
+    const call = await transcribingCall(job);
     await backdate(call.id, 2);
     const consoleError = vi
       .spyOn(console, 'error')
       .mockImplementation(() => {});
 
-    const responses = await Promise.all([sendWebhook(call.jobId), sendPoll()]);
-    expect(responses.map((res) => res.status)).toEqual([200, 202]);
+    expect((await sendWebhook(call.jobId)).status).toBe(200);
+    const unclaimed = await createAdminClient()
+      .from('calls')
+      .update({ polled_at: new Date(Date.now() - 60_000).toISOString() })
+      .eq('id', call.id);
+    if (unclaimed.error) throw unclaimed.error;
+    expect((await sendPoll()).status).toBe(202);
     const results = (await flushAfter()) as (
       string | { callId: string; outcome: string }[]
     )[];
@@ -208,12 +216,7 @@ describe('the webhook and the poll arriving together', () => {
             .filter((entry) => entry.callId === call.id)
             .map((entry) => entry.outcome),
     );
-    expect(outcomes.filter((outcome) => outcome === 'ready')).toHaveLength(1);
-    expect(
-      outcomes
-        .filter((outcome) => outcome !== 'ready')
-        .every((outcome) => outcome === 'lost_race'),
-    ).toBe(true);
+    expect(outcomes.sort()).toEqual(['lost_race', 'ready']);
     expect(consoleError).not.toHaveBeenCalled();
     expect(openRouter.requests).toHaveLength(1);
     const { call: saved, segments } = await readCall(call.id);
@@ -484,10 +487,7 @@ describe('each failure in the TRD table', () => {
 
     expect(await finishByWebhook(call.jobId)).toEqual(['gnani_busy']);
 
-    expect((await readCall(call.id)).call).toMatchObject({
-      status: 'transcribing',
-      gnani_attempts: 1,
-    });
+    expect((await readCall(call.id)).call?.status).toBe('transcribing');
   });
 
   it('gives up on a Gnani request that stalls without waiting for the run deadline', async () => {
@@ -503,10 +503,7 @@ describe('each failure in the TRD table', () => {
 
     expect(await finishByWebhook(call.jobId)).toEqual(['gnani_busy']);
 
-    expect((await readCall(call.id)).call).toMatchObject({
-      status: 'transcribing',
-      gnani_attempts: 1,
-    });
+    expect((await readCall(call.id)).call?.status).toBe('transcribing');
   });
 
   it('finishes the call when Gnani answers 429 once and then answers', async () => {
@@ -514,32 +511,48 @@ describe('each failure in the TRD table', () => {
 
     expect(await finishByWebhook(call.jobId)).toEqual(['ready']);
 
-    expect((await readCall(call.id)).call).toMatchObject({
-      status: 'ready',
-      gnani_attempts: 0,
-    });
+    expect((await readCall(call.id)).call?.status).toBe('ready');
   });
 
-  it('fails the call on the 30th busy answer from Gnani, not the 29th', async () => {
+  it('records when Gnani last answered about a job still running', async () => {
+    const answeredAt = new Date(Date.now() - 5 * 60_000).toISOString();
+    const call = await transcribingCall(
+      { status: 'IN_PROGRESS', files: [] },
+      { answered_at: answeredAt },
+    );
+
+    expect(await finishByWebhook(call.jobId)).toEqual(['pending']);
+
+    const { call: saved } = await readCall(call.id);
+    expect(Date.parse(saved!.answered_at!)).toBeGreaterThan(
+      Date.parse(answeredAt),
+    );
+  });
+
+  it('fails the call on a busy answer over 30 minutes after Gnani last answered, not before', async () => {
     const job: FakeJob = {
       status: 'IN_PROGRESS',
       statusAnswer: 503,
       files: [],
     };
-    const twentyNinth = await transcribingCall(job, { gnani_attempts: 28 });
-    const thirtieth = await transcribingCall(
+    const checkedAt = new Date(Date.now() - 60 * 60_000).toISOString();
+    const withinLimit = await transcribingCall(job, {
+      checked_at: checkedAt,
+      answered_at: new Date(Date.now() - 29 * 60_000).toISOString(),
+    });
+    const pastLimit = await transcribingCall(
       { ...job },
-      { gnani_attempts: 29 },
+      {
+        checked_at: checkedAt,
+        answered_at: new Date(Date.now() - 31 * 60_000).toISOString(),
+      },
     );
 
-    expect(await finishByWebhook(twentyNinth.jobId)).toEqual(['gnani_busy']);
-    expect(await finishByWebhook(thirtieth.jobId)).toEqual(['failed']);
+    expect(await finishByWebhook(withinLimit.jobId)).toEqual(['gnani_busy']);
+    expect(await finishByWebhook(pastLimit.jobId)).toEqual(['failed']);
 
-    expect((await readCall(twentyNinth.id)).call).toMatchObject({
-      status: 'transcribing',
-      gnani_attempts: 29,
-    });
-    expect((await readCall(thirtieth.id)).call).toMatchObject({
+    expect((await readCall(withinLimit.id)).call?.status).toBe('transcribing');
+    expect((await readCall(pastLimit.id)).call).toMatchObject({
       status: 'failed',
       error_code: 'gnani_failed',
     });
@@ -568,7 +581,7 @@ describe('POST /api/jobs/poll', () => {
         error: 'Left over by an earlier test run',
       })
       .eq('status', 'transcribing')
-      .lt('status_at', new Date(Date.now() - 60_000).toISOString());
+      .lt('status_at', new Date(Date.now() - 10_000).toISOString());
     if (stale.error) throw stale.error;
   });
 
@@ -591,7 +604,7 @@ describe('POST /api/jobs/poll', () => {
     expect(await flushAfter()).toEqual([]);
   });
 
-  it('finishes a call stuck in Transcribing for over a minute', async () => {
+  it('finishes a call in Transcribing for over 10 seconds', async () => {
     const call = await transcribingCall(completedJob());
     await backdate(call.id, 2);
 
@@ -599,7 +612,7 @@ describe('POST /api/jobs/poll', () => {
     expect((await readCall(call.id)).call?.status).toBe('ready');
   });
 
-  it('leaves a call that started transcribing under a minute ago', async () => {
+  it('leaves a call that started transcribing under 10 seconds ago', async () => {
     const call = await transcribingCall(completedJob());
 
     expect(await poll()).toEqual([]);
@@ -624,7 +637,7 @@ describe('POST /api/jobs/poll', () => {
     expect((await readCall(newerDone.id)).call?.status).toBe('transcribing');
   });
 
-  it('stops at the first busy answer so the other calls keep their attempts', async () => {
+  it('stops at the first busy answer and tries the other calls first on the next run', async () => {
     const busy = await transcribingCall({
       status: 'IN_PROGRESS',
       statusAnswer: 429,
@@ -635,22 +648,46 @@ describe('POST /api/jobs/poll', () => {
     await backdate(done.id, 3);
 
     expect(await poll()).toEqual([{ callId: busy.id, outcome: 'gnani_busy' }]);
-    expect((await readCall(done.id)).call).toMatchObject({
-      status: 'transcribing',
-      gnani_attempts: 0,
-    });
+    expect((await readCall(done.id)).call?.status).toBe('transcribing');
+
+    expect(await poll()).toEqual([{ callId: done.id, outcome: 'ready' }]);
   });
 
-  it('tries a call with fewer busy answers before an older one with more', async () => {
-    const busy = await transcribingCall(
-      { status: 'IN_PROGRESS', statusAnswer: 503, files: [] },
-      { gnani_attempts: 1 },
+  it('tries a call never asked about before an older one asked about earlier', async () => {
+    const asked = await transcribingCall(
+      { status: 'IN_PROGRESS', files: [] },
+      { polled_at: new Date(Date.now() - 60_000).toISOString() },
     );
     const done = await transcribingCall(completedJob());
-    await backdate(busy.id, 5);
+    await backdate(asked.id, 5);
     await backdate(done.id, 3);
 
     expect(await poll()).toEqual([{ callId: done.id, outcome: 'ready' }]);
+  });
+
+  it('asks Gnani about a job once when two runs arrive together', async () => {
+    const running = await transcribingCall({
+      status: 'IN_PROGRESS',
+      files: [],
+    });
+    await backdate(running.id, 5);
+
+    const [first, second] = await Promise.all([sendPoll(), sendPoll()]);
+    expect([first.status, second.status]).toEqual([202, 202]);
+    const outcomes = (await flushAfter()) as {
+      callId: string;
+      outcome: string;
+    }[][];
+
+    expect(outcomes.flat()).toEqual([
+      { callId: running.id, outcome: 'pending' },
+    ]);
+    const statusReads = gnani.requests.filter(
+      (request) =>
+        request.method === 'GET' &&
+        request.url.endsWith(`/jobs/${running.jobId}`),
+    );
+    expect(statusReads).toHaveLength(1);
   });
 
   it('fails calls left in Analysing for over 5 minutes, and only those', async () => {
