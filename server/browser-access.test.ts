@@ -64,6 +64,15 @@ describe('a signed-in browser going straight to Supabase', () => {
     expect(error).toMatchObject({ code: '42501' });
   });
 
+  it('cannot claim a call to ask Gnani about', async () => {
+    const { error } = await session.supabase.rpc('claim_gnani_poll', {
+      p_call_id: randomUUID(),
+      p_gap_seconds: 10,
+    });
+
+    expect(error).toMatchObject({ code: '42501' });
+  });
+
   it('cannot save the checklist', async () => {
     const { error } = await session.supabase.rpc('save_checklist', {
       p_checks: [

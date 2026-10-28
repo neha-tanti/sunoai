@@ -511,18 +511,31 @@ describe('each failure in the TRD table', () => {
     expect((await readCall(call.id)).call?.status).toBe('ready');
   });
 
-  it('fails the call on a busy answer over 30 minutes after the check, not before', async () => {
+  it('records when Gnani last answered about a job still running', async () => {
+    const call = await transcribingCall({ status: 'IN_PROGRESS', files: [] });
+
+    expect(await finishByWebhook(call.jobId)).toEqual(['pending']);
+
+    expect((await readCall(call.id)).call?.answered_at).not.toBeNull();
+  });
+
+  it('fails the call on a busy answer over 30 minutes after Gnani last answered, not before', async () => {
     const job: FakeJob = {
       status: 'IN_PROGRESS',
       statusAnswer: 503,
       files: [],
     };
+    const checkedAt = new Date(Date.now() - 60 * 60_000).toISOString();
     const withinLimit = await transcribingCall(job, {
-      checked_at: new Date(Date.now() - 29 * 60_000).toISOString(),
+      checked_at: checkedAt,
+      answered_at: new Date(Date.now() - 29 * 60_000).toISOString(),
     });
     const pastLimit = await transcribingCall(
       { ...job },
-      { checked_at: new Date(Date.now() - 31 * 60_000).toISOString() },
+      {
+        checked_at: checkedAt,
+        answered_at: new Date(Date.now() - 31 * 60_000).toISOString(),
+      },
     );
 
     expect(await finishByWebhook(withinLimit.jobId)).toEqual(['gnani_busy']);
@@ -651,7 +664,10 @@ describe('POST /api/jobs/poll', () => {
 
     const [first, second] = await Promise.all([sendPoll(), sendPoll()]);
     expect([first.status, second.status]).toEqual([202, 202]);
-    const outcomes = (await flushAfter()) as { callId: string }[][];
+    const outcomes = (await flushAfter()) as {
+      callId: string;
+      outcome: string;
+    }[][];
 
     expect(outcomes.flat()).toEqual([
       { callId: running.id, outcome: 'pending' },

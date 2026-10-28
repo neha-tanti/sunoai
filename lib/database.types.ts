@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       calls: {
         Row: {
+          answered_at: string | null
           call_langs: string[]
           checked_at: string | null
           coaching_lang: string
@@ -37,6 +38,7 @@ export type Database = {
           title: string
         }
         Insert: {
+          answered_at?: string | null
           call_langs: string[]
           checked_at?: string | null
           coaching_lang: string
@@ -58,6 +60,7 @@ export type Database = {
           title: string
         }
         Update: {
+          answered_at?: string | null
           call_langs?: string[]
           checked_at?: string | null
           coaching_lang?: string
@@ -267,7 +270,10 @@ export type Database = {
         Args: { p_call_id: string; p_limit: number }
         Returns: boolean
       }
-      claim_gnani_poll: { Args: { p_call_id: string }; Returns: boolean }
+      claim_gnani_poll: {
+        Args: { p_call_id: string; p_gap_seconds: number }
+        Returns: boolean
+      }
       load_checklist: { Args: never; Returns: Json }
       save_checklist: {
         Args: {

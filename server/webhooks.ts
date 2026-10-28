@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { secretMatches } from './env';
 import { DEADLINE_MS, finishCall } from './pipeline';
 import { createAdminClient } from './supabase';
-import { TRANSCRIBING_CALL_COLUMNS } from './transcription';
+import { claimPoll, TRANSCRIBING_CALL_COLUMNS } from './transcription';
 import { rejectInvalid } from './validate';
 
 const requireWebhookToken = createMiddleware(async (c, next) => {
@@ -35,7 +35,9 @@ export const webhooks = new Hono().post(
     if (call.error) throw call.error;
 
     const transcribing = call.data;
-    if (transcribing) after(() => finishCall(transcribing, signal));
+    if (transcribing && (await claimPoll(transcribing.id))) {
+      after(() => finishCall(transcribing, signal));
+    }
     return c.json({ received: true as const });
   },
 );

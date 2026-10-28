@@ -5,7 +5,7 @@ import { after } from 'next/server';
 import { secretMatches } from './env';
 import { DEADLINE_MS, finishCall } from './pipeline';
 import { createAdminClient } from './supabase';
-import { TRANSCRIBING_CALL_COLUMNS } from './transcription';
+import { claimPoll, TRANSCRIBING_CALL_COLUMNS } from './transcription';
 
 const STUCK_AFTER_MS = 10_000;
 const STOPPED_ANALYSIS_MS = 5 * 60_000;
@@ -26,14 +26,6 @@ async function failStoppedAnalyses() {
 
   const ids = failed.data.map((call) => call.id).join(', ');
   console.warn(`Failed stopped analyses for calls ${ids}`);
-}
-
-async function claimPoll(callId: string) {
-  const claimed = await createAdminClient().rpc('claim_gnani_poll', {
-    p_call_id: callId,
-  });
-  if (claimed.error) throw claimed.error;
-  return claimed.data;
 }
 
 async function pollTranscribingCalls(signal: AbortSignal) {
