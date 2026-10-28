@@ -99,7 +99,7 @@ export function CheckCallForm() {
         role="note"
         className="border-annoyed/60 bg-annoyed/10 text-foreground"
       >
-        <EyeIcon className="text-annoyed-foreground dark:text-annoyed" />
+        <EyeIcon className="text-sand-foreground" />
         <AlertTitle>Don&apos;t upload private calls</AlertTitle>
         <AlertDescription className="text-foreground/80">
           Other visitors can see every call you check, its recording and its

@@ -26,8 +26,8 @@ export default function OpenGraphImage() {
         flexDirection: 'column',
         justifyContent: 'space-between',
         padding: 72,
-        background: '#ffffff',
-        color: '#0a0a0a',
+        background: '#f6f5f1',
+        color: '#1c1b19',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
@@ -39,7 +39,7 @@ export default function OpenGraphImage() {
         <div style={{ fontSize: 76, fontWeight: 700, letterSpacing: -2 }}>
           Hear where a support call went wrong.
         </div>
-        <div style={{ fontSize: 32, color: '#525252' }}>
+        <div style={{ fontSize: 32, color: '#67655f' }}>
           Frustration timeline, red flags, checklist score and spoken coaching
           for food delivery support calls.
         </div>
@@ -88,15 +88,15 @@ export default function OpenGraphImage() {
               style={{
                 fontSize: 24,
                 fontWeight: 600,
-                color: '#b91c1c',
-                background: '#fee2e2',
+                color: '#9a4332',
+                background: '#fbf0ec',
                 borderRadius: 8,
                 padding: '4px 12px',
               }}
             >
               {`Red flag · ${formatTime(flag.time)} · ${flag.name}`}
             </div>
-            <div style={{ width: 4, flexGrow: 1, background: '#b91c1c' }} />
+            <div style={{ width: 4, flexGrow: 1, background: '#dc7a68' }} />
           </div>
         </div>
         <div
@@ -104,11 +104,11 @@ export default function OpenGraphImage() {
             display: 'flex',
             justifyContent: 'space-between',
             fontSize: 24,
-            color: '#525252',
+            color: '#67655f',
           }}
         >
           <div>{new URL(SITE_URL).host}</div>
-          <div style={{ fontWeight: 600, color: '#0a0a0a' }}>
+          <div style={{ fontWeight: 600, color: '#1c1b19' }}>
             Powered by Gnani.ai
           </div>
         </div>

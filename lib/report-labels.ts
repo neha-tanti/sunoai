@@ -21,9 +21,9 @@ export const MOOD_CLASS: Record<Mood, string> = {
 };
 
 export const MOOD_COLOR: Record<Mood, string> = {
-  calm: '#2bb985',
-  annoyed: '#f49f1e',
-  angry: '#f14445',
+  calm: '#74b392',
+  annoyed: '#e6b461',
+  angry: '#dc7a68',
 };
 
 export const SCORE_BAND_LABEL: Record<ScoreBand, string> = {

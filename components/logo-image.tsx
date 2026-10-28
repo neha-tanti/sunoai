@@ -1,6 +1,7 @@
 import {
   BAR_GAP,
   BAR_WIDTH,
+  LOGO_BAR,
   LOGO_BARS,
   LOGO_RADIUS,
   LOGO_SIZE,
@@ -29,14 +30,14 @@ export function LogoImage({
         background: LOGO_TILE,
       }}
     >
-      {LOGO_BARS.map((bar, index) => (
+      {LOGO_BARS.map((height, index) => (
         <div
           key={index}
           style={{
             width: BAR_WIDTH * scale,
-            height: bar.height * scale,
+            height: height * scale,
             borderRadius: (BAR_WIDTH / 2) * scale,
-            background: bar.color,
+            background: LOGO_BAR,
           }}
         />
       ))}
