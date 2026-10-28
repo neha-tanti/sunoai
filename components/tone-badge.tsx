@@ -9,11 +9,15 @@ const DOT_CLASS: Record<Tone, string> = {
   neutral: 'bg-muted-foreground/40',
 };
 
-type ToneBadgeProps = { tone: Tone; children: React.ReactNode };
+type ToneBadgeProps = {
+  tone: Tone;
+  className?: string;
+  children: React.ReactNode;
+};
 
-export function ToneBadge({ tone, children }: ToneBadgeProps) {
+export function ToneBadge({ tone, className, children }: ToneBadgeProps) {
   return (
-    <Badge variant="outline">
+    <Badge variant="outline" className={className}>
       <span
         aria-hidden
         className={cn('size-2 rounded-full', DOT_CLASS[tone])}

@@ -26,16 +26,16 @@ function toReadableError(error: AuthError) {
   );
 }
 
-function useOpenAppAfterAuth(path: string) {
+function useOpenAppAfterAuth() {
   const router = useRouter();
-  return () => {
+  return (path: string) => {
     router.replace(path);
     router.refresh();
   };
 }
 
 export function useSignIn() {
-  const openApp = useOpenAppAfterAuth('/check');
+  const openApp = useOpenAppAfterAuth();
   return useMutation({
     mutationFn: async (credentials: Credentials) => {
       const { error } =
@@ -44,13 +44,13 @@ export function useSignIn() {
         );
       if (error) throw toReadableError(error);
     },
-    onSuccess: openApp,
+    onSuccess: () => openApp('/check'),
   });
 }
 
-export function useTryIt(reportPath?: string) {
-  const openApp = useOpenAppAfterAuth(reportPath ?? '/check');
-  return useMutation({
+export function useTryIt() {
+  const openApp = useOpenAppAfterAuth();
+  return useMutation<void, Error, string>({
     mutationFn: async () => {
       const supabase = createSupabaseBrowserClient();
       const { data } = await supabase.auth.getClaims();
@@ -59,6 +59,6 @@ export function useTryIt(reportPath?: string) {
       const { error } = await supabase.auth.signInAnonymously();
       if (error) throw toReadableError(error);
     },
-    onSuccess: openApp,
+    onSuccess: (_data, path) => openApp(path),
   });
 }

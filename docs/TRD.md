@@ -268,7 +268,7 @@ Six Next.js pages built from shadcn/ui parts, plus public Markdown pages, with a
 
 | Route | Screen |
 | --- | --- |
-| `/` | Homepage: what SunoAI does in a few words, the Late order example's mood bar with its red flag and the customer's quote, a Try an example call button that signs the visitor in anonymously and opens `/check`, a non-interactive preview of the Late order report built from `lib/late-order-example.ts`, and one line on each thing SunoAI checks |
+| `/` | Homepage: what SunoAI does in a few words; Try an example call and Upload a call buttons that sign the visitor in anonymously and open `/check` (Upload at its upload form, `/check#upload`); a non-interactive preview of the Late order report built from `lib/late-order-example.ts`; a card for each thing SunoAI checks; and the three steps from recording to report |
 | `/login` | Sign in with email and password, for the owner's account; not linked from any page |
 | `/check` | Check a call: listen to and pick an example call, or upload one with call languages, coaching language, noise removal toggle and progress |
 | `/calls` | Recent calls and the team average |
@@ -278,7 +278,7 @@ Six Next.js pages built from shadcn/ui parts, plus public Markdown pages, with a
 
 **shadcn/ui parts:** Button, Card, Badge, Select, Switch, Table, Input, Textarea, Alert (for Needs review), AlertDialog (to confirm deleting a call), Progress, Skeleton, Tooltip, ScrollArea and Sonner for toasts.
 
-The signed-in pages sit in the `app/(app)` route group, whose layout adds `SiteNav`: Check a call, Recent calls and Checklist.
+Every page has `SiteHeader`: the logo, the page's links and a sun/moon switch that follows the system theme until clicked, then remembers the choice (`next-themes`). The signed-in pages sit in the `app/(app)` route group, whose layout passes it Check a call, Recent calls and Checklist.
 
 **Custom components**
 
@@ -313,7 +313,7 @@ The signed-in pages sit in the `app/(app)` route group, whose layout adds `SiteN
 | `useDeleteCall` | `DELETE /api/calls/:id` | Invalidates `['calls']` |
 
 - The browser uses the Supabase client only to sign in (anonymously or with a password) and upload to a signed URL (`uploadToSignedUrl`). Everything else goes through Hono.
-- Light and dark themes use shadcn's CSS variables, plus SunoAI's own tokens for calm, annoyed and angry.
+- Light (warm off-white) and dark (graphite) themes use shadcn's CSS variables, plus SunoAI's own tokens for calm, annoyed and angry, and five tints (coral, slate, sand, lavender, sage) with a background, border and text colour each. Headlines use Instrument Serif; body text is Geist.
 - Results always use words as well as colour (Passed, Missed, Angry), and the status line is announced to screen readers.
 
 ## Auth, security and privacy

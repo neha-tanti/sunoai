@@ -20,12 +20,6 @@ export const MOOD_CLASS: Record<Mood, string> = {
   angry: 'bg-angry text-angry-foreground',
 };
 
-export const MOOD_COLOR: Record<Mood, string> = {
-  calm: '#2bb985',
-  annoyed: '#f49f1e',
-  angry: '#f14445',
-};
-
 export const SCORE_BAND_LABEL: Record<ScoreBand, string> = {
   good: 'Good',
   needs_work: 'Needs work',

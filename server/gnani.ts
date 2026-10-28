@@ -1,6 +1,7 @@
 import 'server-only';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { z } from 'zod';
+import { PRISMA_MODEL, TIMBRE_MODEL } from '@/lib/gnani-models';
 import { requireEnv } from './env';
 
 const GNANI_URL = 'https://api.vachana.ai';
@@ -115,7 +116,7 @@ export async function createJob(
     method: 'POST',
     body: {
       config: {
-        model: 'prisma-v3.0',
+        model: PRISMA_MODEL.id,
         language_code: options.callLangs.join(','),
         mode: 'transcribe',
         format: 'transcribe',
@@ -239,7 +240,7 @@ export async function synthesizeSpeech(
     body: {
       text,
       voice: speaker.voice,
-      model: 'timbre-v2.5',
+      model: TIMBRE_MODEL.id,
       language: speaker.language,
       speed: 0.9,
       audio_config: {

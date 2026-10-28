@@ -4,8 +4,8 @@ import {
   LOGO_BARS,
   LOGO_RADIUS,
   LOGO_SIZE,
-  LOGO_TILE,
 } from '@/components/logo';
+import { IMAGE_PALETTE } from '@/lib/image-palette';
 
 export function LogoImage({
   size,
@@ -26,17 +26,17 @@ export function LogoImage({
         justifyContent: 'center',
         gap: BAR_GAP * scale,
         borderRadius: rounded ? LOGO_RADIUS * scale : 0,
-        background: LOGO_TILE,
+        background: IMAGE_PALETTE.foreground,
       }}
     >
-      {LOGO_BARS.map((bar, index) => (
+      {LOGO_BARS.map((height, index) => (
         <div
           key={index}
           style={{
             width: BAR_WIDTH * scale,
-            height: bar.height * scale,
+            height: height * scale,
             borderRadius: (BAR_WIDTH / 2) * scale,
-            background: bar.color,
+            background: IMAGE_PALETTE.background,
           }}
         />
       ))}

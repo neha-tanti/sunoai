@@ -1,3 +1,4 @@
+import { PRISMA_MODEL, TIMBRE_MODEL } from '@/lib/gnani-models';
 import { GNANI_URL, SOURCE_URL } from '@/lib/site';
 
 export function SiteFooter() {
@@ -13,8 +14,8 @@ export function SiteFooter() {
           </a>
           <span className="block sm:inline">
             <span className="hidden sm:inline"> · </span>
-            Transcription by Gnani Prisma v3.0, coaching voice by Gnani Timbre
-            v2.5
+            Transcription by Gnani {PRISMA_MODEL.name}, coaching voice by Gnani{' '}
+            {TIMBRE_MODEL.name}
           </span>
         </p>
         <ul className="flex gap-4">

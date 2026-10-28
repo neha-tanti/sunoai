@@ -18,7 +18,12 @@ function getQueryClient() {
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={getQueryClient()}>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="system"
+        enableSystem
+        disableTransitionOnChange
+      >
         {children}
       </ThemeProvider>
     </QueryClientProvider>
