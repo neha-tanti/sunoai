@@ -5,10 +5,53 @@
 @custom-variant dark (&:is(.dark *));
 
 @utility scroll-below-jump-bar {
-  scroll-margin-top: --spacing(32);
+  scroll-margin-top: --spacing(36);
 
   @variant lg {
-    scroll-margin-top: --spacing(20);
+    scroll-margin-top: --spacing(24);
+  }
+}
+
+@utility audio-range {
+  height: --spacing(4);
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+
+  &::-webkit-slider-runnable-track {
+    height: --spacing(1.5);
+    border-radius: calc(infinity* 1px);
+    background: var(--ring);
+  }
+  &::-moz-range-track {
+    height: --spacing(1.5);
+    border-radius: calc(infinity* 1px);
+    background: var(--ring);
+  }
+  &::-webkit-slider-thumb {
+    appearance: none;
+    margin-top: --spacing(-1.25);
+    width: --spacing(4);
+    height: --spacing(4);
+    border: 0;
+    border-radius: calc(infinity* 1px);
+    background: var(--foreground);
+  }
+  &::-moz-range-thumb {
+    width: --spacing(4);
+    height: --spacing(4);
+    border: 0;
+    border-radius: calc(infinity* 1px);
+    background: var(--foreground);
+  }
+  &:focus-visible {
+    outline: 2px solid var(--foreground);
+    outline-offset: 4px;
+    border-radius: calc(infinity* 1px);
+  }
+  &:disabled {
+    cursor: default;
+    opacity: 0.5;
   }
 }
 

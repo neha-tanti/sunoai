@@ -99,12 +99,11 @@ export function AudioPlayer({
       ) : (
         <>
           <Button
-            variant="outline"
-            className="size-10 shrink-0 rounded-full p-0"
+            className="size-12 shrink-0 rounded-full p-0 [&_svg]:fill-current"
             aria-label={playing ? `Pause ${label}` : `Play ${label}`}
             onClick={handleToggle}
           >
-            {playing ? <PauseIcon /> : <PlayIcon />}
+            {playing ? <PauseIcon /> : <PlayIcon className="ml-0.5" />}
           </Button>
           <input
             type="range"
@@ -116,7 +115,7 @@ export function AudioPlayer({
             aria-label={`${label} position`}
             aria-valuetext={`${formatTime(time)} of ${formatTime(duration)}`}
             onChange={handleSeek}
-            className="h-1.5 min-w-16 flex-1 cursor-pointer accent-foreground disabled:cursor-default"
+            className="audio-range min-w-16 flex-1"
           />
           <span className="shrink-0 font-mono text-xs text-muted-foreground tabular-nums">
             {formatTime(time)} / {formatTime(duration)}

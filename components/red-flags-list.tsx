@@ -1,3 +1,4 @@
+import { TINT_CLASS } from '@/components/icon-tile';
 import { SpeakerChip } from '@/components/speaker-chip';
 import { QuoteLink, TimeLink } from '@/components/time-link';
 import { Badge } from '@/components/ui/badge';
@@ -31,7 +32,9 @@ export function RedFlagsList({ report, segments, langs }: RedFlagsListProps) {
           <h2>Red flags</h2>
         </CardTitle>
         <CardAction>
-          <Badge variant="destructive">{report.red_flags.length}</Badge>
+          <Badge variant="outline" className={TINT_CLASS.coral}>
+            {report.red_flags.length}
+          </Badge>
         </CardAction>
       </CardHeader>
       <CardContent>

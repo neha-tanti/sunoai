@@ -170,7 +170,7 @@ function MarkerPin({ marker, number, left, row }: MarkerPinProps) {
         className={cn(
           'pointer-events-auto hidden max-w-48 gap-1 rounded-md border border-transparent px-1.5 text-xs font-semibold whitespace-nowrap hover:border-current sm:flex',
           marker.hasFlag
-            ? 'bg-angry/15 text-destructive'
+            ? 'bg-coral text-coral-foreground'
             : 'bg-secondary text-secondary-foreground',
         )}
       >

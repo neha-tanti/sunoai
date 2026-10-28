@@ -63,11 +63,10 @@ function ScoreTile({ report }: { report: ReportDetail }) {
 
   return (
     <Tile label="Checklist score">
-      <p className="text-3xl font-bold tabular-nums">
+      <p className="text-5xl font-semibold tracking-tight md:text-4xl lg:text-6xl tabular-nums">
         {passed}
-        <span className="text-base font-semibold text-muted-foreground">
-          {' '}
-          / {total}
+        <span className="text-xl font-medium text-muted-foreground">
+          /{total}
         </span>
       </p>
       <ScoreBadge percent={scorePercent(passed, total)} />
@@ -89,7 +88,9 @@ function FrustrationTile({ report, segments, langs }: LangTilesProps) {
 
   return (
     <Tile label="Customer frustration">
-      <p className="text-3xl font-bold">{MOOD_LABEL[peak]}</p>
+      <p className="text-5xl font-semibold tracking-tight md:text-4xl lg:text-6xl">
+        {MOOD_LABEL[peak]}
+      </p>
       <div className="flex flex-wrap items-center gap-2">
         <ToneBadge tone={peak}>Peak</ToneBadge>
         {turn && <TimeLink segmentId={turn.segment_id} time={turn.time} />}
@@ -121,7 +122,7 @@ function HandoverTile({ report, segments }: TilesProps) {
 
   return (
     <Tile label="Handover">
-      <p className="text-xl font-bold">
+      <p className="text-3xl font-semibold tracking-tight wrap-break-word">
         {handover ? handoverTitle(report, handover) : 'No handover'}
       </p>
       {check && (
