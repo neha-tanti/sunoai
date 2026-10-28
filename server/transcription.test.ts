@@ -384,13 +384,13 @@ describe('each failure in the TRD table', () => {
       'gnani_failed',
     ],
     [
-      'Gnani does not answer',
-      { status: 'IN_PROGRESS', unreachable: true, files: [] },
+      "Gnani's job answer is not in the expected shape",
+      { status: 'COMPLETED', malformed: true, files: [] },
       'gnani_failed',
     ],
     [
-      "Gnani's job answer is not in the expected shape",
-      { status: 'COMPLETED', malformed: true, files: [] },
+      "Gnani's files answer is not in the expected shape",
+      { ...completedJob(), malformedFiles: true },
       'gnani_failed',
     ],
   ])('%s → Failed (%s)', async (_, job, errorCode) => {
@@ -452,6 +452,48 @@ describe('each failure in the TRD table', () => {
       });
     },
   );
+
+  it.each<[string, FakeJob]>([
+    [
+      'Gnani does not answer',
+      { status: 'IN_PROGRESS', unreachable: true, files: [] },
+    ],
+    [
+      'the transcript link does not answer',
+      {
+        status: 'COMPLETED',
+        files: [
+          {
+            status: 'COMPLETED',
+            transcript: hinglishTranscript(),
+            transcriptFailure: 'unreachable',
+          },
+        ],
+      },
+    ],
+    [
+      'the transcript answer is cut off',
+      {
+        status: 'COMPLETED',
+        files: [
+          {
+            status: 'COMPLETED',
+            transcript: hinglishTranscript(),
+            transcriptFailure: 'cut_off',
+          },
+        ],
+      },
+    ],
+  ])('keeps the call Transcribing for the next run when %s', async (_, job) => {
+    const call = await transcribingCall(job);
+
+    expect(await finishByWebhook(call.jobId)).toEqual(['gnani_busy']);
+
+    expect((await readCall(call.id)).call).toMatchObject({
+      status: 'transcribing',
+      gnani_attempts: 1,
+    });
+  });
 
   it('finishes the call when Gnani answers 429 once and then answers', async () => {
     const call = await transcribingCall({ ...completedJob(), busyOnce: true });

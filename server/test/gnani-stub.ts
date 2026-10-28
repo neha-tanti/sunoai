@@ -12,6 +12,7 @@ export type FakeFile = {
   error_message?: string;
   transcript?: unknown;
   transcriptStatus?: number;
+  transcriptFailure?: 'unreachable' | 'cut_off';
 };
 
 export type FakeJob = {
@@ -20,6 +21,7 @@ export type FakeJob = {
   statusAnswer?: number;
   unreachable?: boolean;
   malformed?: boolean;
+  malformedFiles?: boolean;
   busyOnce?: boolean;
   filesAnswer?: number;
   files: FakeFile[];
@@ -59,6 +61,7 @@ export function stubGnani() {
       if (job.filesAnswer) {
         return Response.json({ error: 'STUBBED' }, { status: job.filesAnswer });
       }
+      if (job.malformedFiles) return Response.json({ job_id: jobId });
       return Response.json({
         job_id: jobId,
         data: job.files.map((file, index) => ({
@@ -92,6 +95,15 @@ export function stubGnani() {
     const fake = jobs.get(jobId)?.files[Number.parseInt(file, 10)];
     if (!fake || fake.transcript === undefined) {
       return new Response('Not found', { status: 404 });
+    }
+    if (fake.transcriptFailure === 'unreachable') {
+      throw new TypeError('fetch failed');
+    }
+    if (fake.transcriptFailure === 'cut_off') {
+      const stream = new ReadableStream({
+        start: (controller) => controller.error(new TypeError('terminated')),
+      });
+      return new Response(stream);
     }
     const init = { status: fake.transcriptStatus ?? 200 };
     if (typeof fake.transcript === 'string') {

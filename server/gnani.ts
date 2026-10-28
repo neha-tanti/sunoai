@@ -31,7 +31,9 @@ async function reach(url: string, init: RequestInit, what: string) {
 }
 
 async function readJson(res: Response, what: string): Promise<unknown> {
-  const body = await res.text();
+  const body = await res.text().catch((err: unknown) => {
+    throw new GnaniError(null, `${what} was cut off`, { cause: err });
+  });
   try {
     return JSON.parse(body);
   } catch {

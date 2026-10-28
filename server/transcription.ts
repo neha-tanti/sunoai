@@ -145,7 +145,7 @@ async function handleError(
     });
   }
 
-  const busy = err.status !== null && (err.status === 429 || err.status >= 500);
+  const busy = err.status === null || err.status === 429 || err.status >= 500;
   if (!busy) {
     logFailure(call, err);
     return fail(call.id, { code: 'gnani_failed', reason: err.message });
@@ -155,7 +155,7 @@ async function handleError(
   if (attempts >= MAX_GNANI_ATTEMPTS) {
     return fail(call.id, {
       code: 'gnani_failed',
-      reason: `Gnani answered ${err.status} ${attempts} times`,
+      reason: `Gnani answered ${err.status ?? 'nothing'} ${attempts} times`,
     });
   }
 
