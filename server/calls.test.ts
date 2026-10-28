@@ -1375,11 +1375,19 @@ describe('POST /api/calls/:id/analyze', () => {
     ['a call being analysed', { status: 'analyzing' as const }],
     ['an uploaded call', { status: 'uploaded' as const }],
     [
-      'a call whose transcription failed',
+      'a call Gnani failed to transcribe',
+      {
+        status: 'failed' as const,
+        error_code: 'gnani_failed' as const,
+        error: 'Gnani job ended FAILED',
+      },
+    ],
+    [
+      'a call whose transcript could not be saved',
       {
         status: 'failed' as const,
         error_code: 'transcription_failed' as const,
-        error: 'Gnani job ended FAILED',
+        error: 'Saving the transcript failed',
       },
     ],
   ])('refuses %s with not_retryable', async (_, overrides) => {

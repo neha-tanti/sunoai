@@ -12,6 +12,7 @@ import {
 } from 'vitest';
 import type { TablesInsert } from '@/lib/database.types';
 import { app } from './app';
+import { GNANI_REQUEST_MS } from './gnani';
 import { createAdminClient } from './supabase';
 import { flushAfter } from './test/after';
 import {
@@ -297,7 +298,7 @@ describe('each failure in the TRD table', () => {
         cancel_reason: 'All provided paths were invalid',
         files: [],
       },
-      'transcription_failed',
+      'gnani_failed',
     ],
     [
       'the job fails',
@@ -305,7 +306,7 @@ describe('each failure in the TRD table', () => {
         status: 'FAILED',
         files: [{ status: 'FAILED', error_message: 'Decoder error' }],
       },
-      'transcription_failed',
+      'gnani_failed',
     ],
     [
       'the job partly fails',
@@ -313,12 +314,12 @@ describe('each failure in the TRD table', () => {
         status: 'PARTIAL_FAILURE',
         files: [{ status: 'FAILED', error_message: 'Decoder error' }],
       },
-      'transcription_failed',
+      'gnani_failed',
     ],
     [
       'the job is cancelled',
       { status: 'CANCELLED', files: [] },
-      'transcription_failed',
+      'gnani_failed',
     ],
     [
       'the file has no speech',
@@ -355,7 +356,7 @@ describe('each failure in the TRD table', () => {
           },
         ],
       },
-      'transcription_failed',
+      'gnani_failed',
     ],
     [
       'the transcript is not in the expected shape',
@@ -363,9 +364,35 @@ describe('each failure in the TRD table', () => {
       'transcription_failed',
     ],
     [
+      'saving the transcript fails',
+      completedJob({
+        ...hinglishTranscript(),
+        // Postgres rejects a NUL character in jsonb, so save_transcript fails.
+        segments: [
+          {
+            start_time: 0,
+            end_time: 4.2,
+            speaker_id: 1,
+            text: 'Haan ji\u0000',
+          },
+        ],
+      }),
+      'transcription_failed',
+    ],
+    [
       'Gnani finishes without a transcript',
       { status: 'COMPLETED', files: [] },
-      'transcription_failed',
+      'gnani_failed',
+    ],
+    [
+      "Gnani's job answer is not in the expected shape",
+      { status: 'COMPLETED', malformed: true, files: [] },
+      'gnani_failed',
+    ],
+    [
+      "Gnani's files answer is not in the expected shape",
+      { ...completedJob(), malformedFiles: true },
+      'gnani_failed',
     ],
   ])('%s → Failed (%s)', async (_, job, errorCode) => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -392,7 +419,7 @@ describe('each failure in the TRD table', () => {
     const { call: saved } = await readCall(call.id);
     expect(saved).toMatchObject({
       status: 'failed',
-      error_code: 'transcription_failed',
+      error_code: 'gnani_failed',
     });
     expect(saved?.error).not.toContain(transcriptText);
     expect(consoleError).toHaveBeenCalled();
@@ -409,23 +436,78 @@ describe('each failure in the TRD table', () => {
     expect(await finishByWebhook(call.jobId)).toEqual(['ready']);
   });
 
-  it.each([429, 503])(
-    'keeps the call Transcribing for the next run when Gnani answers %i',
-    async (status) => {
-      const call = await transcribingCall({
-        status: 'IN_PROGRESS',
-        statusAnswer: status,
-        files: [],
-      });
+  it.each<[string, FakeJob]>([
+    [
+      'Gnani answers 429',
+      { status: 'IN_PROGRESS', statusAnswer: 429, files: [] },
+    ],
+    [
+      'Gnani answers 503',
+      { status: 'IN_PROGRESS', statusAnswer: 503, files: [] },
+    ],
+    [
+      'Gnani rate-limits the files of a finished job',
+      { ...completedJob(), filesAnswer: 429 },
+    ],
+    [
+      'Gnani does not answer',
+      { status: 'IN_PROGRESS', unreachable: true, files: [] },
+    ],
+    [
+      'the transcript link does not answer',
+      {
+        status: 'COMPLETED',
+        files: [
+          {
+            status: 'COMPLETED',
+            transcript: hinglishTranscript(),
+            transcriptFailure: 'unreachable',
+          },
+        ],
+      },
+    ],
+    [
+      'the transcript answer is cut off',
+      {
+        status: 'COMPLETED',
+        files: [
+          {
+            status: 'COMPLETED',
+            transcript: hinglishTranscript(),
+            transcriptFailure: 'cut_off',
+          },
+        ],
+      },
+    ],
+  ])('keeps the call Transcribing for the next run when %s', async (_, job) => {
+    const call = await transcribingCall(job);
 
-      expect(await finishByWebhook(call.jobId)).toEqual(['gnani_busy']);
+    expect(await finishByWebhook(call.jobId)).toEqual(['gnani_busy']);
 
-      expect((await readCall(call.id)).call).toMatchObject({
-        status: 'transcribing',
-        gnani_attempts: 1,
-      });
-    },
-  );
+    expect((await readCall(call.id)).call).toMatchObject({
+      status: 'transcribing',
+      gnani_attempts: 1,
+    });
+  });
+
+  it('gives up on a Gnani request that stalls without waiting for the run deadline', async () => {
+    const timeout = AbortSignal.timeout.bind(AbortSignal);
+    vi.spyOn(AbortSignal, 'timeout').mockImplementation((ms) =>
+      timeout(ms === GNANI_REQUEST_MS ? 50 : ms),
+    );
+    const call = await transcribingCall({
+      status: 'IN_PROGRESS',
+      stalled: true,
+      files: [],
+    });
+
+    expect(await finishByWebhook(call.jobId)).toEqual(['gnani_busy']);
+
+    expect((await readCall(call.id)).call).toMatchObject({
+      status: 'transcribing',
+      gnani_attempts: 1,
+    });
+  });
 
   it('finishes the call when Gnani answers 429 once and then answers', async () => {
     const call = await transcribingCall({ ...completedJob(), busyOnce: true });
@@ -435,20 +517,6 @@ describe('each failure in the TRD table', () => {
     expect((await readCall(call.id)).call).toMatchObject({
       status: 'ready',
       gnani_attempts: 0,
-    });
-  });
-
-  it('keeps a finished call Transcribing when Gnani rate-limits its files', async () => {
-    const call = await transcribingCall({
-      ...completedJob(),
-      filesAnswer: 429,
-    });
-
-    expect(await finishByWebhook(call.jobId)).toEqual(['gnani_busy']);
-
-    expect((await readCall(call.id)).call).toMatchObject({
-      status: 'transcribing',
-      gnani_attempts: 1,
     });
   });
 
@@ -473,7 +541,7 @@ describe('each failure in the TRD table', () => {
     });
     expect((await readCall(thirtieth.id)).call).toMatchObject({
       status: 'failed',
-      error_code: 'transcription_failed',
+      error_code: 'gnani_failed',
     });
   });
 
@@ -485,7 +553,7 @@ describe('each failure in the TRD table', () => {
 
     expect(await finishByWebhook(call.jobId)).toEqual(['failed']);
     expect((await readCall(call.id)).call).toMatchObject({
-      error_code: 'transcription_failed',
+      error_code: 'gnani_failed',
     });
   });
 });

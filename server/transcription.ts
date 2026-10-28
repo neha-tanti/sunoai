@@ -54,7 +54,7 @@ async function finish(
   if (!FINAL_JOB_STATUSES.includes(job.status)) {
     if (!isOverdue(call)) return 'pending';
     return fail(call.id, {
-      code: 'transcription_failed',
+      code: 'gnani_failed',
       reason: `Gnani job still ${job.status} after 2 hours`,
     });
   }
@@ -68,7 +68,7 @@ async function finish(
   )?.transcript_url;
   if (!transcriptUrl) {
     return fail(call.id, {
-      code: 'transcription_failed',
+      code: 'gnani_failed',
       reason: 'Gnani finished without a transcript',
     });
   }
@@ -122,7 +122,7 @@ function jobFailure(
   if (job.status === 'COMPLETED') return null;
 
   return {
-    code: 'transcription_failed',
+    code: 'gnani_failed',
     reason:
       job.cancel_reason ?? failedMessage ?? `Gnani job ended ${job.status}`,
   };
@@ -136,12 +136,8 @@ async function handleError(
   call: TranscribingCall,
   err: unknown,
 ): Promise<FinishOutcome> {
-  const gnaniBusy =
-    err instanceof GnaniError && (err.status === 429 || err.status >= 500);
-  if (!gnaniBusy) {
-    console.error(
-      `Finishing the transcription of call ${call.id} failed: ${loggableError(err)}`,
-    );
+  if (!(err instanceof GnaniError)) {
+    logFailure(call, err);
     return fail(call.id, {
       code: 'transcription_failed',
       reason:
@@ -149,11 +145,17 @@ async function handleError(
     });
   }
 
+  const busy = err.status === null || err.status === 429 || err.status >= 500;
+  if (!busy) {
+    logFailure(call, err);
+    return fail(call.id, { code: 'gnani_failed', reason: err.message });
+  }
+
   const attempts = call.gnani_attempts + 1;
   if (attempts >= MAX_GNANI_ATTEMPTS) {
     return fail(call.id, {
-      code: 'transcription_failed',
-      reason: `Gnani answered ${err.status} ${attempts} times`,
+      code: 'gnani_failed',
+      reason: `Gnani answered ${err.status ?? 'nothing'} ${attempts} times`,
     });
   }
 
@@ -165,4 +167,10 @@ async function handleError(
     .eq('gnani_attempts', call.gnani_attempts);
   if (updated.error) throw updated.error;
   return 'gnani_busy';
+}
+
+function logFailure(call: TranscribingCall, err: unknown) {
+  console.error(
+    `Finishing the transcription of call ${call.id} failed: ${loggableError(err)}`,
+  );
 }
