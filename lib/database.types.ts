@@ -28,10 +28,10 @@ export type Database = {
           example_id: string | null
           file_path: string
           file_size_bytes: number
-          gnani_attempts: number
           gnani_job_id: string | null
           id: string
           mime_type: string
+          polled_at: string | null
           status: Database["public"]["Enums"]["call_status"]
           status_at: string
           title: string
@@ -49,10 +49,10 @@ export type Database = {
           example_id?: string | null
           file_path: string
           file_size_bytes: number
-          gnani_attempts?: number
           gnani_job_id?: string | null
           id?: string
           mime_type: string
+          polled_at?: string | null
           status?: Database["public"]["Enums"]["call_status"]
           status_at?: string
           title: string
@@ -70,10 +70,10 @@ export type Database = {
           example_id?: string | null
           file_path?: string
           file_size_bytes?: number
-          gnani_attempts?: number
           gnani_job_id?: string | null
           id?: string
           mime_type?: string
+          polled_at?: string | null
           status?: Database["public"]["Enums"]["call_status"]
           status_at?: string
           title?: string
@@ -267,6 +267,7 @@ export type Database = {
         Args: { p_call_id: string; p_limit: number }
         Returns: boolean
       }
+      claim_gnani_poll: { Args: { p_call_id: string }; Returns: boolean }
       load_checklist: { Args: never; Returns: Json }
       save_checklist: {
         Args: {

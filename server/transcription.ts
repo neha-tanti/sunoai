@@ -12,15 +12,14 @@ import { loggableError } from './errors';
 import { failCall, type Failure } from './fail-call';
 import { createAdminClient } from './supabase';
 
-const MAX_GNANI_ATTEMPTS = 180;
+const MAX_BUSY_MS = 30 * 60 * 1000;
 const MAX_TRANSCRIBING_MS = 2 * 60 * 60 * 1000;
 
-export const TRANSCRIBING_CALL_COLUMNS =
-  'id, gnani_job_id, gnani_attempts, checked_at';
+export const TRANSCRIBING_CALL_COLUMNS = 'id, gnani_job_id, checked_at';
 
 export type TranscribingCall = Pick<
   Tables<'calls'>,
-  'id' | 'gnani_job_id' | 'gnani_attempts' | 'checked_at'
+  'id' | 'gnani_job_id' | 'checked_at'
 >;
 
 export type FinishOutcome =
@@ -52,7 +51,7 @@ async function finish(
 
   const job = await getJob(jobId, signal);
   if (!FINAL_JOB_STATUSES.includes(job.status)) {
-    if (!isOverdue(call)) return 'pending';
+    if (!checkedOver(call, MAX_TRANSCRIBING_MS)) return 'pending';
     return fail(call.id, {
       code: 'gnani_failed',
       reason: `Gnani job still ${job.status} after 2 hours`,
@@ -96,9 +95,9 @@ async function finish(
   return saved.data ? 'analyzing' : 'lost_race';
 }
 
-function isOverdue(call: TranscribingCall) {
+function checkedOver(call: TranscribingCall, ms: number) {
   if (!call.checked_at) return false;
-  return Date.now() - Date.parse(call.checked_at) > MAX_TRANSCRIBING_MS;
+  return Date.now() - Date.parse(call.checked_at) > ms;
 }
 
 function jobFailure(
@@ -151,22 +150,11 @@ async function handleError(
     return fail(call.id, { code: 'gnani_failed', reason: err.message });
   }
 
-  const attempts = call.gnani_attempts + 1;
-  if (attempts >= MAX_GNANI_ATTEMPTS) {
-    return fail(call.id, {
-      code: 'gnani_failed',
-      reason: `Gnani answered ${err.status ?? 'nothing'} ${attempts} times`,
-    });
-  }
-
-  const updated = await createAdminClient()
-    .from('calls')
-    .update({ gnani_attempts: attempts })
-    .eq('id', call.id)
-    .eq('status', 'transcribing')
-    .eq('gnani_attempts', call.gnani_attempts);
-  if (updated.error) throw updated.error;
-  return 'gnani_busy';
+  if (!checkedOver(call, MAX_BUSY_MS)) return 'gnani_busy';
+  return fail(call.id, {
+    code: 'gnani_failed',
+    reason: `Gnani answered ${err.status ?? 'nothing'} 30 minutes after the check`,
+  });
 }
 
 function logFailure(call: TranscribingCall, err: unknown) {

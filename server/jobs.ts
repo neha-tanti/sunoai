@@ -28,6 +28,14 @@ async function failStoppedAnalyses() {
   console.warn(`Failed stopped analyses for calls ${ids}`);
 }
 
+async function claimPoll(callId: string) {
+  const claimed = await createAdminClient().rpc('claim_gnani_poll', {
+    p_call_id: callId,
+  });
+  if (claimed.error) throw claimed.error;
+  return claimed.data;
+}
+
 async function pollTranscribingCalls(signal: AbortSignal) {
   const due = await createAdminClient()
     .from('calls')
@@ -35,7 +43,7 @@ async function pollTranscribingCalls(signal: AbortSignal) {
     .eq('status', 'transcribing')
     .not('gnani_job_id', 'is', null)
     .lt('status_at', new Date(Date.now() - STUCK_AFTER_MS).toISOString())
-    .order('gnani_attempts')
+    .order('polled_at', { nullsFirst: true })
     .order('status_at');
   if (due.error) throw due.error;
 
@@ -45,6 +53,7 @@ async function pollTranscribingCalls(signal: AbortSignal) {
   }[] = [];
   for (const call of due.data) {
     if (signal.aborted) break;
+    if (!(await claimPoll(call.id))) continue;
     const outcome = await finishCall(call, signal);
     outcomes.push({ callId: call.id, outcome });
     if (outcome !== 'pending') break;
