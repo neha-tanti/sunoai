@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { CallReport } from '@/components/call-report';
 import { CallStatus } from '@/components/call-status';
 import { CheckAgainButton } from '@/components/check-again-button';
-import { PAGE_TITLE } from '@/components/icon-tile';
+import { PageTitle } from '@/components/page-title';
 import { Badge } from '@/components/ui/badge';
 import { type CallDetail, useCall } from '@/hooks/use-call';
 import { CALL_LANGUAGES } from '@/lib/call-upload';
@@ -28,7 +28,7 @@ export function CallView() {
   if (!call.data) {
     return (
       <div className="flex flex-col gap-2">
-        <h1 className={PAGE_TITLE}>Call not found</h1>
+        <PageTitle>Call not found</PageTitle>
         <p className="text-muted-foreground">
           This call doesn&apos;t exist or was deleted.
         </p>
@@ -44,7 +44,7 @@ export function CallView() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3">
-        <h1 className={PAGE_TITLE}>{title}</h1>
+        <PageTitle>{title}</PageTitle>
         {report && <CallMeta call={detail} checkedAt={report.created_at} />}
         <CallStatus status={status} errorCode={errorCode} />
         {errorCode === 'analysis_failed' && <CheckAgainButton callId={id} />}

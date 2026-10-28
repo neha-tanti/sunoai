@@ -7,7 +7,6 @@ import { ChecklistResults } from '@/components/checklist-results';
 import { CoachingPlayer } from '@/components/coaching-player';
 import { FixNotesList } from '@/components/fix-notes-list';
 import { FrustrationTimeline } from '@/components/frustration-timeline';
-import { type Tint, TINT_CLASS } from '@/components/icon-tile';
 import { RedFlagsList } from '@/components/red-flags-list';
 import { ReportTiles } from '@/components/report-tiles';
 import { ReviewBanner } from '@/components/review-banner';
@@ -22,6 +21,7 @@ import {
 } from '@/components/ui/card';
 import type { CallDetail, ReportDetail, Segment } from '@/hooks/use-call';
 import { langOf } from '@/lib/report-labels';
+import { type Tint, TINT_CLASS } from '@/lib/tints';
 import { cn } from '@/lib/utils';
 
 type Call = CallDetail['call'];
@@ -167,7 +167,7 @@ function CoachingFrame({ children }: { children: React.ReactNode }) {
       id="coaching"
       role="region"
       aria-label="Coaching"
-      className="scroll-below-jump-bar"
+      className="scroll-mt-(--jump-bar-offset)"
     >
       <CardHeader>
         <CardTitle>

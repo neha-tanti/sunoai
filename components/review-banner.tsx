@@ -1,6 +1,6 @@
 import { CircleCheckIcon, TriangleAlertIcon } from 'lucide-react';
-import { TINT_CLASS } from '@/components/icon-tile';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { TINT_CLASS } from '@/lib/tints';
 
 export function ReviewBanner({ redFlags }: { redFlags: number }) {
   if (redFlags === 0) {

@@ -9,13 +9,14 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { AudioPlayer } from '@/components/audio-player';
-import { IconTile, type Tint } from '@/components/icon-tile';
+import { IconTile } from '@/components/icon-tile';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useCheckExample } from '@/hooks/use-check-example';
 import { useExampleAudio } from '@/hooks/use-example-audio';
 import { useHydrated } from '@/hooks/use-hydrated';
 import { EXAMPLE_CALLS, type ExampleCallId } from '@/lib/examples';
+import type { Tint } from '@/lib/tints';
 
 type ExampleCall = (typeof EXAMPLE_CALLS)[number];
 

@@ -19,7 +19,7 @@ export function FixNotesList({ notes, langs }: FixNotesListProps) {
       id="ai-fixes"
       role="region"
       aria-label="AI fix notes"
-      className="scroll-below-jump-bar"
+      className="scroll-mt-(--jump-bar-offset)"
     >
       <CardHeader>
         <CardTitle>

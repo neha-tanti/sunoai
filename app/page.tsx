@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { Suspense } from 'react';
 import { FrustrationTimeline } from '@/components/frustration-timeline';
-import { IconTile, type Tint } from '@/components/icon-tile';
+import { IconTile } from '@/components/icon-tile';
 import { ReportTiles } from '@/components/report-tiles';
 import { ReviewBanner } from '@/components/review-banner';
 import { ScoreBadge } from '@/components/score-badge';
@@ -33,6 +33,7 @@ import {
 import { MOOD_CLASS, MOOD_LABEL } from '@/lib/report-labels';
 import { scorePercent } from '@/lib/score-band';
 import { SITE_DESCRIPTION, SITE_URL, SOURCE_URL } from '@/lib/site';
+import type { Tint } from '@/lib/tints';
 import { cn } from '@/lib/utils';
 
 const LATE_ORDER = exampleCall('late-order');

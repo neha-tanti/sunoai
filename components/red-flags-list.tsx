@@ -1,4 +1,3 @@
-import { TINT_CLASS } from '@/components/icon-tile';
 import { SpeakerChip } from '@/components/speaker-chip';
 import { QuoteLink, TimeLink } from '@/components/time-link';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +9,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import type { ReportDetail, Segment } from '@/hooks/use-call';
+import { TINT_CLASS } from '@/lib/tints';
 
 type RedFlagsListProps = {
   report: ReportDetail;
@@ -25,7 +25,7 @@ export function RedFlagsList({ report, segments, langs }: RedFlagsListProps) {
       id="red-flags"
       role="region"
       aria-label="Red flags"
-      className="scroll-below-jump-bar"
+      className="scroll-mt-(--jump-bar-offset)"
     >
       <CardHeader>
         <CardTitle>

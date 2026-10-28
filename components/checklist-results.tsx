@@ -20,7 +20,7 @@ export function ChecklistResults({ checks, langs }: ChecklistResultsProps) {
       id="checklist"
       role="region"
       aria-label="Agent checklist"
-      className="scroll-below-jump-bar"
+      className="scroll-mt-(--jump-bar-offset)"
     >
       <CardHeader>
         <CardTitle>
