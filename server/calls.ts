@@ -249,6 +249,7 @@ async function startCheck(id: string, isAnonymous: boolean) {
       status: 'transcribing',
       gnani_job_id: jobId,
       checked_at: new Date().toISOString(),
+      answered_at: new Date().toISOString(),
     })
     .eq('id', id)
     .eq('status', 'uploaded')

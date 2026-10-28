@@ -86,6 +86,7 @@ async function transcribingCall(
     status: 'transcribing',
     gnani_job_id: jobId,
     checked_at: new Date().toISOString(),
+    answered_at: new Date().toISOString(),
     ...overrides,
   });
   createdIds.push(call.id);
@@ -187,7 +188,7 @@ describe('a call from upload to Ready', () => {
   });
 });
 
-describe('the webhook and the poll arriving together', () => {
+describe('the webhook and the poll both finishing a call', () => {
   it('finish the call exactly once', async () => {
     const call = await transcribingCall(completedJob());
     await backdate(call.id, 2);
@@ -195,8 +196,13 @@ describe('the webhook and the poll arriving together', () => {
       .spyOn(console, 'error')
       .mockImplementation(() => {});
 
-    const responses = await Promise.all([sendWebhook(call.jobId), sendPoll()]);
-    expect(responses.map((res) => res.status)).toEqual([200, 202]);
+    expect((await sendWebhook(call.jobId)).status).toBe(200);
+    const unclaimed = await createAdminClient()
+      .from('calls')
+      .update({ polled_at: new Date(Date.now() - 60_000).toISOString() })
+      .eq('id', call.id);
+    if (unclaimed.error) throw unclaimed.error;
+    expect((await sendPoll()).status).toBe(202);
     const results = (await flushAfter()) as (
       string | { callId: string; outcome: string }[]
     )[];
@@ -512,7 +518,10 @@ describe('each failure in the TRD table', () => {
   });
 
   it('records when Gnani last answered about a job still running', async () => {
-    const call = await transcribingCall({ status: 'IN_PROGRESS', files: [] });
+    const call = await transcribingCall(
+      { status: 'IN_PROGRESS', files: [] },
+      { answered_at: null },
+    );
 
     expect(await finishByWebhook(call.jobId)).toEqual(['pending']);
 

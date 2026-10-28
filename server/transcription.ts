@@ -63,11 +63,12 @@ async function finish(
   const job = await getJob(jobId, signal);
   if (!FINAL_JOB_STATUSES.includes(job.status)) {
     if (!olderThan(call.checked_at, MAX_TRANSCRIBING_MS)) {
-      return recordAnswer(call.id);
+      await markAnswered(call.id);
+      return 'pending';
     }
     return fail(call.id, {
       code: 'gnani_failed',
-      reason: `Gnani job still ${job.status} after 2 hours`,
+      reason: `Gnani job still ${job.status} after ${MAX_TRANSCRIBING_MS / 3_600_000} hours`,
     });
   }
 
@@ -108,14 +109,13 @@ async function finish(
   return saved.data ? 'analyzing' : 'lost_race';
 }
 
-async function recordAnswer(callId: string): Promise<FinishOutcome> {
+async function markAnswered(callId: string) {
   const updated = await createAdminClient()
     .from('calls')
     .update({ answered_at: new Date().toISOString() })
     .eq('id', callId)
     .eq('status', 'transcribing');
   if (updated.error) throw updated.error;
-  return 'pending';
 }
 
 function olderThan(time: string | null, ms: number) {
@@ -173,12 +173,10 @@ async function handleError(
     return fail(call.id, { code: 'gnani_failed', reason: err.message });
   }
 
-  if (!olderThan(call.answered_at ?? call.checked_at, MAX_BUSY_MS)) {
-    return 'gnani_busy';
-  }
+  if (!olderThan(call.answered_at, MAX_BUSY_MS)) return 'gnani_busy';
   return fail(call.id, {
     code: 'gnani_failed',
-    reason: `Gnani hasn't answered for over ${MAX_BUSY_MS / 60_000} minutes (last: ${err.status ?? 'no answer'})`,
+    reason: `Gnani was busy or silent for over ${MAX_BUSY_MS / 60_000} minutes (last: ${err.status ?? 'no answer'})`,
   });
 }
 
