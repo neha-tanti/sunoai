@@ -191,7 +191,7 @@ describe('a call from upload to Ready', () => {
 describe('the webhook and the poll both finishing a call', () => {
   it('finish the call exactly once', async () => {
     const job = completedJob();
-    job.files[0].holdFor = 2;
+    job.files[0].holdUntilRequests = 2;
     const call = await transcribingCall(job);
     await backdate(call.id, 2);
     const consoleError = vi
