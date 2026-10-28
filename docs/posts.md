@@ -37,8 +37,8 @@ One post a day on both platforms, each covering one piece of work. Days 1–4 co
 | 2 | 24 October | Gnani Prisma tells the AI agent, customer and human agent apart | Done (#13) |
 | 3 | 25 October | Upload a call, get a report; "no quote, no pass" | Done (#3–#6) |
 | 4 | 26 October | Spoken coaching with Gnani Timbre, and the checklist editor | Done (#7, #8, #21) |
-| 5 | 27 October | Six made-up test calls, results written down first | In progress |
-| 6 | When it's live | SunoAI is live on Vercel | Not started (#9) |
+| 5 | 27 October | Seven made-up test calls, results written down first | In progress |
+| 6 | Now | SunoAI is live on Vercel | Done (#9) |
 | 7 | Before 10 November | The demo video (nominate this one) | Not started |
 
 ## Drafts
@@ -204,26 +204,26 @@ SunoAI matched [N] of 7. [What it got wrong, in one line.]
 #GreatIndianAIInternshipChallenge #GnaniAI
 ```
 
-**X** (275/280 with one digit in place of [N])
+**X** (278/280 with one digit in place of [N])
 
 ```text
-Day 5 of SunoAI 🎧 Six made-up support calls, voiced with @GnaniAi Timbre: a rude agent, an insect in food, a missing item, an order ID loop, a late order, a forbidden promise.
+Day 5 of SunoAI 🎧 Seven made-up support calls, voiced by @GnaniAi Timbre: a rude agent, an insect in food, a missing item, an order ID loop, a late order, a forbidden promise, a mood swing.
 
-Expected results written first. SunoAI matched [N]/6.
+Answers written first. SunoAI matched [N]/7.
 
 #GreatIndianAIInternshipChallenge #GnaniAI
 ```
 
 ### Day 6: SunoAI is live
 
-Not posted yet. Post once #9 is done and the app is on Vercel. Replace [link] with the app's URL (X counts any link as 23 characters).
+Not posted yet. The app is live at https://suno-ai.vercel.app (X counts any link as 23 characters).
 
 **LinkedIn**
 
 ```text
 SunoAI is live 🎧
 
-Upload a recorded food delivery or quick-commerce support call and SunoAI shows:
+Upload a recorded food delivery support call and SunoAI shows:
 📈 Where the customer got frustrated, and the line where it turned
 🚩 Risky moments, like a customer asking for a person and not getting one
 ✅ A score against your team's checklist, with a quote from the call for every pass
@@ -231,7 +231,7 @@ Upload a recorded food delivery or quick-commerce support call and SunoAI shows:
 
 Built on Gnani Prisma for speech-to-text and Gnani Timbre for text-to-speech.
 
-Try it: [link]
+Try it: https://suno-ai.vercel.app
 
 @Gnani AI
 #GreatIndianAIInternshipChallenge #GnaniAI
@@ -242,7 +242,7 @@ Try it: [link]
 ```text
 SunoAI is live 🎧 Upload a food delivery support call and see where the customer got frustrated, what went wrong and how the agent can do better.
 
-Built on @GnaniAi Prisma and Timbre. Try it: [link]
+Built on @GnaniAi Prisma and Timbre. Try it: https://suno-ai.vercel.app
 
 #GreatIndianAIInternshipChallenge #GnaniAI
 ```
@@ -264,7 +264,7 @@ Gnani Prisma writes down the call with who said what. Gnani Timbre speaks the co
 
 Every call in this video is made up.
 
-Try it: [link]
+Try it: https://suno-ai.vercel.app
 
 @Gnani AI
 #GreatIndianAIInternshipChallenge #GnaniAI
