@@ -254,32 +254,30 @@ Not posted yet. This is the post to nominate (see [The demo post](#the-demo-post
 **LinkedIn**
 
 ```text
-SunoAI in 60 seconds 🎥
+Meet SunoAI 🎧 the AI that listens to your customer calls and shows exactly where your agents, human ho ya AI, are losing customers.
 
-A customer's order arrives with an insect in it. The AI agent offers a coupon. The customer asks for a manager and doesn't get one.
+Watch the demo 👇
+Order ek ghanta late. Customer: "Mujhe kisi insaan se baat karni hai."
+Bot: same line. Again. 🙃
 
-SunoAI listens to the recorded call and shows the exact moment the customer turned angry, flags the missed request for a person, scores the call against the team's checklist, writes fix notes for the AI team, and speaks coaching to the human agent in their own language.
+SunoAI catches the exact moment the customer got angry, flags it, and gives the agent spoken coaching in their own language.
 
-Gnani Prisma writes down the call with who said what. Gnani Timbre speaks the coaching.
+Powered by Gnani Prisma and Gnani Timbre. (Call is made-up.)
 
-Every call in this video is made up.
-
-Try it: https://suno-ai.vercel.app
+Try it yourself 👉 https://suno-ai.vercel.app
 
 @Gnani AI
 #GreatIndianAIInternshipChallenge #GnaniAI
 ```
 
-**X** (244/280)
+**X** (279/280)
 
 ```text
-SunoAI in 60 seconds 🎥
+SunoAI 🎧 listens to customer calls and shows where your agents, human ho ya AI, mess up.
 
-A frustrated customer, an AI agent that couldn't help, and the exact moment it turned. Then spoken coaching for the human agent.
+Demo: order late. Customer: "mujhe kisi insaan se baat karni hai." Bot: same line, again 🙃
 
-Built on @GnaniAi Prisma and Timbre.
-
-[video]
+@GnaniAi Prisma + Timbre 👉 https://suno-ai.vercel.app
 
 #GreatIndianAIInternshipChallenge #GnaniAI
 ```
