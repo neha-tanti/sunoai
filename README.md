@@ -4,7 +4,7 @@ SunoAI checks food delivery and quick-commerce support calls. It shows where the
 
 Built for Gnani AI's [Great Indian AI Internship Challenge 2026](https://www.gnani.ai/internship).
 
-> **Status:** pre-production. The app is scaffolded with every tool in place; features are being built.
+> **Live at [suno-ai.vercel.app](https://suno-ai.vercel.app).** Every call it checks for the challenge is made-up.
 
 ## What it does
 
@@ -29,6 +29,13 @@ It works in Hindi, Bengali, Marathi, Tamil, Telugu, Kannada, Malayalam, Gujarati
 | [Technical Requirements](docs/TRD.md) | Architecture, call pipeline, Gnani and LLM integration, data model, API, frontend, security, testing, deployment |
 | [Prototype](https://claude.ai/artifact/MtyZJxoHXg5a61X6216nTk) | Clickable visual reference with made-up sample calls |
 | [Posts](docs/posts.md) | Progress posts on LinkedIn and X: the rules every post follows, a log of what's live, and drafts |
+
+### Articles
+
+| Article | What it covers |
+| --- | --- |
+| [Finding the moment a support call goes wrong](https://medium.com/@nehatanti59/finding-the-moment-a-support-call-goes-wrong-4a9f2320829d) | The product and design: what SunoAI shows and why |
+| [How I built SunoAI: from a phone call to a report you can check](https://medium.com/@nehatanti59/how-i-built-sunoai-from-a-phone-call-to-a-report-you-can-check-fa4e71262e86) | The tech and architecture: Gnani Prisma, the LLM checks, Timbre coaching |
 
 ## How Gnani AI is used
 
@@ -103,7 +110,7 @@ lib/          Code the browser may import: the typed Hono client and shared help
 e2e/          Playwright tests
 supabase/     Supabase CLI config
 scripts/      Hand-run scripts: the seven test calls, voicing them, checking them and the Gnani and LLM spike
-docs/         PRD, TRD and spike write-ups
+docs/         PRD, TRD, posts and spike write-ups
 .claude/      Claude Code agents, commands, skills, rules and settings
 AGENTS.md     Instructions for coding agents working in this repo
 ```
