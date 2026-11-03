@@ -27,6 +27,15 @@ This is the post that decides shortlisting. Progress posts build an audience for
 | --- | --- | --- | --- | --- |
 | – | – | Nothing posted yet | – | – |
 
+## Articles
+
+Longer write-ups on Medium.
+
+| Article | What it covers |
+| --- | --- |
+| [Finding the moment a support call goes wrong](https://medium.com/@nehatanti59/finding-the-moment-a-support-call-goes-wrong-4a9f2320829d) | The product and design: what SunoAI shows and why |
+| [How I built SunoAI: from a phone call to a report you can check](https://medium.com/@nehatanti59/how-i-built-sunoai-from-a-phone-call-to-a-report-you-can-check-fa4e71262e86) | The tech and architecture: Gnani Prisma, the LLM checks, Timbre coaching |
+
 ## Plan
 
 One post a day on both platforms, each covering one piece of work. Days 1–4 cover work that is finished. Day 5 goes out once the seven test calls have run, Day 6 once the app is live on Vercel, and Day 7 is the demo post. If a day's work runs late, the plan moves back a day. The demo post must be live before 10 November.

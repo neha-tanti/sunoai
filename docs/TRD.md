@@ -2,6 +2,8 @@
 
 Last updated: 23 October 2026
 
+Read how it was built on Medium: [How I built SunoAI: from a phone call to a report you can check](https://medium.com/@nehatanti59/how-i-built-sunoai-from-a-phone-call-to-a-report-you-can-check-fa4e71262e86).
+
 ## Summary
 
 The SunoAI MVP is a Next.js app on Vercel, with a Hono API inside it and Supabase for data. It sends each call to Gnani's Batch speech-to-text, analyses the transcript with one low-cost model on OpenRouter, and speaks coaching with Gnani Timbre.

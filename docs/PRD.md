@@ -2,6 +2,8 @@
 
 Last updated: 9 October 2026
 
+Read the design story on Medium: [Finding the moment a support call goes wrong](https://medium.com/@nehatanti59/finding-the-moment-a-support-call-goes-wrong-4a9f2320829d).
+
 ## Summary
 
 SunoAI checks food delivery and quick-commerce support calls, shows where the customer got frustrated, and helps fix both the AI agent and the human agent.
